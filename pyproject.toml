@@ -28,7 +28,7 @@ dev = [
 include = ["slim_data*"]
 
 [tool.setuptools.package-data]
-slim_data = ["persistence/alembic.ini", "persistence/migrations/**/*"]
+slim_data = ["persistence/alembic.ini", "persistence/migrations/**/*", "rulesets/*.json"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

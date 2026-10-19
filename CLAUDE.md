@@ -1,6 +1,6 @@
 # slim-data — Claude context
 
-> **Read first.** The design is **signed off** (2026-10-19); building (Phase B). M0 and M1 done, M2 next.
+> **Read first.** The design is **signed off** (2026-10-19); building (Phase B). M0, M1 done; M2 part 1 (engine framework + cup steps) done, part 2 next.
 > Jamie is the **designer**; Claude writes all the code once the plan is signed off, then explains the
 > finished product until Jamie can defend every decision in an interview. Drive design through
 > decisions with a recommendation each time, push back when you disagree, and raise any design change
@@ -234,12 +234,20 @@ slim_data/
 │   ├── policy.py    # Policy (role rules + identity rules), DEMO_POLICY, PRODUCTION_EXAMPLE_POLICY
 │   └── workflow.py  # review / accept / request_rerun / record_exception / release / reject / start_correction
 ├── engine/          # pure: stdlib + pydantic + domain only
+│   ├── numbers.py   # fixed Decimal context (exact replay), rpd, median
+│   ├── model.py     # EvaluationInput; Cell/BatchState (working state); CellOutcome, BatchEvaluation
+│   ├── step.py      # Step protocol: name@version, Params, flag_codes, requires, run, warnings
+│   ├── ruleset.py   # Ruleset (steps + params + severity table), content_hash, validate_ruleset
+│   ├── registry.py  # StepRegistry (add, never replace), default_registry
+│   ├── runner.py    # evaluate(input, ruleset) -> BatchEvaluation; replay(...) -> differences
+│   └── steps/       # cup_shape@1, linear_range@1, agreement@1, cup_choice@1 (manifest: tests/engine/step_manifest.txt)
 ├── pipeline/        # reader plugins -> import plan
 ├── persistence/
 │   ├── oss_guard.py # refuses non-demo DBs ("precilab" never; other hosts via SLIM_DATA_ALLOWED_DB_HOSTS)
 │   ├── db.py        # Base (own MetaData, naming convention), make_engine: the only create_engine call
 │   ├── migrate.py   # upgrade/downgrade(connection); VERSION_TABLE = alembic_version_slim_data
 │   ├── alembic.ini, migrations/   # env.py: own version table + include_object (own tables only)
+├── rulesets/        # ruleset files (JSON); demo_metals.json
 ├── service/         # ResultService facade (DESIGN.md §11)
 └── adapters/        # ports over other modules (ReferenceLookup)
 tests/               # SQLite per test, Postgres via TEST_DATABASE_URL; factories.py builds domain objects
