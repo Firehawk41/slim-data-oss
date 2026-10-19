@@ -20,7 +20,7 @@ people review, override and release → the report records exactly what the cust
 | File | Status |
 |---|---|
 | `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-57 with the options weighed and why. Append new ones there. |
-| `docs/DESIGN.md` | **Out of date** (first draft, 2026-10-12, written before Areas 1–5). Rewrite it from DECISIONS.md before building. |
+| `docs/DESIGN.md` | **For sign-off** (rewritten 2026-10-19 from D-01…D-57). What gets built; §14 lists three gaps still to decide. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
 ## The ecosystem (sister repos, all Firehawk41 on GitHub)
@@ -196,9 +196,8 @@ result-entry UI.
 
 ## Plan
 
-**Phase A: finish the design (current).** Work through open items 4–10 with Jamie, one at a time,
-each as a decision with a recommendation; append each to `docs/DECISIONS.md`. Then rewrite
-`docs/DESIGN.md` from the decision log, and get sign-off.
+**Phase A: finish the design (current).** Ruleset items done; DESIGN.md rewritten. Remaining: decide
+DESIGN.md §14 (method blanks, above calibration range, spec-limit flags), then Jamie's sign-off.
 
 **Phase B: build (after sign-off).** Proposed milestones, not yet approved. Each milestone ends green
 on CI, and Claude explains it to Jamie before moving on.
@@ -207,7 +206,7 @@ on CI, and Claude explains it to Jamie before moving on.
 |---|---|---|
 | M0 | Skeleton | `pyproject`, package layout (`domain/ engine/ pipeline/ persistence/ service/ adapters/`), CI matrix {SQLite, Postgres 16} × {Py 3.11, 3.12}, architecture test, OSS guard, Alembic env with own version table |
 | M1 | Domain | Enums, value objects (Decimal `Quantity`, `Actor`, `SampleRef`, `AnalyteRef`), `PrepBatch`, `Reading`, result versions/events, pure workflow rules (four-eyes, exceptions, override policy) |
-| M2 | Engine | Step protocol + versioned registry, ruleset model + validation (cliff check), steps: agreement, evidence ladder, spike witness, recovery, pooling, MDL/rounding, uncertainty, score, verdict; trace; replay |
+| M2 | Engine | Step protocol + versioned registry, ruleset model + validation (cliff check), steps: agreement, evidence ladder, spike witness, recovery, pooling, scale-fault check, MDL/rounding, ±, flags → verdict; trace; replay |
 | M3 | Persistence | Append-only tables, repository, Postgres append-only triggers, `as_of` reads, audit-log integration, ruleset publishing |
 | M4 | Data in | `ResultReader` plugin protocol, `generic_csv/1`, import plan/preview, all-or-nothing import, file-hash idempotency, register prep batch |
 | M5 | Workflow service | Review, release, exceptions/overrides, corrections, `report_issues`, amended reports |
