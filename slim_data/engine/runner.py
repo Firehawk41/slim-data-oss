@@ -8,6 +8,7 @@ from collections import defaultdict
 
 from slim_data.domain.enums import ReadingRole
 from slim_data.domain.results import Flag
+from slim_data.domain.values import Quantity
 from slim_data.engine.model import BatchEvaluation, BatchState, Cell, CellOutcome, EvaluationInput
 from slim_data.engine.numbers import engine_arithmetic
 from slim_data.engine.ruleset import ValidatedRuleset
@@ -23,7 +24,10 @@ def _build_state(data: EvaluationInput) -> BatchState:
     excluded_by_cell = defaultdict(set)
     for reading in data.readings:
         if reading.role == ReadingRole.BLANK:
-            blanks.append(reading)
+            if (
+                reading.id is None or reading.id not in data.excluded_reading_ids
+            ):  # an excluded blank is dropped
+                blanks.append(reading)
             continue
         key = (reading.sample, reading.analyte)
         cell = cells.setdefault(key, Cell(sample=reading.sample, analyte=reading.analyte))
@@ -38,7 +42,8 @@ def _build_state(data: EvaluationInput) -> BatchState:
     for key, replicates in excluded_by_cell.items():
         cells[key].excluded = frozenset(replicates)
     ordered = dict(sorted(cells.items(), key=lambda item: (str(item[0][0]), item[0][1].code)))
-    return BatchState(batch=data.batch, cells=ordered, blanks=tuple(blanks))
+    limits = {(entry.sample, entry.analyte): entry.limits for entry in data.limits}
+    return BatchState(batch=data.batch, cells=ordered, blanks=tuple(blanks), limits=limits)
 
 
 def evaluate(data: EvaluationInput, ruleset: ValidatedRuleset) -> BatchEvaluation:
@@ -57,6 +62,12 @@ def evaluate(data: EvaluationInput, ruleset: ValidatedRuleset) -> BatchEvaluatio
             analyte=cell.analyte,
             selection=cell.selection,
             chosen_replicate=cell.chosen_replicate,
+            raw=cell.value(),
+            reported=None if cell.reported is None else Quantity(value=cell.reported, unit=cell.unit),
+            qualifier=cell.qualifier,
+            uncertainty=cell.uncertainty,
+            recovery=cell.recovery,
+            limits=cell.limits,
             flags=tuple(
                 Flag(
                     code=f.code, severity=ruleset.ruleset.severity_of(f.code), step=f.step, message=f.message

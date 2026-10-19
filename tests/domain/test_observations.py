@@ -52,6 +52,10 @@ def reading(**overrides):
     return Reading(**fields)
 
 
+def test_a_blank_belongs_to_the_batch_not_a_sample():
+    assert reading(role=ReadingRole.BLANK, sample=None).sample is None
+
+
 def test_effective_mdl_is_mdl_times_dilution():
     assert reading(mdl=qty("0.05"), dilution=Decimal(10)).effective_mdl == qty("0.50")
     assert reading().effective_mdl is None
@@ -66,6 +70,8 @@ def test_effective_mdl_is_mdl_times_dilution():
         (dict(dilution=Decimal("0.5")), "at least 1"),
         (dict(replicate=0), "greater than or equal to 1"),
         (dict(dilution=1.5), "float"),
+        (dict(role=ReadingRole.BLANK), "BLANK reading has no sample"),
+        (dict(sample=None), "every other reading needs one"),
     ],
 )
 def test_reading_rejects_bad_values(overrides, message):

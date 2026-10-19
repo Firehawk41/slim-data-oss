@@ -7,7 +7,7 @@ from hypothesis import strategies as st
 
 from slim_data.engine.model import Selection
 from slim_data.engine.runner import evaluate
-from tests.engine.helpers import DEMO, codes, cups, demo, evaluation_input, spikes
+from tests.engine.helpers import DEMO, codes, cups, demo, evaluation_input, spikes, step_trace
 
 CUPS_OFF = ("10.0", "14.0")  # RPD 33%: they disagree
 
@@ -49,7 +49,7 @@ def test_spike_witness_picks_the_nearer_cup():
     # added 20; spiked 30.2 → w = 10.2, nearer cup 1 (10.0); margin 3.6 > noise 30.2 × 5% = 1.51
     outcome = one([*cups(1, "Cu", *CUPS_OFF), *spikes(1, "Cu", "30.2")], spike_amounts=[(1, "Cu", "20")])
     assert outcome.chosen_replicate == 1 and "CUP_CHOSEN_BY_SPIKE" in codes(outcome)
-    assert outcome.trace[-1]["tried"][0]["witness"] == "conclusive"
+    assert step_trace(outcome, "cup_choice")["tried"][0]["witness"] == "conclusive"
 
 
 def test_two_agreeing_spikes_are_averaged_and_disagreeing_ones_are_ignored():
@@ -58,21 +58,21 @@ def test_two_agreeing_spikes_are_averaged_and_disagreeing_ones_are_ignored():
     )
     assert agreeing.chosen_replicate == 2
     split = one([*cups(1, "Cu", *CUPS_OFF), *spikes(1, "Cu", "30", "40")], spike_amounts=[(1, "Cu", "20")])
-    assert split.trace[-1]["tried"][0]["witness"] == "spikes disagree"
+    assert step_trace(split, "cup_choice")["tried"][0]["witness"] == "spikes disagree"
 
 
 def test_a_noisy_spike_is_inconclusive():
     # added 200; spiked 212 → w = 12, midway between the cups; margin 0 ≤ noise
     outcome = one([*cups(1, "Cu", *CUPS_OFF), *spikes(1, "Cu", "212")], spike_amounts=[(1, "Cu", "200")])
-    assert outcome.trace[-1]["tried"][0]["witness"] == "inconclusive"
+    assert step_trace(outcome, "cup_choice")["tried"][0]["witness"] == "inconclusive"
     assert "CUP_CHOICE_UNDECIDED" in codes(outcome)
 
 
 def test_witness_needs_a_spike_and_its_amount():
     no_spike = one(cups(1, "Cu", *CUPS_OFF))
-    assert no_spike.trace[-1]["tried"][0]["witness"] == "no spike"
+    assert step_trace(no_spike, "cup_choice")["tried"][0]["witness"] == "no spike"
     no_amount = one([*cups(1, "Cu", *CUPS_OFF), *spikes(1, "Cu", "30.2")])
-    assert no_amount.trace[-1]["tried"][0]["witness"] == "no spike amount recorded"
+    assert step_trace(no_amount, "cup_choice")["tried"][0]["witness"] == "no spike amount recorded"
 
 
 # --- direction prior (D-52) --------------------------------------------------------------------------
@@ -127,7 +127,7 @@ def test_a_scaled_cup_is_found_and_decided_once_for_the_sample():
     evaluation = run(readings, spike_amounts=amounts)
     assert {c.chosen_replicate for c in evaluation.cells} == {2}
     assert all("SCALE_FAULT_CUP_CHOSEN" in codes(c) for c in evaluation.cells)
-    assert evaluation.cells[0].trace[-1]["witnesses"] == 2
+    assert step_trace(evaluation.cells[0], "cup_choice")["witnesses"] == 2
 
 
 def test_a_scale_fault_without_enough_witnesses_is_a_rerun():

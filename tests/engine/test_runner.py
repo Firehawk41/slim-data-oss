@@ -6,7 +6,7 @@ from pydantic import ValidationError
 from slim_data.domain.enums import ReadingRole
 from slim_data.engine.model import EvaluationInput
 from slim_data.engine.runner import BatchRejected, evaluate, replay
-from tests.engine.helpers import batch, cups, demo, evaluation_input, reading, spikes
+from tests.engine.helpers import batch, blank, cups, demo, evaluation_input, reading, spikes
 
 
 def test_replay_reproduces_the_stored_evaluation():
@@ -52,5 +52,5 @@ def test_input_is_checked():
 
 
 def test_blanks_are_kept_aside_for_the_blank_step():
-    blank = reading(1, "Cu", ReadingRole.BLANK, 1, "0.01")
-    assert len(evaluate(evaluation_input([*cups(1, "Cu", "1", "1"), blank]), demo()).cells) == 1
+    data = evaluation_input([*cups(1, "Cu", "1", "1"), blank("Cu", "0.01")])
+    assert len(evaluate(data, demo()).cells) == 1

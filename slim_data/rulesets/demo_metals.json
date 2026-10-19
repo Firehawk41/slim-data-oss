@@ -27,7 +27,13 @@
         {"code": "As", "direction": "NEUTRAL"},
         {"code": "As", "prep_method": "hot block HNO3", "direction": "LOSS_PRONE"}
       ]
-    }}
+    }},
+    {"step": "recovery@1", "params": {"not_evaluable_multiple": "4"}},
+    {"step": "recovery_pooling@1", "params": {"window_low": "0.75", "window_high": "1.25"}},
+    {"step": "reported_value@1", "params": {"default_places": 3, "places": [], "ql_multiple": "3.33"}},
+    {"step": "uncertainty@1"},
+    {"step": "method_blank@1", "params": {"multiple": "10"}},
+    {"step": "spec_limits@1"}
   ],
   "severities": [
     {"code": "CUP_COUNT_UNEXPECTED", "severity": "RERUN"},
@@ -42,6 +48,19 @@
     {"code": "SCALE_FAULT_UNRESOLVED", "severity": "RERUN"},
     {"code": "CUP_CHOSEN_BY_SPIKE", "severity": "WARN"},
     {"code": "CUP_CHOSEN_BY_PRIOR", "severity": "WARN"},
-    {"code": "CUP_CHOICE_UNDECIDED", "severity": "NEEDS_SUPERVISOR"}
+    {"code": "CUP_CHOICE_UNDECIDED", "severity": "NEEDS_SUPERVISOR"},
+    {"code": "SPIKES_DISAGREE", "severity": "WARN"},
+    {"code": "SPIKE_AMOUNT_MISSING", "severity": "WARN"},
+    {"code": "SPIKE_NOT_EVALUABLE", "severity": "NEEDS_SUPERVISOR"},
+    {"code": "RECOVERY_NOT_MEASURED", "severity": "NEEDS_SUPERVISOR"},
+    {"code": "RECOVERY_USED_FOR_SELECTION", "severity": "WARN"},
+    {"code": "RECOVERY_OUTSIDE_WINDOW", "severity": "RERUN"},
+    {"code": "BLANK_MISSING", "severity": "NEEDS_SUPERVISOR"},
+    {"code": "BLANK_DETECTED", "severity": "WARN"},
+    {"code": "BLANK_SIGNIFICANT", "severity": "RERUN"},
+    {"code": "ABOVE_SPEC", "severity": "INFO"},
+    {"code": "BELOW_SPEC", "severity": "INFO"},
+    {"code": "SPEC_UNDECIDED", "severity": "INFO"},
+    {"code": "SPEC_UNIT_MISMATCH", "severity": "INFO"}
   ]
 }

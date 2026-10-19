@@ -10,7 +10,7 @@ from slim_data.domain.enums import ReadingRole
 from slim_data.engine.model import Selection
 from slim_data.engine.runner import evaluate
 from slim_data.engine.steps.agreement import AgreementParams, Zone, replicates_agree
-from tests.engine.helpers import codes, cups, demo, evaluation_input, reading, spikes
+from tests.engine.helpers import codes, cups, demo, evaluation_input, reading, spikes, step_trace
 from tests.factories import analyte, sample
 
 P = AgreementParams()
@@ -26,18 +26,21 @@ def one(readings, **kw):
 
 def test_a_cell_needs_two_cups():
     outcome = one([reading(1, "Fe", ReadingRole.CUP, 1, "1.0")])
-    assert codes(outcome) == ["CUP_COUNT_UNEXPECTED"] and outcome.selection == Selection.NONE
+    assert (
+        codes(outcome, "cup_shape", "agreement") == ["CUP_COUNT_UNEXPECTED"]
+        and outcome.selection == Selection.NONE
+    )
 
 
 def test_units_must_match():
     outcome = one([*cups(1, "Fe", "1.0", "1.0"), *spikes(1, "Fe", "11", unit="ppm")])
-    assert codes(outcome) == ["UNIT_MISMATCH"]
+    assert codes(outcome, "cup_shape", "agreement") == ["UNIT_MISMATCH"]
 
 
 def test_missing_mdl_falls_back_to_rpd():
     outcome = one(cups(1, "Fe", "0.010", "0.011", mdl=None))
-    assert codes(outcome) == ["MDL_MISSING"]
-    assert outcome.trace[-1]["zone"] == "rpd"
+    assert codes(outcome, "cup_shape", "agreement") == ["MDL_MISSING"]
+    assert step_trace(outcome, "agreement")["zone"] == "rpd"
 
 
 # --- linear_range -------------------------------------------------------------------------------------
@@ -53,7 +56,7 @@ def test_linear_range_uses_raw_readings(value, expected):
 
 
 def test_no_range_on_file_means_no_check():
-    assert codes(one(cups(1, "Cu", "9999", "9999"))) == []
+    assert codes(one(cups(1, "Cu", "9999", "9999")), "linear_range") == []
 
 
 # --- agreement ----------------------------------------------------------------------------------------

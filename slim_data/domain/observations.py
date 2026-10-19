@@ -87,10 +87,14 @@ class Run(Frozen):
 
 
 class Reading(Frozen):
-    """One raw measurement (D-06): one row per reading, tagged with a role and a replicate number."""
+    """One raw measurement (D-06): one row per reading, tagged with a role and a replicate number.
+
+    A method blank is not a TR sample: it belongs to its prep batch, so a BLANK reading has no
+    sample, and every other reading must have one (D-64).
+    """
 
     id: int | None = None
-    sample: SampleRef
+    sample: SampleRef | None
     analyte: AnalyteRef
     role: ReadingRole
     replicate: int = Field(ge=1)
@@ -100,6 +104,8 @@ class Reading(Frozen):
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
+        if (self.role == ReadingRole.BLANK) != (self.sample is None):
+            raise ValueError("a BLANK reading has no sample; every other reading needs one")
         if self.mdl is not None:
             if self.mdl.unit != self.value.unit:
                 raise ValueError("MDL must be in the same unit as the value")
