@@ -294,3 +294,15 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   - Clarifies D-37: the pooled median is taken over evaluable recoveries (individual out-of-window
     values still count) and the median is what's compared with the window; leave-one-out still
     applies when a sample's spike chose its cup.
+
+## Ruleset design — reported value, MDL floor, rounding (2026-10-19)
+
+- **D-54 The reported value step.**
+  1. Value: the mean of the two cups when they agree, else the chosen cup; then × dilution.
+  2. MDL floor on the *effective* MDL (MDL × dilution): below it the result reads "< effective MDL".
+  3. Optional quantitation limit (QL), demo default 3.33 × MDL (MDL ≈ 3σ, QL ≈ 10σ): values between
+     MDL and QL carry an "estimated" qualifier. Fits the report's existing MDL/QL column.
+  4. Round once, at the end: N significant figures (demo 3), round half to even (no upward bias over
+     many results); N and the mode are ruleset parameters.
+  5. Every comparison (agreement, recovery window, spec limits) uses unrounded values; raw and
+     reported values are both stored, so replay (D-17) reproduces the result exactly.

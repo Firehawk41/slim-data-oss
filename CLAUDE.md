@@ -19,7 +19,7 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-53 with the options weighed and why. Append new ones there. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-54 with the options weighed and why. Append new ones there. |
 | `docs/DESIGN.md` | **Out of date** (first draft, 2026-10-12, written before Areas 1–5). Rewrite it from DECISIONS.md before building. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
@@ -121,7 +121,6 @@ LabPortal's `oss_guard` approach.
   elements) → spike witness → direction prior (contamination-prone → lower cup; loss-prone → higher)
   → no decision (NEEDS_SUPERVISOR/RERUN).
 - D-33 Bias: a spike that picks the cup biases that pairing's recovery toward 100%. Resolved by D-37.
-
 - D-51 Rung 2 = multiplicative (cup-level) fault only: ≥ 5 elements, ≥ 75% of cup ratios within ±5% of
   the median, median fails RPD → cup picked once by ≥ 2 agreeing spike witnesses, else RERUN; applies
   to the cluster; outliers and all additive faults (contamination/loss) stay per element.
@@ -140,6 +139,10 @@ LabPortal's `oss_guard` approach.
 - D-38 Results are **not** corrected for recovery; recovery is reported beside them.
 - D-53 Per element: all spikes NOT_EVALUABLE → NEEDS_SUPERVISOR + standard qualifier; pooled median
   (over evaluable recoveries) outside the window → RERUN.
+
+**Ruleset: reported value**
+- D-54 Mean of agreeing cups (else chosen cup) × dilution; "< effective MDL" (MDL × dilution); optional
+  QL (demo 3.33 × MDL) → "estimated"; round once to N sig figs (demo 3), half-even; compare unrounded.
 
 **Ecosystem**
 - D-39 The OSS repos may diverge from the lab's private code; they're portfolio code now.
@@ -174,7 +177,7 @@ LabPortal's `oss_guard` approach.
 4. ~~Cross-element criterion~~ resolved by D-51.
 5. ~~Direction-prior table~~ resolved by D-52.
 6. ~~No valid recovery~~ resolved by D-53.
-7. MDL floor and rounding / significant figures (a ruleset step).
+7. ~~MDL floor and rounding~~ resolved by D-54.
 8. ± uncertainty (CHEMTEST-style half-delta = half the cup difference; the report already has a ±
    column).
 9. Quality score: what it adds up, its scale and cut-offs.
