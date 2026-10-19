@@ -19,7 +19,7 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-43 with the options weighed and why. Append new ones there. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-44 with the options weighed and why. Append new ones there. |
 | `docs/DESIGN.md` | **Out of date** (first draft, 2026-10-12, written before Areas 1–5). Rewrite it from DECISIONS.md before building. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
@@ -136,12 +136,14 @@ LabPortal's `oss_guard` approach.
 **Ecosystem**
 - D-39 The OSS repos may diverge from the lab's private code; they're portfolio code now.
 - D-40 One host app built from LabPortal, named slim-lims: composition root + UX + transaction owner.
-  Modules stay libraries; old slim-lims endpoints become a legacy VBA router inside it.
+  Modules stay libraries. (Legacy VBA router dropped by D-44.)
 - D-41 LabPortal's repo becomes `slim-lims-oss` (old one renamed `slim-lims-legacy-oss`, archived);
   package `slim_lab_portal` → `slim_lims` in its own PR.
 - D-42 Review/release screens are host staff pages; slim-data ships no UI.
 - D-43 Invoicing becomes a library on slim-domain's tables and bills from TR + `report_issues` +
   quotes; "Invoice" on a complete-report TR → sales order + status invoiced, one transaction.
+- D-44 Sandbox only: no legacy Excel/VBA paths (no VBA router, no xlsx invoicing). v2 TR is the only
+  TR; v1 parsers, `to_slim_v1`, `network_paths.py`, `report_generation_log` are legacy to retire.
 
 ## Deferred / open items
 
