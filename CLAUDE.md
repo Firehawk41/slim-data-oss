@@ -19,7 +19,7 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-40 with the options weighed and why. Append new ones there. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-41 with the options weighed and why. Append new ones there. |
 | `docs/DESIGN.md` | **Out of date** (first draft, 2026-10-12, written before Areas 1–5). Rewrite it from DECISIONS.md before building. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
@@ -137,6 +137,8 @@ LabPortal's `oss_guard` approach.
 - D-39 The OSS repos may diverge from the lab's private code; they're portfolio code now.
 - D-40 One host app built from LabPortal, named slim-lims: composition root + UX + transaction owner.
   Modules stay libraries; old slim-lims endpoints become a legacy VBA router inside it.
+- D-41 LabPortal's repo becomes `slim-lims-oss` (old one renamed `slim-lims-legacy-oss`, archived);
+  package `slim_lab_portal` → `slim_lims` in its own PR.
 
 ## Deferred / open items
 
@@ -146,8 +148,7 @@ LabPortal's `oss_guard` approach.
 2. **Sample identity limit:** results key on `SampleRef(tr_number, position)` (e.g. `TR00042-03`),
    so only portal (v2) TRs can get results until slim-domain adopts TR v2. Accepted for now; carried
    over from the first draft, still to be re-confirmed in the rewritten DESIGN.md.
-3. **Ecosystem fit (current, before the ruleset):** host decided (D-40). Still open: which repo carries
-   the host; where review/release screens sit; invoicing's billing source; one report record
+3. **Ecosystem fit (current, before the ruleset):** host decided (D-40, D-41). Still open: where review/release screens sit; invoicing's billing source; one report record
    (`report_issues` vs `report_generation_log`); one analyte identity; where ecosystem decisions live.
 
 **Ruleset design (next up, in this order)**

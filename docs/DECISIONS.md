@@ -196,7 +196,13 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     in-process calls. Closes open item 3 (host process). Resolves D-18 towards authenticated logins
     (decision to confirm).
 
-**OPEN (ecosystem):** which repo carries the host (rename LabPortal, or move its code into
-slim-lims-oss); where the review/release screens sit; the billing source for invoicing; one report
+- **D-41 The host lives in LabPortal's repo, renamed on GitHub to `slim-lims-oss`.** The current
+  slim-lims-oss is renamed first (e.g. `slim-lims-legacy-oss`) and archived; its `app.py` is ported in
+  as the legacy VBA router. The Python package `slim_lab_portal` becomes `slim_lims` in its own PR.
+  - Rejected: copy the portal's code into slim-lims-oss (loses the portal's PR history, the best
+    portfolio evidence); leave the names alone (the "portal" repo would be the LIMS, confusing).
+  - GitHub redirects renamed repos, so old links keep working. Jamie does the renames on GitHub.
+
+**OPEN (ecosystem):** where the review/release screens sit; the billing source for invoicing; one report
 record (`report_issues` vs slim-domain's `report_generation_log`); one analyte identity across modules;
 where ecosystem-level decisions live (here, or an umbrella repo).
