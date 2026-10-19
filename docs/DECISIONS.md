@@ -231,3 +231,24 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
 - **D-49 Ecosystem decisions and docker-compose live in the host repo** (`slim-lims-oss`). Rejected:
   an umbrella repo (one more repo to keep in sync; the host is already the composition root).
   D-39–D-49 stay here until the host repo has its ecosystem doc, then move there.
+
+## People — identity in a public demo (2026-10-19)
+
+- **D-50 Real authentication, plus demo personas recorded as ASSERTED.** Settles D-18.
+  - Password login (bcrypt, roles, sessions) stays the production path, as in the portal today.
+  - Demo personas are a second sign-in method enabled by configuration: "Continue as…" customer, analyst,
+    reviewer, supervisor, billing, with a persona switcher in the header. The persona list is data; no
+    `if demo:` branches.
+  - Persona actions carry `identity_source = ASSERTED`: the audit trail never claims more than it knows.
+  - A policy table says which identity sources each action accepts (demo config: ASSERTED may release;
+    a production config would require AUTHENTICATED). Same spirit as D-05: config swap, not code.
+  - Four-eyes still compares `Actor.id`, so a visitor who reviews their own batch is blocked and told
+    to switch persona; the rule is visible in the demo.
+  - Non-persistent sandbox: the D-27 scenarios are pre-run at seed so a first visitor sees history
+    (time travel, amended report, exception, billed TR); scheduled reset (e.g. nightly) with a banner;
+    seed dates relative to today; the audit hash chain restarts per reset and `verify` checks it from
+    its start. Shared state between resets is accepted (per-visitor databases rejected as cost
+    without visible benefit). Personas can't create users, change policy or publish rulesets; CSV
+    uploads stay size-limited and are parsed, never executed.
+  - Rejected: typed initials only (no real auth to show); login-only (reviewers won't sign up, and
+    four-eyes would dead-end a lone visitor).

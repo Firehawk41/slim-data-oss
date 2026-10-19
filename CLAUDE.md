@@ -19,7 +19,7 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-49 with the options weighed and why. Append new ones there. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-50 with the options weighed and why. Append new ones there. |
 | `docs/DESIGN.md` | **Out of date** (first draft, 2026-10-12, written before Areas 1–5). Rewrite it from DECISIONS.md before building. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
@@ -151,11 +151,14 @@ LabPortal's `oss_guard` approach.
 - D-49 Ecosystem decisions + docker-compose live in the host repo; move D-39–D-49 there once it has
   an ecosystem doc.
 
+**People (public demo)**
+- D-50 Real login + config-enabled demo personas recorded as ASSERTED; policy table of accepted
+  identity sources per action; four-eyes on `Actor.id`; seeded history, nightly reset, relative dates.
+
 ## Deferred / open items
 
 **Architecture**
-1. **D-18 identity:** require authenticated user logins, or accept typed initials? Deferred until
-   the build. The Actor shape already supports either.
+1. ~~D-18 identity~~ resolved by D-50: real auth + demo personas recorded as ASSERTED.
 2. ~~Sample identity limit~~ resolved by D-44/D-45: v2 TRs are the only TRs.
 3. ~~Ecosystem fit~~ resolved by D-39–D-49.
 
