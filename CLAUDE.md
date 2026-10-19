@@ -19,7 +19,7 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-38 with the options weighed and why. Append new ones there. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-40 with the options weighed and why. Append new ones there. |
 | `docs/DESIGN.md` | **Out of date** (first draft, 2026-10-12, written before Areas 1–5). Rewrite it from DECISIONS.md before building. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
@@ -32,8 +32,9 @@ people review, override and release → the report records exactly what the cust
 | `slim-report-engine-oss` | Builds Excel reports | Currently produces blank report shapes; will read **released results** from slim-data. Has `demo/demo.py` (fictional seed data). Analytes include ions that are not DB rows. |
 | `LabPortal` (slim-lab-portal) | FastAPI customer portal: TR submission, check-in, status workflow | Owns `tr_*` tables + `analysis_catalog`; spec in `docs/SLIM_DOMAIN_V2.md`. TR numbers `TR00001`. Pure-pydantic domain, "flush, caller commits" repositories, SQLite+Postgres portable schema, `oss_guard.py` refuses non-demo DBs. Has a slim-lims link-up contract (bearer token, `tests/test_lims_contract.py`). |
 
-Target deployment: **one host process** (portal + slim-lims + slim-data routes), **one Postgres**,
-Caddy in front. slim-data is a library inside that process.
+Target deployment: **one host app** (D-40: built from LabPortal, named slim-lims; composition root + UX,
+calls every module), **one Postgres**, Caddy in front. slim-data is a library the host calls. The OSS
+repos may diverge from the lab's private code (D-39).
 
 **OSS only:** demo/fictional data only, never a real lab's databases, shares or services. Copy
 LabPortal's `oss_guard` approach.
@@ -132,6 +133,11 @@ LabPortal's `oss_guard` approach.
   in its batch → its own recovery, flagged "used for selection".
 - D-38 Results are **not** corrected for recovery; recovery is reported beside them.
 
+**Ecosystem**
+- D-39 The OSS repos may diverge from the lab's private code; they're portfolio code now.
+- D-40 One host app built from LabPortal, named slim-lims: composition root + UX + transaction owner.
+  Modules stay libraries; old slim-lims endpoints become a legacy VBA router inside it.
+
 ## Deferred / open items
 
 **Architecture**
@@ -140,8 +146,9 @@ LabPortal's `oss_guard` approach.
 2. **Sample identity limit:** results key on `SampleRef(tr_number, position)` (e.g. `TR00042-03`),
    so only portal (v2) TRs can get results until slim-domain adopts TR v2. Accepted for now; carried
    over from the first draft, still to be re-confirmed in the rewritten DESIGN.md.
-3. **Host process:** LabPortal currently talks to slim-lims over HTTP with a bearer token. In a single
-   host process slim-lims would call the portal's services directly. Settle before ecosystem step C.
+3. **Ecosystem fit (current, before the ruleset):** host decided (D-40). Still open: which repo carries
+   the host; where review/release screens sit; invoicing's billing source; one report record
+   (`report_issues` vs `report_generation_log`); one analyte identity; where ecosystem decisions live.
 
 **Ruleset design (next up, in this order)**
 4. Cross-element criterion: how many elements, how far off, before a whole cup is suspect?

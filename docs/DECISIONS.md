@@ -172,3 +172,31 @@ prep; how D-33 is resolved.
 **OPEN (ruleset):** the cross-element criterion; the direction-prior table (per element, or per
 element and prep); the steps still to design (MDL floor and rounding, ± / half-delta uncertainty,
 quality score, mapping from score to verdict).
+
+## Ecosystem — how slim-data fits SLIM as a whole (2026-10-19)
+
+The scope has grown from separate related modules (only one wired in, called by VBA hooks) to a full
+LIMS with its own UX, demonstrable end to end: submission → check-in → results → report → invoice.
+
+- **D-39 The OSS repos may diverge from the lab's private code.** slim-domain-oss, slim-lims-oss and
+  slim-report-engine-oss were synced from private repos; from now on they are portfolio code and are
+  changed freely. Syncing from private stops.
+- **D-40 One host app, built from LabPortal, carrying the name slim-lims.** It is the composition
+  root and the UX: app factory, config, engine, auth (logins and roles), CSRF/CSP, every screen and
+  the JSON API, and it owns the transaction. It *calls* the modules; the modules never import it or
+  each other's internals. slim-data, the report engine, invoicing and slim-domain stay libraries with
+  their own tables and Alembic version tables. Today's slim-lims endpoints (`/generate-report`,
+  `/resolve/*`, API-key auth) become one legacy router inside it, so the VBA hooks keep working until
+  screens replace them. Customer and staff pages are separate routers with separate auth rules, so
+  the customer side can be deployed apart later without a rewrite.
+  - Rejected: UX in slim-lims, LabPortal keeps intake and login. Needs SSO or a shared session across
+    two apps and splits the staff workflow (check-in in one app, everything else in the other). Its
+    real benefit, isolating the customer-facing surface, is kept by the separate routers.
+  - Consequences: the portal ↔ slim-lims HTTP link (bearer token, `test_lims_contract.py`) becomes
+    in-process calls. Closes open item 3 (host process). Resolves D-18 towards authenticated logins
+    (decision to confirm).
+
+**OPEN (ecosystem):** which repo carries the host (rename LabPortal, or move its code into
+slim-lims-oss); where the review/release screens sit; the billing source for invoicing; one report
+record (`report_issues` vs slim-domain's `report_generation_log`); one analyte identity across modules;
+where ecosystem-level decisions live (here, or an umbrella repo).
