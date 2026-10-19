@@ -252,3 +252,21 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     uploads stay size-limited and are parsed, never executed.
   - Rejected: typed initials only (no real auth to show); login-only (reviewers won't sign up, and
     four-eyes would dead-end a lone visitor).
+
+## Ruleset design — cross-element pattern (2026-10-19)
+
+- **D-51 Rung 2 detects only a multiplicative (cup-level) fault.** Refines D-32's "cross-element
+  pattern". Additive faults (contamination, loss) are element-level: cup A can pick up Fe while cup B
+  picks up Zn and every other element in both cups is good, so they stay on the per-element ladder.
+  Multiplicative faults (weighing, dilution, volume error) scale a whole cup, leaving the same ratio
+  cup A / cup B across nearly every element.
+  - Evaluable elements: both cups above the switch point (D-28), not analyst-excluded.
+  - Trigger: ≥ 5 evaluable elements, ≥ 75% of their ratios within ±5% of the median ratio, and the
+    median ratio itself fails the RPD limit. (Ruleset parameters; demo defaults.)
+  - Decision, once per sample: spike witnesses across elements (the spike is a separate weighing);
+    ≥ 2 conclusive witnesses that agree pick the cup, else the sample's verdict is RERUN. The choice
+    applies to every element inside the cluster and is recorded once in the trace.
+  - Elements outside the cluster go down the per-element ladder, so contamination on top of a scale
+    fault is still caught.
+  - Rejected: "≥ 75% disagree in the same direction" (contamination can look like that); forcing one
+    cup for all elements (discards good data when faults are element-level).
