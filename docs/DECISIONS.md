@@ -203,6 +203,31 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     portfolio evidence); leave the names alone (the "portal" repo would be the LIMS, confusing).
   - GitHub redirects renamed repos, so old links keep working. Jamie does the renames on GitHub.
 
-**OPEN (ecosystem):** where the review/release screens sit; the billing source for invoicing; one report
-record (`report_issues` vs slim-domain's `report_generation_log`); one analyte identity across modules;
-where ecosystem-level decisions live (here, or an umbrella repo).
+- **D-42 Review/release screens are host staff pages.** They call slim-data's services; slim-data ships
+  no UI. (Follows from D-40.)
+- **D-43 Invoicing becomes a library and bills what was reported.** It keeps its own `quotes*` and
+  `sales_order*` tables and drops its copied customers/chemicals/analyses/elements tables for
+  slim-domain's (one set of IDs). A sales order is built from the TR (customer, PO, turnaround),
+  slim-data's `report_issues` (what the customer was shown) and the quotes (prices). Staff press
+  "Invoice" on a complete-report TR; the host creates the sales order and moves the TR to invoiced in
+  one transaction. Reruns, failed attempts and amendments are never billed twice. Jamie is reworking
+  the invoicing module to fit.
+- **D-44 Sandbox only: no legacy Excel or VBA paths.** The OSS ecosystem exists to run as a portfolio
+  sandbox, informed by real lab experience; it will never run in a lab. Supersedes the legacy parts of
+  D-40 and D-41 (no VBA router: the old slim-lims code is archived, not ported) and of D-43 (no xlsx
+  invoicing route). Consequences: the portal's v2 TR is the only TR; slim-domain's v1 TR form parsers,
+  `network_paths.py`, the portal's `to_slim_v1` bridge and `report_generation_log` (keyed on an xlsx
+  input path) are legacy to retire.
+- **D-45 The TR domain moves into slim-domain.** The portal's `domain/` (TR v2, enums, status workflow)
+  and its TR repository move to slim-domain, replacing v1. Modules may not import the host (D-40), yet
+  slim-data, the report engine and invoicing all need TR types; the host uses them like any module.
+- **D-46 Reports stay Excel, behind a renderer interface.** The report engine's template-faithful
+  layouts are the asset; a PDF/HTML renderer can be added later without touching callers.
+- **D-47 slim-data owns `report_issues`; the report engine is a pure renderer.** Data in, file out, no
+  DB. Amended reports belong to the results lifecycle (D-20), which lives here.
+- **D-48 One analyte identity: `AnalyteRef(analysis_id, code)`** in every module. `analysis_id` is
+  slim-domain's; `code` is an element symbol or ion code. Invoicing quotes key on the same IDs; the
+  portal's `analysis_catalog` is display/grouping, matched by ID.
+- **D-49 Ecosystem decisions and docker-compose live in the host repo** (`slim-lims-oss`). Rejected:
+  an umbrella repo (one more repo to keep in sync; the host is already the composition root).
+  D-39–D-49 stay here until the host repo has its ecosystem doc, then move there.

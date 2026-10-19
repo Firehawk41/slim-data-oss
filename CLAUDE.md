@@ -19,7 +19,7 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-44 with the options weighed and why. Append new ones there. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-49 with the options weighed and why. Append new ones there. |
 | `docs/DESIGN.md` | **Out of date** (first draft, 2026-10-12, written before Areas 1–5). Rewrite it from DECISIONS.md before building. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
@@ -144,17 +144,20 @@ LabPortal's `oss_guard` approach.
   quotes; "Invoice" on a complete-report TR → sales order + status invoiced, one transaction.
 - D-44 Sandbox only: no legacy Excel/VBA paths (no VBA router, no xlsx invoicing). v2 TR is the only
   TR; v1 parsers, `to_slim_v1`, `network_paths.py`, `report_generation_log` are legacy to retire.
+- D-45 The portal's TR domain + repository move into slim-domain (modules can't import the host).
+- D-46 Reports stay Excel, behind a renderer interface.
+- D-47 slim-data owns `report_issues`; the report engine is a pure renderer (no DB).
+- D-48 `AnalyteRef(analysis_id, code)` everywhere; `analysis_id` is slim-domain's.
+- D-49 Ecosystem decisions + docker-compose live in the host repo; move D-39–D-49 there once it has
+  an ecosystem doc.
 
 ## Deferred / open items
 
 **Architecture**
 1. **D-18 identity:** require authenticated user logins, or accept typed initials? Deferred until
    the build. The Actor shape already supports either.
-2. **Sample identity limit:** results key on `SampleRef(tr_number, position)` (e.g. `TR00042-03`),
-   so only portal (v2) TRs can get results until slim-domain adopts TR v2. Accepted for now; carried
-   over from the first draft, still to be re-confirmed in the rewritten DESIGN.md.
-3. **Ecosystem fit (current, before the ruleset):** host, screens, billing decided (D-40–D-43). Still open: one report record
-   (`report_issues` vs `report_generation_log`); one analyte identity; where ecosystem decisions live.
+2. ~~Sample identity limit~~ resolved by D-44/D-45: v2 TRs are the only TRs.
+3. ~~Ecosystem fit~~ resolved by D-39–D-49.
 
 **Ruleset design (next up, in this order)**
 4. Cross-element criterion: how many elements, how far off, before a whole cup is suspect?
