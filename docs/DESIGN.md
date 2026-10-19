@@ -1,6 +1,6 @@
 # slim-data — analytical results module: design
 
-Status: **for sign-off** (2026-10-19). Rewritten from `DECISIONS.md` (D-01…D-57), which stays the
+Status: **for sign-off** (2026-10-19). Rewritten from `DECISIONS.md` (D-01…D-60), which stays the
 authoritative record of *why*; this document says *what*. Nothing is built yet.
 
 ## 1. Purpose and boundaries
@@ -134,15 +134,18 @@ branches (D-05).
 
 | # | Step | Rule | Decisions |
 |---|---|---|---|
-| 1 | Cup agreement | Three zones: both < MDL agree; smaller cup < switch → \|c1−c2\| ≤ absolute limit; else RPD ≤ limit. Demo: switch 5× MDL, RPD 20%, absolute 1× MDL | D-28, D-29 |
-| 2 | Scale-fault check (per sample) | ≥ 5 elements with both cups above the switch; ≥ 75% of cup ratios within ±5% of the median; median fails RPD → one cup chosen for the cluster by ≥ 2 agreeing spike witnesses, else RERUN. Outliers stay per element | D-51 |
-| 3 | Cup choice (per element, disagreeing cups only) | Evidence ladder, first conclusive rung wins: analyst exclusion → spike witness → direction prior → no decision | D-31, D-32, D-35, D-52 |
-| 4 | Spike agreement | Same three-zone test as cups | D-34 |
-| 5 | Recovery | (spiked − chosen value) / added; sample > 4× spike → NOT_EVALUABLE | D-36 |
-| 6 | Batch pooling | Median of evaluable recoveries per element (leave-one-out when the sample's spike chose its cup); all NOT_EVALUABLE → NEEDS_SUPERVISOR; median outside 75–125% → RERUN | D-37, D-53 |
-| 7 | Reported value | Mean of agreeing cups, else chosen cup, × dilution; "< effective MDL"; optional QL (3.33× MDL) → "estimated"; round once to per-analyte decimal places (demo 3), half-even | D-54 |
-| 8 | ± | Half-delta × dilution when cups agree, same decimal places; else N/A | D-55 |
-| 9 | Verdict | Every step emits flags (INFO / WARN / NEEDS_SUPERVISOR / RERUN, severity table in the ruleset); verdict = worst flag | D-56 |
+| 1 | Calibration range | Any cup above the analyte's upper calibration limit → RERUN ("dilute and rerun"); never extrapolate | D-59 |
+| 2 | Cup agreement | Three zones: both < MDL agree; smaller cup < switch → \|c1−c2\| ≤ absolute limit; else RPD ≤ limit. Demo: switch 5× MDL, RPD 20%, absolute 1× MDL | D-28, D-29 |
+| 3 | Scale-fault check (per sample) | ≥ 5 elements with both cups above the switch; ≥ 75% of cup ratios within ±5% of the median; median fails RPD → one cup chosen for the cluster by ≥ 2 agreeing spike witnesses, else RERUN. Outliers stay per element | D-51 |
+| 4 | Cup choice (per element, disagreeing cups only) | Evidence ladder, first conclusive rung wins: analyst exclusion → spike witness → direction prior → no decision | D-31, D-32, D-35, D-52 |
+| 5 | Spike agreement | Same three-zone test as cups | D-34 |
+| 6 | Recovery | (spiked − chosen value) / added; sample > 4× spike → NOT_EVALUABLE | D-36 |
+| 7 | Batch pooling | Median of evaluable recoveries per element (leave-one-out when the sample's spike chose its cup); all NOT_EVALUABLE → NEEDS_SUPERVISOR; median outside 75–125% → RERUN | D-37, D-53 |
+| 8 | Reported value | Mean of agreeing cups, else chosen cup, × dilution; "< effective MDL"; optional QL (3.33× MDL) → "estimated"; round once to per-analyte decimal places (demo 3), half-even | D-54 |
+| 9 | ± | Half-delta × dilution when cups agree, same decimal places; else N/A | D-55 |
+| 10 | Method blank | Batch blank > MDL: samples ≥ 10× blank → WARN, below → RERUN; never subtracted | D-58 |
+| 11 | Spec limits | Exceedance → INFO flag, shown on the report; never affects the verdict | D-60 |
+| 12 | Verdict | Every step emits flags (INFO / WARN / NEEDS_SUPERVISOR / RERUN, severity table in the ruleset); verdict = worst flag | D-56 |
 
 Details worth defending:
 
@@ -311,12 +314,7 @@ Full measurement-uncertainty budgets · unit conversion to the customer's units 
 readers · result-entry UI · optional recovery correction (would have to be stated on the report) · a
 prep-book module (the register call is ready for it).
 
-## 14. Still to decide before sign-off
+## 14. Gaps closed during the rewrite
 
-Gaps found while rewriting; none were covered by D-01…D-57.
-
-1. **Method blanks.** BLANK is a reading role (D-06), but no rule uses it yet.
-2. **Above the calibration range.** What happens when a reading exceeds the instrument's upper limit
-   (the old draft had ABOVE_RANGE → rerun with more dilution).
-3. **Spec limits.** Limits are snapshotted (D-04), but are exceedances only shown on the report, or
-   do they also raise a flag?
+Method blanks (D-58), above the calibration range (D-59) and spec-limit exceedances (D-60) were not
+covered by D-01…D-57; they are now steps 1, 10 and 11 of §7.2.

@@ -19,8 +19,8 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-57 with the options weighed and why. Append new ones there. |
-| `docs/DESIGN.md` | **For sign-off** (rewritten 2026-10-19 from D-01…D-57). What gets built; §14 lists three gaps still to decide. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-60 with the options weighed and why. Append new ones there. |
+| `docs/DESIGN.md` | **For sign-off** (rewritten 2026-10-19 from D-01…D-60). What gets built. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
 ## The ecosystem (sister repos, all Firehawk41 on GitHub)
@@ -151,6 +151,9 @@ LabPortal's `oss_guard` approach.
 - D-57 Reviewer clears REPORTABLE; supervisor accepts NEEDS_SUPERVISOR (acceptance, not an exception)
   or sends to rerun; releasing a RERUN without rerunning = supervisor exception (D-09). Four-eyes
   throughout; policy table (severity, action) → minimum role.
+- D-58 Method blank > MDL: samples ≥ 10× blank → WARN, below → RERUN; never subtracted.
+- D-59 Any cup above the calibration range → RERUN; never extrapolate.
+- D-60 Spec exceedance → INFO only; quality and compliance kept apart.
 
 **Ecosystem**
 - D-39 The OSS repos may diverge from the lab's private code; they're portfolio code now.
@@ -196,8 +199,8 @@ result-entry UI.
 
 ## Plan
 
-**Phase A: finish the design (current).** Ruleset items done; DESIGN.md rewritten. Remaining: decide
-DESIGN.md §14 (method blanks, above calibration range, spec-limit flags), then Jamie's sign-off.
+**Phase A: finish the design (current).** All decisions made (D-01…D-60); DESIGN.md rewritten.
+Remaining: Jamie's sign-off on DESIGN.md and on the Phase B milestones.
 
 **Phase B: build (after sign-off).** Proposed milestones, not yet approved. Each milestone ends green
 on CI, and Claude explains it to Jamie before moving on.
@@ -206,7 +209,7 @@ on CI, and Claude explains it to Jamie before moving on.
 |---|---|---|
 | M0 | Skeleton | `pyproject`, package layout (`domain/ engine/ pipeline/ persistence/ service/ adapters/`), CI matrix {SQLite, Postgres 16} × {Py 3.11, 3.12}, architecture test, OSS guard, Alembic env with own version table |
 | M1 | Domain | Enums, value objects (Decimal `Quantity`, `Actor`, `SampleRef`, `AnalyteRef`), `PrepBatch`, `Reading`, result versions/events, pure workflow rules (four-eyes, exceptions, override policy) |
-| M2 | Engine | Step protocol + versioned registry, ruleset model + validation (cliff check), steps: agreement, evidence ladder, spike witness, recovery, pooling, scale-fault check, MDL/rounding, ±, flags → verdict; trace; replay |
+| M2 | Engine | Step protocol + versioned registry, ruleset model + validation (cliff check), steps: calibration range, agreement, evidence ladder, spike witness, recovery, pooling, scale-fault check, MDL/rounding, ±, method blank, spec flags, flags → verdict; trace; replay |
 | M3 | Persistence | Append-only tables, repository, Postgres append-only triggers, `as_of` reads, audit-log integration, ruleset publishing |
 | M4 | Data in | `ResultReader` plugin protocol, `generic_csv/1`, import plan/preview, all-or-nothing import, file-hash idempotency, register prep batch |
 | M5 | Workflow service | Review, release, exceptions/overrides, corrections, `report_issues`, amended reports |

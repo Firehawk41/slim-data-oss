@@ -351,3 +351,16 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     possible (D-10); combined with D-50's accepted identity sources per action.
   - Closes open item 10 and the ruleset design.
 
+## Ruleset design — gaps found while rewriting DESIGN.md (2026-10-19)
+
+- **D-58 Method blanks: the 10× blank rule, no subtraction.** Per prep batch and element: a blank below
+  MDL is fine. If it exceeds MDL, samples reading ≥ 10× the blank get WARN; samples below 10× the
+  blank get RERUN (the contamination could be a large share of the result). Blank values are never
+  subtracted from results.
+- **D-59 Above the calibration range → RERUN.** The upper calibration limit comes per analyte from
+  the ruleset. Any cup over it raises RERUN ("dilute and rerun"); a value extrapolated beyond the
+  calibration is never reported.
+- **D-60 Spec-limit exceedances are INFO only.** Shown on the report; never affect the verdict. The
+  verdict answers "is the data trustworthy?", not "does the sample pass?"; a result over spec is still
+  a valid result. Keeps quality and compliance apart.
+
