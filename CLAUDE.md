@@ -1,6 +1,6 @@
 # slim-data — Claude context
 
-> **Read first.** The design is **signed off** (2026-10-19); building (Phase B). M0 done, M1 next.
+> **Read first.** The design is **signed off** (2026-10-19); building (Phase B). M0 and M1 done, M2 next.
 > Jamie is the **designer**; Claude writes all the code once the plan is signed off, then explains the
 > finished product until Jamie can defend every decision in an interview. Drive design through
 > decisions with a recommendation each time, push back when you disagree, and raise any design change
@@ -208,7 +208,7 @@ on CI, and Claude explains it to Jamie before moving on.
 | # | Milestone | Contents |
 |---|---|---|
 | M0 ✅ | Skeleton | `pyproject`, package layout (`domain/ engine/ pipeline/ persistence/ service/ adapters/`), CI matrix {SQLite, Postgres 16} × {Py 3.11, 3.12}, architecture test, OSS guard, Alembic env with own version table |
-| M1 | Domain | Enums, value objects (Decimal `Quantity`, `Actor`, `SampleRef`, `AnalyteRef`), `PrepBatch`, `Reading`, result versions/events, pure workflow rules (four-eyes, exceptions, override policy) |
+| M1 ✅ | Domain | Enums, value objects (Decimal `Quantity`, `Actor`, `SampleRef`, `AnalyteRef`), `PrepBatch`, `Reading`, result versions/events, pure workflow rules (four-eyes, exceptions, override policy) |
 | M2 | Engine | Step protocol + versioned registry, ruleset model + validation (cliff check), steps: linear range, agreement, evidence ladder, spike witness, recovery, pooling, scale-fault check, MDL/rounding, ±, method blank, spec flags, flags → verdict; trace; replay |
 | M3 | Persistence | Append-only tables, repository, Postgres append-only triggers, `as_of` reads, audit-log integration, ruleset publishing |
 | M4 | Data in | `ResultReader` plugin protocol, `generic_csv/1`, import plan/preview, all-or-nothing import, file-hash idempotency, register prep batch |
@@ -221,6 +221,14 @@ on CI, and Claude explains it to Jamie before moving on.
 ```
 slim_data/
 ├── domain/          # pure: stdlib + pydantic only (tests/test_architecture.py)
+│   ├── base.py      # Frozen base model; Dec = Decimal that refuses floats
+│   ├── enums.py     # ReadingRole, IdentitySource, Role (tiered), Severity, Verdict, Qualifier, ResultStatus, Action, EventKind
+│   ├── values.py    # SampleRef ("TR00042-03"), AnalyteRef, Quantity
+│   ├── actor.py     # Actor(id, display, roles, identity_source)
+│   ├── observations.py  # PrepBatch, SpikeAddition, Run, SourceFile, Reading, ReadingExclusion
+│   ├── results.py   # Flag, verdict_from_flags, ResultVersion, ResultEvent, Result (status from events)
+│   ├── policy.py    # Policy (role rules + identity rules), DEMO_POLICY, PRODUCTION_EXAMPLE_POLICY
+│   └── workflow.py  # review / accept / request_rerun / record_exception / release / reject / start_correction
 ├── engine/          # pure: stdlib + pydantic + domain only
 ├── pipeline/        # reader plugins -> import plan
 ├── persistence/
@@ -230,7 +238,7 @@ slim_data/
 │   ├── alembic.ini, migrations/   # env.py: own version table + include_object (own tables only)
 ├── service/         # ResultService facade (DESIGN.md §11)
 └── adapters/        # ports over other modules (ReferenceLookup)
-tests/               # SQLite per test, Postgres via TEST_DATABASE_URL
+tests/               # SQLite per test, Postgres via TEST_DATABASE_URL; factories.py builds domain objects
 .github/workflows/ci.yml  # lint (ruff) + {SQLite, Postgres 16} × {3.11, 3.12} + coverage gate
 ```
 
