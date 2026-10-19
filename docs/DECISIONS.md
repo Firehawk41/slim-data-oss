@@ -384,3 +384,20 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   4. Four-eyes applies to review, accept, exception and release, not to reject or correct: an analyst
      may correct their own released result, but someone else reviews and releases the new version.
 
+## Build — choices made while building M2 part 1 (2026-10-19)
+
+- **D-63 Seven engine choices**, approved by Jamie:
+  1. A first step, `cup_shape@1`, checks each sample × analyte has cups 1 and 2, one unit across cups
+     and spikes, and an MDL. Wrong shape → nothing reportable (RERUN flag); missing MDL → agreement
+     falls back to the RPD rule alone (NEEDS_SUPERVISOR flag).
+  2. An analyst exclusion applies even when the cups agree (a reading marked bad never feeds a mean);
+     it is always the first rung.
+  3. Only the per-element rungs (spike witness, direction prior) are reorderable in the ruleset;
+     exclusion is always first and the scale-fault check is switched on or off.
+  4. A scale-fault decision applies to every element in the cluster, including any whose cups happen
+     to agree (D-51).
+  5. A batch over the ruleset's size limit is refused (`BatchRejected`), not evaluated with a flag.
+  6. Comparisons use dilution-corrected values; the linear-range check uses the raw instrument
+     reading, which is what the range was verified on.
+  7. When the two cups' MDLs differ, the larger effective MDL is used (cautious).
+
