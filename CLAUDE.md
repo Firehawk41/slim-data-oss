@@ -1,10 +1,10 @@
 # slim-data — Claude context
 
-> **Read first.** This repo is in the **design phase**. No code has been written yet, on purpose.
+> **Read first.** The design is **signed off** (2026-10-19); the build (Phase B) starts at M0.
 > Jamie is the **designer**; Claude writes all the code once the plan is signed off, then explains the
 > finished product until Jamie can defend every decision in an interview. Drive design through
-> decisions with a recommendation each time, push back when you disagree, and don't start building
-> until Jamie approves the plan. Short replies; Jamie is token-constrained.
+> decisions with a recommendation each time, push back when you disagree, and raise any design change
+> as a new decision before building it. Short replies; Jamie is token-constrained.
 
 ## What this is
 
@@ -19,8 +19,8 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-60 with the options weighed and why. Append new ones there. |
-| `docs/DESIGN.md` | **For sign-off** (rewritten 2026-10-19 from D-01…D-60). What gets built. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-61 with the options weighed and why. Append new ones there. |
+| `docs/DESIGN.md` | **Signed off** 2026-10-19 (from D-01…D-61). What gets built. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
 ## The ecosystem (sister repos, all Firehawk41 on GitHub)
@@ -154,6 +154,7 @@ LabPortal's `oss_guard` approach.
 - D-58 Method blank > MDL: samples ≥ 10× blank → WARN, below → RERUN; never subtracted.
 - D-59 Any cup above the verified linear range (may exceed the top calibration standard) → RERUN.
 - D-60 Spec exceedance → INFO only; quality and compliance kept apart.
+- D-61 Above the top calibration standard but within the linear range → INFO.
 
 **Ecosystem**
 - D-39 The OSS repos may diverge from the lab's private code; they're portfolio code now.
@@ -199,10 +200,9 @@ result-entry UI.
 
 ## Plan
 
-**Phase A: finish the design (current).** All decisions made (D-01…D-60); DESIGN.md rewritten.
-Remaining: Jamie's sign-off on DESIGN.md and on the Phase B milestones.
+**Phase A: design.** ✅ Signed off by Jamie 2026-10-19 (D-01…D-61, DESIGN.md).
 
-**Phase B: build (after sign-off).** Proposed milestones, not yet approved. Each milestone ends green
+**Phase B: build (current).** Milestones approved 2026-10-19. Each milestone ends green
 on CI, and Claude explains it to Jamie before moving on.
 
 | # | Milestone | Contents |

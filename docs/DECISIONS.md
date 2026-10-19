@@ -366,3 +366,9 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   verdict answers "is the data trustworthy?", not "does the sample pass?"; a result over spec is still
   a valid result. Keeps quality and compliance apart.
 
+## Sign-off (2026-10-19)
+
+- **D-61 Above the top calibration standard but within the linear range → INFO.** The reviewer sees
+  when that zone was used; it never affects the verdict.
+- **Design signed off by Jamie** (DESIGN.md, D-01…D-61) together with the Phase B milestones M0–M7.
+
