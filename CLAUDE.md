@@ -19,7 +19,7 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-61 with the options weighed and why. Append new ones there. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-62 with the options weighed and why. Append new ones there. |
 | `docs/DESIGN.md` | **Signed off** 2026-10-19 (from D-01…D-61). What gets built. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
@@ -155,6 +155,10 @@ LabPortal's `oss_guard` approach.
 - D-59 Any cup above the verified linear range (may exceed the top calibration standard) → RERUN.
 - D-60 Spec exceedance → INFO only; quality and compliance kept apart.
 - D-61 Above the top calibration standard but within the linear range → INFO.
+
+**Build**
+- D-62 `analyst_ids` on each version for four-eyes; correction = CORRECTION_STARTED event then new
+  version; REPORTABLE rerun request needs reviewer; four-eyes on review/accept/exception/release only.
 
 **Ecosystem**
 - D-39 The OSS repos may diverge from the lab's private code; they're portfolio code now.

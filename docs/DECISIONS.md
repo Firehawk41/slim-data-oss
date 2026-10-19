@@ -372,3 +372,15 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   when that zone was used; it never affects the verdict.
 - **Design signed off by Jamie** (DESIGN.md, D-01…D-61) together with the Phase B milestones M0–M7.
 
+## Build — choices made while building M1 (2026-10-19)
+
+- **D-62 Four small workflow choices**, approved by Jamie:
+  1. Each result version stores the IDs of the analysts who entered its readings (`analyst_ids`), so
+     four-eyes can be checked on the result alone.
+  2. A correction is two steps: a CORRECTION_STARTED event on the old version, then the new version.
+     Sign-offs are blocked in between.
+  3. Sending a REPORTABLE result back for a rerun needs a reviewer; a NEEDS_SUPERVISOR one still needs
+     a supervisor (D-57).
+  4. Four-eyes applies to review, accept, exception and release, not to reject or correct: an analyst
+     may correct their own released result, but someone else reviews and releases the new version.
+
