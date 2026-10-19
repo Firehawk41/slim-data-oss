@@ -320,3 +320,16 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   - Labelled as a replicate-based estimate, not an expanded uncertainty.
   - Rejected: a floor for identical cups and a pooled batch repeatability for chosen cups (too complex
     for what the customer gains; N/A is more honest than an estimate).
+
+## Ruleset design — verdict from flags (2026-10-19)
+
+- **D-56 No quality score: severity flags, worst wins.** Deliberate departure from D-05's "quality
+  score" shape. Every check emits named flags with a severity INFO → WARN → NEEDS_SUPERVISOR → RERUN
+  (e.g. cup chosen by spike witness = WARN; all spikes NOT_EVALUABLE = NEEDS_SUPERVISOR, D-53; pooled
+  recovery outside the window = RERUN). The flag → severity table belongs to the ruleset (versioned,
+  D-14). The verdict is the most severe flag; none or only INFO/WARN = REPORTABLE. The trace lists
+  every flag, so "why this verdict?" always has a one-line answer.
+  - Rejected: a weighted score with cut-offs (CHEMTEST-style). Weights and cut-offs are tuning knobs
+    nobody can defend; the explicit checks already carry the reasons.
+  - Settles open item 9 and the score → verdict half of item 10.
+

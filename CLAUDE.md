@@ -19,7 +19,7 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-55 with the options weighed and why. Append new ones there. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-56 with the options weighed and why. Append new ones there. |
 | `docs/DESIGN.md` | **Out of date** (first draft, 2026-10-12, written before Areas 1–5). Rewrite it from DECISIONS.md before building. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
@@ -146,6 +146,8 @@ LabPortal's `oss_guard` approach.
   half-even; compare unrounded.
 - D-55 ± = half-delta × dilution when cups agree (same dp as the value); N/A when a cup was chosen or
   below MDL.
+- D-56 No quality score: checks emit flags (INFO/WARN/NEEDS_SUPERVISOR/RERUN, table in the ruleset);
+  verdict = worst flag; trace lists every flag.
 
 **Ecosystem**
 - D-39 The OSS repos may diverge from the lab's private code; they're portfolio code now.
@@ -182,8 +184,8 @@ LabPortal's `oss_guard` approach.
 6. ~~No valid recovery~~ resolved by D-53.
 7. ~~MDL floor and rounding~~ resolved by D-54.
 8. ~~± uncertainty~~ resolved by D-55.
-9. Quality score: what it adds up, its scale and cut-offs.
-10. Score → verdict mapping, and which verdicts each override role can clear.
+9. ~~Quality score~~ resolved by D-56 (replaced by severity flags).
+10. Which roles may clear which severities (score → verdict half resolved by D-56).
 
 **Parked (not v1):** full measurement-uncertainty budgets, unit conversion to the customer's
 reporting unit, instrument-specific readers (ICP-MS native formats), results for v1 xlsx TRs, a
