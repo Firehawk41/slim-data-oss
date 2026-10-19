@@ -1,0 +1,50 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "slim-data"
+version = "0.1.0"
+description = "Analytical results module for the SLIM LIMS ecosystem: readings, rules engine, review, release"
+requires-python = ">=3.11"
+license = { file = "LICENSE" }
+dependencies = [
+    "pydantic>=2.6,<3.0",
+    "sqlalchemy>=2.0,<3.0",
+    "alembic>=1.13",
+]
+
+[project.optional-dependencies]
+postgres = ["psycopg2-binary>=2.9"]
+dev = [
+    "pytest>=8",
+    "hypothesis>=6.100",
+    "coverage[toml]>=7.5",
+    "ruff>=0.6",
+    "psycopg2-binary>=2.9",
+]
+
+[tool.setuptools.packages.find]
+include = ["slim_data*"]
+
+[tool.setuptools.package-data]
+slim_data = ["persistence/alembic.ini", "persistence/migrations/**/*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.coverage.run]
+branch = true
+source = ["slim_data"]
+
+[tool.coverage.report]
+show_missing = true
+skip_empty = true
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+extend-exclude = ["docs", "*.md"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
