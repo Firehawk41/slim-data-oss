@@ -270,3 +270,13 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     fault is still caught.
   - Rejected: "≥ 75% disagree in the same direction" (contamination can look like that); forcing one
     cup for all elements (discards good data when faults are element-level).
+
+## Ruleset design — direction prior (2026-10-19)
+
+- **D-52 The direction prior is a ruleset table keyed by element, with optional per-prep overrides.**
+  Susceptibility depends on the prep (a hot acid digest can lose Hg/As/Se; glassware leaches B/Na/Si;
+  handling adds Zn/Fe), so a row for (element, prep method) overrides the element default. Values:
+  CONTAMINATION_PRONE (believe the lower cup), LOSS_PRONE (believe the higher cup), NEUTRAL (rung is
+  inconclusive → no decision; no guessing). The table is part of the ruleset, so it's versioned and
+  content-hashed (D-14); the trace records the row used and whether it was a prep override. Demo
+  values are invented but plausible (D-05). After D-51 it only ever handles additive faults.

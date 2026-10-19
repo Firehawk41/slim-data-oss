@@ -19,7 +19,7 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-51 with the options weighed and why. Append new ones there. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-52 with the options weighed and why. Append new ones there. |
 | `docs/DESIGN.md` | **Out of date** (first draft, 2026-10-12, written before Areas 1–5). Rewrite it from DECISIONS.md before building. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
@@ -125,6 +125,8 @@ LabPortal's `oss_guard` approach.
 - D-51 Rung 2 = multiplicative (cup-level) fault only: ≥ 5 elements, ≥ 75% of cup ratios within ±5% of
   the median, median fails RPD → cup picked once by ≥ 2 agreeing spike witnesses, else RERUN; applies
   to the cluster; outliers and all additive faults (contamination/loss) stay per element.
+- D-52 Direction prior = ruleset table by element, optional (element, prep) override;
+  CONTAMINATION_PRONE → lower cup, LOSS_PRONE → higher, NEUTRAL → no decision.
 
 **Ruleset: spikes, recovery, pooling**
 - D-34 Spike vs spike reuses the agreement test.
@@ -168,7 +170,7 @@ LabPortal's `oss_guard` approach.
 
 **Ruleset design (next up, in this order)**
 4. ~~Cross-element criterion~~ resolved by D-51.
-5. Direction-prior table: per element, or per element + prep method?
+5. ~~Direction-prior table~~ resolved by D-52.
 6. Confirm: no valid recovery anywhere in the batch → NEEDS_SUPERVISOR (proposed in D-37).
 7. MDL floor and rounding / significant figures (a ruleset step).
 8. ± uncertainty (CHEMTEST-style half-delta = half the cup difference; the report already has a ±
