@@ -134,7 +134,7 @@ branches (D-05).
 
 | # | Step | Rule | Decisions |
 |---|---|---|---|
-| 1 | Calibration range | Any cup above the analyte's upper calibration limit → RERUN ("dilute and rerun"); never extrapolate | D-59 |
+| 1 | Linear range | Any cup above the analysis's verified linear range (which may exceed the top calibration standard) → RERUN ("dilute and rerun") | D-59 |
 | 2 | Cup agreement | Three zones: both < MDL agree; smaller cup < switch → \|c1−c2\| ≤ absolute limit; else RPD ≤ limit. Demo: switch 5× MDL, RPD 20%, absolute 1× MDL | D-28, D-29 |
 | 3 | Scale-fault check (per sample) | ≥ 5 elements with both cups above the switch; ≥ 75% of cup ratios within ±5% of the median; median fails RPD → one cup chosen for the cluster by ≥ 2 agreeing spike witnesses, else RERUN. Outliers stay per element | D-51 |
 | 4 | Cup choice (per element, disagreeing cups only) | Evidence ladder, first conclusive rung wins: analyst exclusion → spike witness → direction prior → no decision | D-31, D-32, D-35, D-52 |
@@ -316,5 +316,5 @@ prep-book module (the register call is ready for it).
 
 ## 14. Gaps closed during the rewrite
 
-Method blanks (D-58), above the calibration range (D-59) and spec-limit exceedances (D-60) were not
+Method blanks (D-58), above the linear range (D-59) and spec-limit exceedances (D-60) were not
 covered by D-01…D-57; they are now steps 1, 10 and 11 of §7.2.

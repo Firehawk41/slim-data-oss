@@ -152,7 +152,7 @@ LabPortal's `oss_guard` approach.
   or sends to rerun; releasing a RERUN without rerunning = supervisor exception (D-09). Four-eyes
   throughout; policy table (severity, action) → minimum role.
 - D-58 Method blank > MDL: samples ≥ 10× blank → WARN, below → RERUN; never subtracted.
-- D-59 Any cup above the calibration range → RERUN; never extrapolate.
+- D-59 Any cup above the verified linear range (may exceed the top calibration standard) → RERUN.
 - D-60 Spec exceedance → INFO only; quality and compliance kept apart.
 
 **Ecosystem**
@@ -209,7 +209,7 @@ on CI, and Claude explains it to Jamie before moving on.
 |---|---|---|
 | M0 | Skeleton | `pyproject`, package layout (`domain/ engine/ pipeline/ persistence/ service/ adapters/`), CI matrix {SQLite, Postgres 16} × {Py 3.11, 3.12}, architecture test, OSS guard, Alembic env with own version table |
 | M1 | Domain | Enums, value objects (Decimal `Quantity`, `Actor`, `SampleRef`, `AnalyteRef`), `PrepBatch`, `Reading`, result versions/events, pure workflow rules (four-eyes, exceptions, override policy) |
-| M2 | Engine | Step protocol + versioned registry, ruleset model + validation (cliff check), steps: calibration range, agreement, evidence ladder, spike witness, recovery, pooling, scale-fault check, MDL/rounding, ±, method blank, spec flags, flags → verdict; trace; replay |
+| M2 | Engine | Step protocol + versioned registry, ruleset model + validation (cliff check), steps: linear range, agreement, evidence ladder, spike witness, recovery, pooling, scale-fault check, MDL/rounding, ±, method blank, spec flags, flags → verdict; trace; replay |
 | M3 | Persistence | Append-only tables, repository, Postgres append-only triggers, `as_of` reads, audit-log integration, ruleset publishing |
 | M4 | Data in | `ResultReader` plugin protocol, `generic_csv/1`, import plan/preview, all-or-nothing import, file-hash idempotency, register prep batch |
 | M5 | Workflow service | Review, release, exceptions/overrides, corrections, `report_issues`, amended reports |

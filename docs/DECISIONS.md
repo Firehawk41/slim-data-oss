@@ -357,9 +357,11 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   MDL is fine. If it exceeds MDL, samples reading ≥ 10× the blank get WARN; samples below 10× the
   blank get RERUN (the contamination could be a large share of the result). Blank values are never
   subtracted from results.
-- **D-59 Above the calibration range → RERUN.** The upper calibration limit comes per analyte from
-  the ruleset. Any cup over it raises RERUN ("dilute and rerun"); a value extrapolated beyond the
-  calibration is never reported.
+- **D-59 Above the linear range → RERUN.** The limit is the analysis's verified **linear range**, which
+  can extend above the top calibration standard (determined per analysis in practice). It comes per
+  analyte from the ruleset. Any cup over it raises RERUN ("dilute and rerun"); a value beyond the
+  linear range is never reported. *Revised the same day:* first written as "above the calibration
+  range", which would have rerun valid results between the top standard and the linear limit.
 - **D-60 Spec-limit exceedances are INFO only.** Shown on the report; never affect the verdict. The
   verdict answers "is the data trustworthy?", not "does the sample pass?"; a result over spec is still
   a valid result. Keeps quality and compliance apart.
