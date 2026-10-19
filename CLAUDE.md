@@ -19,7 +19,7 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-56 with the options weighed and why. Append new ones there. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-57 with the options weighed and why. Append new ones there. |
 | `docs/DESIGN.md` | **Out of date** (first draft, 2026-10-12, written before Areas 1–5). Rewrite it from DECISIONS.md before building. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
@@ -148,6 +148,9 @@ LabPortal's `oss_guard` approach.
   below MDL.
 - D-56 No quality score: checks emit flags (INFO/WARN/NEEDS_SUPERVISOR/RERUN, table in the ruleset);
   verdict = worst flag; trace lists every flag.
+- D-57 Reviewer clears REPORTABLE; supervisor accepts NEEDS_SUPERVISOR (acceptance, not an exception)
+  or sends to rerun; releasing a RERUN without rerunning = supervisor exception (D-09). Four-eyes
+  throughout; policy table (severity, action) → minimum role.
 
 **Ecosystem**
 - D-39 The OSS repos may diverge from the lab's private code; they're portfolio code now.
@@ -185,7 +188,7 @@ LabPortal's `oss_guard` approach.
 7. ~~MDL floor and rounding~~ resolved by D-54.
 8. ~~± uncertainty~~ resolved by D-55.
 9. ~~Quality score~~ resolved by D-56 (replaced by severity flags).
-10. Which roles may clear which severities (score → verdict half resolved by D-56).
+10. ~~Who may clear what~~ resolved by D-56/D-57. **Ruleset design complete.**
 
 **Parked (not v1):** full measurement-uncertainty budgets, unit conversion to the customer's
 reporting unit, instrument-specific readers (ICP-MS native formats), results for v1 xlsx TRs, a

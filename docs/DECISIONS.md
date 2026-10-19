@@ -333,3 +333,21 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     nobody can defend; the explicit checks already carry the reasons.
   - Settles open item 9 and the score → verdict half of item 10.
 
+## Ruleset design — who may clear what (2026-10-19)
+
+- **D-57 Accepting a judgment call is not an exception; releasing a failure is.** Roles (D-50 personas):
+  analyst < reviewer < supervisor.
+  - REPORTABLE (INFO/WARN only): analyst submits → reviewer (not the analyst) reviews, with WARN flags
+    shown → release. Normal events.
+  - NEEDS_SUPERVISOR: the supervisor **accepts** (reason category; standard qualifier printed, D-11)
+    or **sends to rerun**. Recorded as an acceptance event, not flagged as an exception: the rules
+    asked for a human judgment.
+  - RERUN: the normal path is new readings → new version → re-evaluated. Releasing without a rerun is
+    supervisor-only, via an **exception** (D-09: reason category + required text,
+    `released_with_exception` permanently, qualifier on the report) — nonconforming work, ISO 17025
+    §7.10.
+  - Nobody clears or reviews a result on readings they entered (four-eyes on `Actor.id`).
+  - Policy table: (severity, action) → minimum role; tiered by default (higher roles inherit), flat
+    possible (D-10); combined with D-50's accepted identity sources per action.
+  - Closes open item 10 and the ruleset design.
+
