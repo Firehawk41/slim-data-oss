@@ -302,7 +302,21 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   2. MDL floor on the *effective* MDL (MDL × dilution): below it the result reads "< effective MDL".
   3. Optional quantitation limit (QL), demo default 3.33 × MDL (MDL ≈ 3σ, QL ≈ 10σ): values between
      MDL and QL carry an "estimated" qualifier. Fits the report's existing MDL/QL column.
-  4. Round once, at the end: N significant figures (demo 3), round half to even (no upward bias over
-     many results); N and the mode are ruleset parameters.
+  4. Round once, at the end, to a fixed number of decimal places set per analyte in the ruleset, with a
+     ruleset-wide default (demo 3 dp); round half to even (no upward bias over many results).
+     *Revised the same day:* significant figures were proposed first (constant relative precision
+     across magnitudes) but rejected: customers read fixed-decimal columns, and a column jumping
+     between `0.00123` and `12300` confuses them. The MDL floor already covers the small values that
+     fixed decimals would hurt, and per-analyte places match how LIMS commonly configure reporting.
   5. Every comparison (agreement, recovery window, spec limits) uses unrounded values; raw and
      reported values are both stored, so replay (D-17) reproduces the result exactly.
+
+## Ruleset design — ± on the report (2026-10-19)
+
+- **D-55 ± is the half-delta, only when the cups agree.**
+  - Cups agree: ± = (|c1 − c2| / 2) × dilution, rounded to the same decimal places as the value (D-54).
+  - Cups disagree (one cup chosen): N/A. Half the gap would describe the rejected cup, not the result.
+  - Below MDL: N/A.
+  - Labelled as a replicate-based estimate, not an expanded uncertainty.
+  - Rejected: a floor for identical cups and a pooled batch repeatability for chosen cups (too complex
+    for what the customer gains; N/A is more honest than an estimate).

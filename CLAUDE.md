@@ -19,7 +19,7 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-54 with the options weighed and why. Append new ones there. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-55 with the options weighed and why. Append new ones there. |
 | `docs/DESIGN.md` | **Out of date** (first draft, 2026-10-12, written before Areas 1–5). Rewrite it from DECISIONS.md before building. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
@@ -142,7 +142,10 @@ LabPortal's `oss_guard` approach.
 
 **Ruleset: reported value**
 - D-54 Mean of agreeing cups (else chosen cup) × dilution; "< effective MDL" (MDL × dilution); optional
-  QL (demo 3.33 × MDL) → "estimated"; round once to N sig figs (demo 3), half-even; compare unrounded.
+  QL (demo 3.33 × MDL) → "estimated"; round once to fixed decimal places per analyte (demo 3 dp),
+  half-even; compare unrounded.
+- D-55 ± = half-delta × dilution when cups agree (same dp as the value); N/A when a cup was chosen or
+  below MDL.
 
 **Ecosystem**
 - D-39 The OSS repos may diverge from the lab's private code; they're portfolio code now.
@@ -178,8 +181,7 @@ LabPortal's `oss_guard` approach.
 5. ~~Direction-prior table~~ resolved by D-52.
 6. ~~No valid recovery~~ resolved by D-53.
 7. ~~MDL floor and rounding~~ resolved by D-54.
-8. ± uncertainty (CHEMTEST-style half-delta = half the cup difference; the report already has a ±
-   column).
+8. ~~± uncertainty~~ resolved by D-55.
 9. Quality score: what it adds up, its scale and cut-offs.
 10. Score → verdict mapping, and which verdicts each override role can clear.
 
