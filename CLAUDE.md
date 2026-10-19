@@ -19,7 +19,7 @@ people review, override and release → the report records exactly what the cust
 
 | File | Status |
 |---|---|
-| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-52 with the options weighed and why. Append new ones there. |
+| `docs/DECISIONS.md` | **Authoritative.** All decisions D-01…D-53 with the options weighed and why. Append new ones there. |
 | `docs/DESIGN.md` | **Out of date** (first draft, 2026-10-12, written before Areas 1–5). Rewrite it from DECISIONS.md before building. |
 | `CLAUDE.md` | This file: summary, plan, open items. |
 
@@ -138,6 +138,8 @@ LabPortal's `oss_guard` approach.
   If a sample's spike chose its cup, it uses the median of the *other* samples (leave-one-out); alone
   in its batch → its own recovery, flagged "used for selection".
 - D-38 Results are **not** corrected for recovery; recovery is reported beside them.
+- D-53 Per element: all spikes NOT_EVALUABLE → NEEDS_SUPERVISOR + standard qualifier; pooled median
+  (over evaluable recoveries) outside the window → RERUN.
 
 **Ecosystem**
 - D-39 The OSS repos may diverge from the lab's private code; they're portfolio code now.
@@ -171,7 +173,7 @@ LabPortal's `oss_guard` approach.
 **Ruleset design (next up, in this order)**
 4. ~~Cross-element criterion~~ resolved by D-51.
 5. ~~Direction-prior table~~ resolved by D-52.
-6. Confirm: no valid recovery anywhere in the batch → NEEDS_SUPERVISOR (proposed in D-37).
+6. ~~No valid recovery~~ resolved by D-53.
 7. MDL floor and rounding / significant figures (a ruleset step).
 8. ± uncertainty (CHEMTEST-style half-delta = half the cup difference; the report already has a ±
    column).

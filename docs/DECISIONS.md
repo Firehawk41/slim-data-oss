@@ -280,3 +280,17 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   inconclusive → no decision; no guessing). The table is part of the ruleset, so it's versioned and
   content-hashed (D-14); the trace records the row used and whether it was a prep override. Demo
   values are invented but plausible (D-05). After D-51 it only ever handles additive faults.
+
+## Ruleset design — no valid recovery (2026-10-19)
+
+- **D-53 "No valid recovery" splits in two, per element across the batch.** Refines D-37's proposed
+  default.
+  - Every spike NOT_EVALUABLE (4× rule): recovery can't be measured, which says nothing about the
+    prep → NEEDS_SUPERVISOR with a standard qualifier ("spike recovery not evaluable: sample
+    concentration exceeds spike level"); the supervisor may release or order a rerun with a larger
+    spike.
+  - Recoveries evaluated but the pooled median is outside the window (demo 75–125%): evidence the
+    prep or matrix failed → RERUN (a supervisor can still override through an exception, D-09).
+  - Clarifies D-37: the pooled median is taken over evaluable recoveries (individual out-of-window
+    values still count) and the median is what's compared with the window; leave-one-out still
+    applies when a sample's spike chose its cup.
