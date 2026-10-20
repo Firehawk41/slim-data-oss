@@ -66,18 +66,22 @@ def test_models_match_migrations(engine):
             migrate.downgrade(connection)
 
 
+REBUILT = ("runs", "readings", "prep_batch_samples", "prep_batch_spikes")  # tables 0003 alters
+
+
 def test_append_only_survives_a_downgrade(engine):
     with engine.begin() as connection:
         migrate.upgrade(connection)
         migrate.downgrade(connection, "0002")
         try:
-            triggers = connection.execute(
-                text("SELECT count(*) FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'runs'")
-                if connection.dialect.name == "sqlite"
-                else text(
-                    "SELECT count(*) FROM pg_trigger WHERE tgrelid = 'runs'::regclass AND NOT tgisinternal"
+            names = ", ".join(f"'{t}'" for t in REBUILT)
+            if connection.dialect.name == "sqlite":
+                query = f"SELECT count(*) FROM sqlite_master WHERE type = 'trigger' AND tbl_name IN ({names})"
+            else:
+                query = (
+                    "SELECT count(*) FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid"
+                    f" WHERE c.relname IN ({names}) AND NOT t.tgisinternal"
                 )
-            ).scalar()
-            assert triggers == 2
+            assert connection.execute(text(query)).scalar() == 2 * len(REBUILT)
         finally:
             migrate.downgrade(connection)

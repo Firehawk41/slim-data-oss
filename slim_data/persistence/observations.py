@@ -52,11 +52,33 @@ def register_batch(session: Session, batch: PrepBatch, actor: Actor) -> PrepBatc
             ).inserted_primary_key[0]
     except IntegrityError:
         raise ValueError(f"prep batch {batch.code} already exists") from None
-    session.execute(
-        prep_batch_samples.insert(),
-        [{"batch_id": batch_id, "tr_number": s.tr_number, "position": s.position} for s in batch.samples],
-    )
-    if batch.spikes:
+    _insert_members(session, batch_id, batch.samples, batch.spikes)
+    return batch.model_copy(update={"id": batch_id})
+
+
+def add_to_batch(
+    session: Session, code: str, samples: Sequence[SampleRef], spikes: Sequence[SpikeAddition], actor: Actor
+) -> PrepBatch:
+    """Adds samples and spike amounts to a registered batch: new rows, never changes (a file exported
+    while the run is still going registers the batch with only the samples it has so far, D-66)."""
+    batch = get_batch(session, code)
+    clash = [s for s in samples if s in batch.samples] + [
+        f"{s.sample} {s.analyte.code}" for s in spikes if batch.spike_added(s.sample, s.analyte) is not None
+    ]
+    if clash:
+        raise ValueError(f"batch {code} already has {', '.join(map(str, clash))}")
+    set_change_context(session, actor, f"add to prep batch {code}")
+    _insert_members(session, batch.id, samples, spikes)
+    return get_batch(session, code)
+
+
+def _insert_members(session, batch_id, samples, spikes) -> None:
+    if samples:
+        session.execute(
+            prep_batch_samples.insert(),
+            [{"batch_id": batch_id, "tr_number": s.tr_number, "position": s.position} for s in samples],
+        )
+    if spikes:
         session.execute(
             prep_batch_spikes.insert(),
             [
@@ -69,10 +91,9 @@ def register_batch(session: Session, batch: PrepBatch, actor: Actor) -> PrepBatc
                     "added": s.added.value,
                     "unit": s.added.unit,
                 }
-                for s in batch.spikes
+                for s in spikes
             ],
         )
-    return batch.model_copy(update={"id": batch_id})
 
 
 def get_batch(session: Session, code: str, as_of: datetime | None = None) -> PrepBatch:
@@ -85,12 +106,12 @@ def get_batch(session: Session, code: str, as_of: datetime | None = None) -> Pre
         raise NotFound(f"no prep batch {code}")
     samples = session.execute(
         select(prep_batch_samples)
-        .where(prep_batch_samples.c.batch_id == row.id)
+        .where(prep_batch_samples.c.batch_id == row.id, as_of_filter(prep_batch_samples.c.created_at, as_of))
         .order_by(prep_batch_samples.c.id)
     ).all()
     spikes = session.execute(
         select(prep_batch_spikes)
-        .where(prep_batch_spikes.c.batch_id == row.id)
+        .where(prep_batch_spikes.c.batch_id == row.id, as_of_filter(prep_batch_spikes.c.created_at, as_of))
         .order_by(prep_batch_spikes.c.id)
     ).all()
     return PrepBatch(
@@ -115,9 +136,12 @@ def run_for_file(session: Session, sha256: str) -> int | None:
     return session.scalar(select(runs.c.id).where(runs.c.source_sha256 == sha256))
 
 
-def record_run(session: Session, run: Run, batch_readings: Sequence[tuple[str, Reading]]) -> Run:
-    """Stores one run and its readings, each tagged with its prep batch's code. Refuses a file that
-    was imported before, and readings that don't fit their batch."""
+def record_run(
+    session: Session, run: Run, batch_readings: Sequence[tuple[str, Reading]]
+) -> tuple[Run, tuple[int, ...]]:
+    """Stores one run and its readings, each tagged with its prep batch's code; returns the run and
+    the readings' ids, in order. Refuses a file that was imported before, and readings that don't fit
+    their batch."""
     previous = run_for_file(session, run.source.sha256)
     if previous is not None:
         raise AlreadyImported(previous)
@@ -145,27 +169,26 @@ def record_run(session: Session, run: Run, batch_readings: Sequence[tuple[str, R
             imported_by=actor_json(run.imported_by),
         )
     ).inserted_primary_key[0]
-    session.execute(
-        readings.insert(),
-        [
-            {
-                "run_id": run_id,
-                "batch_id": batches[code].id,
-                "tr_number": r.sample.tr_number if r.sample else None,
-                "position": r.sample.position if r.sample else None,
-                "analysis_id": r.analyte.analysis_id,
-                "analyte_code": r.analyte.code,
-                "role": int(r.role),
-                "replicate": r.replicate,
-                "value": r.value.value,
-                "unit": r.value.unit,
-                "mdl": r.mdl.value if r.mdl else None,
-                "dilution": r.dilution,
-            }
-            for code, r in batch_readings
-        ],
-    )
-    return run.model_copy(update={"id": run_id})
+    rows = [
+        {
+            "run_id": run_id,
+            "batch_id": batches[code].id,
+            "tr_number": r.sample.tr_number if r.sample else None,
+            "position": r.sample.position if r.sample else None,
+            "analysis_id": r.analyte.analysis_id,
+            "analyte_code": r.analyte.code,
+            "role": int(r.role),
+            "replicate": r.replicate,
+            "value": r.value.value,
+            "unit": r.value.unit,
+            "mdl": r.mdl.value if r.mdl else None,
+            "dilution": r.dilution,
+            "attempt": r.attempt,
+        }
+        for code, r in batch_readings
+    ]
+    ids = tuple(session.execute(readings.insert().values(row)).inserted_primary_key[0] for row in rows)
+    return run.model_copy(update={"id": run_id}), ids
 
 
 def get_run(session: Session, run_id: int) -> Run:
@@ -186,11 +209,8 @@ def get_run(session: Session, run_id: int) -> Run:
 def exclude_reading(session: Session, exclusion: ReadingExclusion) -> ReadingExclusion:
     """Takes a reading out (EXCLUDED) or puts it back (RESTORED). Results already decided don't
     change; the next explicit re-evaluation reads the new state (D-12)."""
-    role = session.scalar(select(readings.c.role).where(readings.c.id == exclusion.reading_id))
-    if role is None:
+    if session.scalar(select(readings.c.id).where(readings.c.id == exclusion.reading_id)) is None:
         raise NotFound(f"no reading {exclusion.reading_id}")
-    if role == ReadingRole.SPIKE:
-        raise ValueError("a spike can't be excluded: only cups and blanks")
     currently_excluded = exclusion.reading_id in _excluded(
         session, readings.c.id == exclusion.reading_id, None
     )
@@ -253,7 +273,21 @@ def _reading(row) -> Reading:
         analyte=AnalyteRef(analysis_id=row.analysis_id, code=row.analyte_code),
         role=ReadingRole(row.role),
         replicate=row.replicate,
+        attempt=row.attempt,
         value=Quantity(value=row.value, unit=row.unit),
         mdl=None if row.mdl is None else Quantity(value=row.mdl, unit=row.unit),
         dilution=row.dilution,
     )
+
+
+def stored_with_runs(session: Session, batch_id: int) -> list[tuple[Reading, str, bool]]:
+    """Every reading of a batch with its run's code and whether it is excluded now, oldest first:
+    what an import compares a re-exported file against (D-66)."""
+    rows = session.execute(
+        select(readings, runs.c.run_code)
+        .join(runs, runs.c.id == readings.c.run_id)
+        .where(readings.c.batch_id == batch_id)
+        .order_by(readings.c.id)
+    ).all()
+    excluded = _excluded(session, readings.c.batch_id == batch_id, None)
+    return [(_reading(row), row.run_code, row.id in excluded) for row in rows]

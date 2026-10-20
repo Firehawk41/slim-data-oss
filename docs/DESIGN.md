@@ -220,7 +220,8 @@ Invoicing is triggered by staff on a complete-report TR (D-43).
 | `value`, `unit` | `12.40`, `ppb` | text → Decimal |
 | `mdl`, `dilution_factor` | `0.05`, `10` | dilution optional, default 1 |
 | `run_code`, `instrument`, `analyst`, `analyzed_at` | | run columns; ISO 8601 with offset; `analyst` is a staff ID, the uploader is recorded separately (D-66) |
-| `prep_batch`, `prep_method`, `spike_added` | | `prep_batch` required; the others register the batch when no prep call was made (D-24, D-66) |
+| `prep_batch`, `prep_method`, `spike_added` | | `prep_batch` required; the others register the batch when no prep call was made, or add to it (D-24, D-66) |
+| `rejected`, `note` | `yes`, `drift check failed` | optional: rejected in the run, imported and excluded; a rerun is a newer attempt (D-66) |
 
 ## 10. Persistence, time travel, audit
 

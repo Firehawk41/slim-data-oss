@@ -46,11 +46,31 @@ def test_input_is_checked():
         evaluation_input(cups(1, "Cu", "1", "1"), excluded=[999_999])
     with pytest.raises(ValueError, match="two CUP readings"):
         evaluate(evaluation_input([*cups(1, "Cu", "1", "1"), *cups(1, "Cu", "1", "1")]), demo())
-    sp = spikes(1, "Cu", "5")
-    with pytest.raises(ValueError, match="only cup readings"):
-        evaluate(evaluation_input([*cups(1, "Cu", "1", "1"), *sp], excluded=[sp[0].id]), demo())
 
 
 def test_blanks_are_kept_aside_for_the_blank_step():
     data = evaluation_input([*cups(1, "Cu", "1", "1"), blank("Cu", "0.01")])
     assert len(evaluate(data, demo()).cells) == 1
+
+
+def test_the_newest_good_attempt_counts_and_the_rest_are_set_aside():
+    first, second = cups(1, "Cu", "10.0", "14.0")  # cup 2 rejected in the run...
+    again = second.model_copy(update={"id": 900, "attempt": 2, "value": first.value})  # ...and rerun
+    outcome = evaluate(evaluation_input([first, second, again], excluded=[second.id]), demo()).cells[0]
+    assert outcome.selection.name == "AGREED" and outcome.trace[0] == {
+        "step": "attempts",
+        "set_aside": [second.id],
+    }
+    # Exclude the rerun too: the newest attempt is used, marked excluded, so cup 1 is chosen.
+    both = evaluate(evaluation_input([first, second, again], excluded=[second.id, 900]), demo()).cells[0]
+    assert both.chosen_replicate == 1 and both.trace[0]["set_aside"] == [second.id]
+
+
+def test_an_excluded_spike_is_as_if_it_was_not_measured():
+    sp = spikes(1, "Cu", "30")
+    data = evaluation_input(
+        [*cups(1, "Cu", "10", "10"), *sp], spike_amounts=[(1, "Cu", "20")], excluded=[sp[0].id]
+    )
+    outcome = evaluate(data, demo()).cells[0]
+    assert outcome.recovery is None and "RECOVERY_NOT_MEASURED" in [f.code for f in outcome.flags]
+    assert outcome.trace[0]["set_aside"] == [sp[0].id]

@@ -80,6 +80,7 @@ class Cell:
     cups: dict[int, Reading] = field(default_factory=dict)  # replicate -> reading
     spikes: dict[int, Reading] = field(default_factory=dict)
     excluded: frozenset[int] = frozenset()  # replicates of cups the analyst excluded
+    superseded: list[int] = field(default_factory=list)  # ids of older or excluded attempts set aside
     usable: bool = True  # False once a shape problem means later steps should leave it alone
     unit: str | None = None
     mdl: Decimal | None = None  # effective MDL of the cups (the larger, if they differ)

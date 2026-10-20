@@ -108,6 +108,9 @@ class Reading(Frozen):
     analyte: AnalyteRef
     role: ReadingRole
     replicate: int = Field(ge=1)
+    attempt: int = Field(
+        default=1, ge=1
+    )  # a re-measurement of the same cup; the newest good one counts (D-66)
     value: Quantity
     mdl: Quantity | None = None
     dilution: Dec = Decimal(1)

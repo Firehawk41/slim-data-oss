@@ -1,8 +1,9 @@
 """generic_csv/1 (DESIGN.md §9): one CSV file = one run, one row per reading.
 
-UTF-8 (a byte-order mark is fine), any line ending, a header row. Strict about columns: a missing
-required column or an unknown one (usually a typo) is a file error. Values are read as text and
-turned into Decimals, so `12.40` keeps its digits; floats never appear.
+UTF-8 (a byte-order mark is fine), any line ending, a header row. A cup rejected during the run and
+measured again appears twice; the rejected row says so in `rejected` (with the reason in `note`).
+Strict about columns: a missing required column or an unknown one (usually a typo) is a file error.
+Values are read as text and turned into Decimals, so `12.40` keeps its digits; floats never appear.
 """
 
 import csv
@@ -29,7 +30,9 @@ REQUIRED = (
     "prep_batch",
     *RUN_COLUMNS,
 )
-OPTIONAL = ("mdl", "dilution_factor", "prep_method", "spike_added")
+OPTIONAL = ("mdl", "dilution_factor", "prep_method", "spike_added", "rejected", "note")
+_YES = {"yes", "y", "true", "1", "x", "rejected"}
+_NO = {"", "no", "n", "false", "0"}
 _WHOLE = re.compile(r"[0-9]+")
 
 
@@ -152,6 +155,9 @@ def _row(line: int, cells: dict) -> ParsedRow:
     spike_added = _decimal(cells, "spike_added", required=False)
     if spike_added is not None and role != ReadingRole.SPIKE:
         raise _Bad("spike_added", "only a SPIKE row records the amount added")
+    rejected_text = cells.get("rejected", "").lower()
+    if rejected_text not in _YES | _NO:
+        raise _Bad("rejected", f"expected yes or no, not {rejected_text!r}")
     return ParsedRow(
         line=line,
         sample=sample,
@@ -166,4 +172,6 @@ def _row(line: int, cells: dict) -> ParsedRow:
         prep_batch=_required(cells, "prep_batch"),
         prep_method=cells.get("prep_method") or None,
         spike_added=spike_added,
+        rejected=rejected_text in _YES,
+        note=cells.get("note") or None,
     )

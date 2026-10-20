@@ -101,3 +101,10 @@ def test_one_file_is_one_run():
     parsed = parse(f"{HEADER}\n{FIRST}\n{second}\n")
     assert parsed.run is None and "run columns differ" in parsed.errors[0].message
     assert str(RowError(line=0, message="x")) == "file: x"
+
+
+def test_rejected_rows_carry_their_reason():
+    parsed = parse(with_cell("note", "drift", with_cell("rejected", "Yes").splitlines()[1]))
+    assert parsed.rows[0].rejected and parsed.rows[0].note == "drift"
+    assert not parse(with_cell("rejected", "")).rows[0].rejected
+    assert "expected yes or no" in parse(with_cell("rejected", "maybe")).errors[0].message

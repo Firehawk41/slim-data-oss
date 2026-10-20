@@ -11,6 +11,7 @@ is a claim, not a login); `imported_by` is who uploaded it. Neither may review t
 """
 
 from collections import defaultdict
+from dataclasses import dataclass, field
 from hashlib import sha256
 
 from pydantic import ValidationError
@@ -19,26 +20,40 @@ from sqlalchemy.orm import Session
 from slim_data.domain.actor import Actor
 from slim_data.domain.base import Frozen
 from slim_data.domain.enums import IdentitySource
-from slim_data.domain.observations import PrepBatch, Reading, Run, SourceFile, SpikeAddition
+from slim_data.domain.observations import PrepBatch, Reading, ReadingExclusion, Run, SourceFile, SpikeAddition
 from slim_data.domain.ports import ReferenceLookup, StaffDirectory
-from slim_data.domain.values import AnalyteRef, Quantity
+from slim_data.domain.values import AnalyteRef, Quantity, SampleRef
 from slim_data.persistence._rows import NotFound
 from slim_data.persistence.observations import (
-    batch_readings,
+    add_to_batch,
+    exclude_reading,
     get_batch,
     record_run,
     register_batch,
     run_for_file,
+    stored_with_runs,
 )
 from slim_data.pipeline.generic_csv import GenericCsv
 from slim_data.pipeline.reader import ParsedRow, ResultReader, RowError, reader_key
+
+
+class BatchAddition(Frozen):
+    """Samples and spike amounts a file adds to a batch registered earlier (D-66)."""
+
+    code: str
+    samples: tuple[SampleRef, ...] = ()
+    spikes: tuple[SpikeAddition, ...] = ()
 
 
 class ImportPlan(Frozen):
     source: SourceFile
     run: Run | None
     new_batches: tuple[PrepBatch, ...] = ()
-    readings: tuple[tuple[str, Reading], ...] = ()  # (prep batch code, reading)
+    batch_additions: tuple[BatchAddition, ...] = ()
+    readings: tuple[tuple[str, Reading], ...] = ()  # new readings: (prep batch code, reading)
+    rejected: tuple[tuple[int, str], ...] = ()  # (index into readings, reason): rejected in the run
+    rejected_stored: tuple[tuple[int, str], ...] = ()  # (reading id, reason): rejected since last import
+    skipped: int = 0  # rows imported before (a re-export of a growing file)
     errors: tuple[RowError, ...] = ()
 
     @property
@@ -47,8 +62,10 @@ class ImportPlan(Frozen):
 
 
 class ImportReceipt(Frozen):
-    run_id: int
+    run_id: int | None  # None when the file held nothing new
     readings: int
+    skipped: int
+    rejected: int
     batches_registered: tuple[str, ...]
 
 
@@ -95,12 +112,18 @@ def preview_import(
                 source=source,
             )
     resolved = _resolve(parsed.rows, lookup, errors)
-    new_batches, readings = _batches(session, resolved, errors)
+    run_code = parsed.run.run_code if parsed.run else ""
+    fitted = _Fitted()
+    _batches(session, resolved, run_code, errors, fitted)
     return ImportPlan(
         source=source,
         run=run,
-        new_batches=tuple(new_batches),
-        readings=tuple(readings),
+        new_batches=tuple(fitted.new_batches),
+        batch_additions=tuple(fitted.batch_additions),
+        readings=tuple(fitted.readings),
+        rejected=tuple(fitted.rejected),
+        rejected_stored=tuple(fitted.rejected_stored),
+        skipped=fitted.skipped,
         errors=tuple(sorted(errors, key=lambda e: (e.line, e.column, e.message))),
     )
 
@@ -117,12 +140,26 @@ def import_run(
     plan = preview_import(session, content, filename, importer, lookup, staff, reader)
     if not plan.ok:
         raise ImportRefused(plan)
+    run_id, ids = None, ()
     with session.begin_nested():  # all or nothing, even inside the caller's larger transaction
         for batch in plan.new_batches:
             register_batch(session, batch, importer)
-        run = record_run(session, plan.run, plan.readings)
+        for addition in plan.batch_additions:
+            add_to_batch(session, addition.code, addition.samples, addition.spikes, importer)
+        if plan.readings:
+            run, ids = record_run(session, plan.run, plan.readings)
+            run_id = run.id
+        # Rejected in the run: the technician's call, so recorded as the analyst's exclusion.
+        for reading_id, reason in [(ids[i], why) for i, why in plan.rejected] + list(plan.rejected_stored):
+            exclude_reading(
+                session, ReadingExclusion(reading_id=reading_id, reason=reason, actor=plan.run.analyst)
+            )
     return ImportReceipt(
-        run_id=run.id, readings=len(plan.readings), batches_registered=tuple(b.code for b in plan.new_batches)
+        run_id=run_id,
+        readings=len(plan.readings),
+        skipped=plan.skipped,
+        rejected=len(plan.rejected) + len(plan.rejected_stored),
+        batches_registered=tuple(b.code for b in plan.new_batches),
     )
 
 
@@ -168,39 +205,69 @@ def _resolve(rows, lookup: ReferenceLookup, errors: list[RowError]) -> list[tupl
     return resolved
 
 
-def _batches(session, resolved, errors: list[RowError]):
+@dataclass
+class _Fitted:
+    new_batches: list = field(default_factory=list)
+    batch_additions: list = field(default_factory=list)
+    readings: list = field(default_factory=list)
+    rejected: list = field(default_factory=list)
+    rejected_stored: list = field(default_factory=list)
+    skipped: int = 0
+
+
+def _batches(session, resolved, run_code: str, errors: list[RowError], out: _Fitted) -> None:
     """Fits the readings to their prep batches: existing ones as stored, new ones registered from the
-    file's prep columns (D-24)."""
+    file's prep columns (D-24). Compares a re-exported file with what was imported before (D-66): for
+    each cup, the file's n-th reading in this run must match the n-th one stored from this run (then
+    it is skipped); readings beyond those are new attempts."""
     by_batch = defaultdict(list)
     for row, reading in resolved:
         by_batch[row.prep_batch].append((row, reading))
-    new_batches, readings, seen = [], [], {}
     for code, items in by_batch.items():
         try:
             existing = get_batch(session, code)
         except NotFound:
             existing = None
-        stored = set()
-        if existing is not None:
-            stored = {_key(r) for r in batch_readings(session, existing.id)}
-        good = []
+        stored = defaultdict(list)  # cup -> [(reading, run_code, excluded)], oldest first
+        for entry in stored_with_runs(session, existing.id) if existing else ():
+            stored[_key(entry[0])].append(entry)
+        seen_in_file = defaultdict(int)
+        new_items = []
         for row, reading in items:
-            key = (code, *_key(reading))
-            if key in seen:
-                errors.append(_error(row, "replicate", f"same reading as line {seen[key]}"))
-            elif _key(reading) in stored:
-                errors.append(_error(row, "replicate", f"batch {code} already has this reading"))
-            else:
-                seen[key] = row.line
-                good.append((row, reading))
-        batch = _check_existing(existing, good, errors) if existing else _new_batch(code, good, errors)
-        if batch is not None and existing is None:
-            new_batches.append(batch)
-        readings.extend((code, reading) for _, reading in good)
-    return new_batches, readings
+            key = _key(reading)
+            index = seen_in_file[key]
+            seen_in_file[key] += 1
+            same_run = [entry for entry in stored[key] if entry[1] == run_code]
+            reason = row.note or f"rejected in run {run_code}"
+            if index < len(same_run):
+                before, _, excluded = same_run[index]
+                if _content(before) != _content(reading):
+                    errors.append(
+                        _error(row, "value", f"differs from the reading imported before ({before.value})")
+                    )
+                elif row.rejected and not excluded:
+                    out.rejected_stored.append((before.id, reason))
+                out.skipped += 1
+                continue
+            latest = max((entry[0].attempt for entry in stored[key]), default=0)
+            attempt = latest + index - len(same_run) + 1
+            new_items.append((row, reading.model_copy(update={"attempt": attempt})))
+        if existing is not None:
+            _check_existing(existing, new_items, errors, out)
+        else:
+            batch = _new_batch(code, new_items, errors)
+            if batch is not None:
+                out.new_batches.append(batch)
+        for row, reading in new_items:
+            if row.rejected:
+                out.rejected.append((len(out.readings), row.note or f"rejected in run {run_code}"))
+            out.readings.append((code, reading))
 
 
-def _check_existing(batch: PrepBatch, items, errors: list[RowError]) -> PrepBatch:
+def _check_existing(batch: PrepBatch, items, errors: list[RowError], out: "_Fitted") -> None:
+    """A registered batch keeps its analysis, prep method and recorded spike amounts; a file may add
+    samples and spike amounts it doesn't have yet (a run exported while still going, D-66)."""
+    samples, spikes = [], {}
     for row, reading in items:
         if reading.analyte.analysis_id != batch.analysis_id:
             errors.append(_error(row, "analysis_code", f"batch {batch.code} is for another analysis"))
@@ -208,19 +275,26 @@ def _check_existing(batch: PrepBatch, items, errors: list[RowError]) -> PrepBatc
             errors.append(
                 _error(row, "prep_method", f"batch {batch.code} was prepped by {batch.prep_method!r}")
             )
-        if reading.sample is not None and reading.sample not in batch.samples:
-            errors.append(_error(row, "lab_sample_id", f"{reading.sample} is not in batch {batch.code}"))
-        if row.spike_added is not None:
-            stored = batch.spike_added(reading.sample, reading.analyte)
-            if stored is None or stored != Quantity(value=row.spike_added, unit=row.unit):
-                errors.append(
-                    _error(
-                        row,
-                        "spike_added",
-                        f"batch {batch.code} records {stored or 'no amount'} for this spike",
-                    )
-                )
-    return batch
+        if (
+            reading.sample is not None
+            and reading.sample not in batch.samples
+            and reading.sample not in samples
+        ):
+            samples.append(reading.sample)
+        if row.spike_added is None:
+            continue
+        amount = Quantity(value=row.spike_added, unit=row.unit)
+        stored = batch.spike_added(reading.sample, reading.analyte)
+        key = (reading.sample, reading.analyte)
+        if stored is not None and stored != amount:
+            errors.append(_error(row, "spike_added", f"batch {batch.code} records {stored} for this spike"))
+        elif stored is None and spikes.setdefault(key, amount) != amount:
+            errors.append(
+                _error(row, "spike_added", f"differs from the amount on another row ({spikes[key]})")
+            )
+    additions = tuple(SpikeAddition(sample=s, analyte=a, added=q) for (s, a), q in spikes.items())
+    if samples or additions:
+        out.batch_additions.append(BatchAddition(code=batch.code, samples=tuple(samples), spikes=additions))
 
 
 def _new_batch(code: str, items, errors: list[RowError]) -> PrepBatch | None:
@@ -262,6 +336,12 @@ def _new_batch(code: str, items, errors: list[RowError]) -> PrepBatch | None:
 
 def _key(reading: Reading) -> tuple:
     return (reading.sample, reading.analyte, reading.role, reading.replicate)
+
+
+def _content(reading: Reading) -> tuple:
+    """What a re-export must repeat exactly, digits included."""
+    mdl = None if reading.mdl is None else str(reading.mdl.value)
+    return (str(reading.value.value), reading.value.unit, mdl, str(reading.dilution))
 
 
 def _error(row: ParsedRow, column: str, message: str) -> RowError:

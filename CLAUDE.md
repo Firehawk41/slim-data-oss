@@ -29,7 +29,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | M1 | Domain: values, observations, results, policies, workflow rules | ✅ |
 | M2 | Engine: cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling, reported_value, uncertainty, method_blank, spec_limits; verdict = worst flag | ✅ |
 | M3 | Persistence: append-only tables + triggers, repositories, `as_of`, audit context, ruleset/policy publishing | ✅ |
-| M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | ✅ (D-66 items 3–8 await Jamie's OK) |
+| M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | ✅ (D-66 items 4 revised and 9–11 await Jamie's OK) |
 | M5 | Workflow service: review, release, exceptions, corrections, `report_issues`, amended reports | |
 | M6 | Integration: ReferenceLookup adapter, report read model, host wiring, demo scenarios, e2e test | |
 | M7 | Finish: `verify` command, README, walkthrough | |

@@ -47,6 +47,8 @@ class ParsedRow(Frozen):
     prep_batch: str
     prep_method: str | None
     spike_added: Decimal | None
+    rejected: bool = False  # rejected in the run (e.g. by the technician), usually then rerun (D-66)
+    note: str | None = None  # why, recorded as the exclusion's reason
 
 
 class ParsedFile(Frozen):
