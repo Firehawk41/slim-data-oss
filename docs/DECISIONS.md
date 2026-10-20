@@ -521,8 +521,8 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
 
 ## Build — choices made while building M5 (2026-10-20)
 
-- **D-67 Workflow-service choices.** Items 1–2 approved by Jamie before building; the rest to approve at
-  the M5 walkthrough.
+- **D-67 Workflow-service choices**, approved by Jamie (items 1–2 before building, the rest at the M5
+  walkthrough).
   1. **Released results stay as reported** (early release vs. batch pooling, open since D-66). Results
      may be released while the batch is still running; the gate is the engine's own flags (no blank
      yet, or no usable spike for the element, is NEEDS_SUPERVISOR), so one usable spike is the

@@ -30,12 +30,11 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | M2 | Engine: cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling, reported_value, uncertainty, method_blank, spec_limits; verdict = worst flag | ✅ |
 | M3 | Persistence: append-only tables + triggers, repositories, `as_of`, audit context, ruleset/policy publishing | ✅ |
 | M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | ✅ |
-| M5 | Workflow service: evaluate, review, release, exceptions, corrections, `report_issues`, amended reports | ✅ (D-67 items 3–11 await Jamie's OK; D-68 solo sign-off built) |
+| M5 | Workflow service: evaluate, review, release, exceptions, corrections, `report_issues`, amended reports | ✅ (incl. D-68 solo sign-off) |
 | M6 | Integration: ReferenceLookup adapter, report read model, host wiring, demo scenarios, e2e test | |
 | M7 | Finish: `verify` command, README, walkthrough | |
 
-Each milestone ends green on CI and with a walkthrough for Jamie. M0–M4 are merged into `main`;
-M5 is on `claude/m2-part-2-ujruzt`.
+Each milestone ends green on CI and with a walkthrough for Jamie. M0–M5 are merged into `main`.
 
 ## File map
 
