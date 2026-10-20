@@ -1,0 +1,9 @@
+"""Domain: value objects, entities, enums, workflow rules and policies.
+
+May import only the standard library, pydantic and slim_data.domain (tests/test_architecture.py),
+so it can be lifted into slim-domain unchanged.
+
+Modules: base (Frozen, Dec), enums, values (SampleRef, AnalyteRef, Quantity), actor, observations
+(PrepBatch, Run, Reading, ReadingExclusion), results (Flag, ResultVersion, ResultEvent, Result),
+policy (Policy, DEMO_POLICY), workflow (review, accept, release, ...).
+"""

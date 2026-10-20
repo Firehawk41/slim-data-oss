@@ -172,3 +172,232 @@ prep; how D-33 is resolved.
 **OPEN (ruleset):** the cross-element criterion; the direction-prior table (per element, or per
 element and prep); the steps still to design (MDL floor and rounding, ± / half-delta uncertainty,
 quality score, mapping from score to verdict).
+
+## Ecosystem — how slim-data fits SLIM as a whole (2026-10-19)
+
+The scope has grown from separate related modules (only one wired in, called by VBA hooks) to a full
+LIMS with its own UX, demonstrable end to end: submission → check-in → results → report → invoice.
+
+- **D-39 The OSS repos may diverge from the lab's private code.** slim-domain-oss, slim-lims-oss and
+  slim-report-engine-oss were synced from private repos; from now on they are portfolio code and are
+  changed freely. Syncing from private stops.
+- **D-40 One host app, built from LabPortal, carrying the name slim-lims.** It is the composition
+  root and the UX: app factory, config, engine, auth (logins and roles), CSRF/CSP, every screen and
+  the JSON API, and it owns the transaction. It *calls* the modules; the modules never import it or
+  each other's internals. slim-data, the report engine, invoicing and slim-domain stay libraries with
+  their own tables and Alembic version tables. Today's slim-lims endpoints (`/generate-report`,
+  `/resolve/*`, API-key auth) become one legacy router inside it, so the VBA hooks keep working until
+  screens replace them. Customer and staff pages are separate routers with separate auth rules, so
+  the customer side can be deployed apart later without a rewrite.
+  - Rejected: UX in slim-lims, LabPortal keeps intake and login. Needs SSO or a shared session across
+    two apps and splits the staff workflow (check-in in one app, everything else in the other). Its
+    real benefit, isolating the customer-facing surface, is kept by the separate routers.
+  - Consequences: the portal ↔ slim-lims HTTP link (bearer token, `test_lims_contract.py`) becomes
+    in-process calls. Closes open item 3 (host process). Resolves D-18 towards authenticated logins
+    (decision to confirm).
+
+- **D-41 The host lives in LabPortal's repo, renamed on GitHub to `slim-lims-oss`.** The current
+  slim-lims-oss is renamed first (e.g. `slim-lims-legacy-oss`) and archived; its `app.py` is ported in
+  as the legacy VBA router. The Python package `slim_lab_portal` becomes `slim_lims` in its own PR.
+  - Rejected: copy the portal's code into slim-lims-oss (loses the portal's PR history, the best
+    portfolio evidence); leave the names alone (the "portal" repo would be the LIMS, confusing).
+  - GitHub redirects renamed repos, so old links keep working. Jamie does the renames on GitHub.
+
+- **D-42 Review/release screens are host staff pages.** They call slim-data's services; slim-data ships
+  no UI. (Follows from D-40.)
+- **D-43 Invoicing becomes a library and bills what was reported.** It keeps its own `quotes*` and
+  `sales_order*` tables and drops its copied customers/chemicals/analyses/elements tables for
+  slim-domain's (one set of IDs). A sales order is built from the TR (customer, PO, turnaround),
+  slim-data's `report_issues` (what the customer was shown) and the quotes (prices). Staff press
+  "Invoice" on a complete-report TR; the host creates the sales order and moves the TR to invoiced in
+  one transaction. Reruns, failed attempts and amendments are never billed twice. Jamie is reworking
+  the invoicing module to fit.
+- **D-44 Sandbox only: no legacy Excel or VBA paths.** The OSS ecosystem exists to run as a portfolio
+  sandbox, informed by real lab experience; it will never run in a lab. Supersedes the legacy parts of
+  D-40 and D-41 (no VBA router: the old slim-lims code is archived, not ported) and of D-43 (no xlsx
+  invoicing route). Consequences: the portal's v2 TR is the only TR; slim-domain's v1 TR form parsers,
+  `network_paths.py`, the portal's `to_slim_v1` bridge and `report_generation_log` (keyed on an xlsx
+  input path) are legacy to retire.
+- **D-45 The TR domain moves into slim-domain.** The portal's `domain/` (TR v2, enums, status workflow)
+  and its TR repository move to slim-domain, replacing v1. Modules may not import the host (D-40), yet
+  slim-data, the report engine and invoicing all need TR types; the host uses them like any module.
+- **D-46 Reports stay Excel, behind a renderer interface.** The report engine's template-faithful
+  layouts are the asset; a PDF/HTML renderer can be added later without touching callers.
+- **D-47 slim-data owns `report_issues`; the report engine is a pure renderer.** Data in, file out, no
+  DB. Amended reports belong to the results lifecycle (D-20), which lives here.
+- **D-48 One analyte identity: `AnalyteRef(analysis_id, code)`** in every module. `analysis_id` is
+  slim-domain's; `code` is an element symbol or ion code. Invoicing quotes key on the same IDs; the
+  portal's `analysis_catalog` is display/grouping, matched by ID.
+- **D-49 Ecosystem decisions and docker-compose live in the host repo** (`slim-lims-oss`). Rejected:
+  an umbrella repo (one more repo to keep in sync; the host is already the composition root).
+  D-39–D-49 stay here until the host repo has its ecosystem doc, then move there.
+
+## People — identity in a public demo (2026-10-19)
+
+- **D-50 Real authentication, plus demo personas recorded as ASSERTED.** Settles D-18.
+  - Password login (bcrypt, roles, sessions) stays the production path, as in the portal today.
+  - Demo personas are a second sign-in method enabled by configuration: "Continue as…" customer, analyst,
+    reviewer, supervisor, billing, with a persona switcher in the header. The persona list is data; no
+    `if demo:` branches.
+  - Persona actions carry `identity_source = ASSERTED`: the audit trail never claims more than it knows.
+  - A policy table says which identity sources each action accepts (demo config: ASSERTED may release;
+    a production config would require AUTHENTICATED). Same spirit as D-05: config swap, not code.
+  - Four-eyes still compares `Actor.id`, so a visitor who reviews their own batch is blocked and told
+    to switch persona; the rule is visible in the demo.
+  - Non-persistent sandbox: the D-27 scenarios are pre-run at seed so a first visitor sees history
+    (time travel, amended report, exception, billed TR); scheduled reset (e.g. nightly) with a banner;
+    seed dates relative to today; the audit hash chain restarts per reset and `verify` checks it from
+    its start. Shared state between resets is accepted (per-visitor databases rejected as cost
+    without visible benefit). Personas can't create users, change policy or publish rulesets; CSV
+    uploads stay size-limited and are parsed, never executed.
+  - Rejected: typed initials only (no real auth to show); login-only (reviewers won't sign up, and
+    four-eyes would dead-end a lone visitor).
+
+## Ruleset design — cross-element pattern (2026-10-19)
+
+- **D-51 Rung 2 detects only a multiplicative (cup-level) fault.** Refines D-32's "cross-element
+  pattern". Additive faults (contamination, loss) are element-level: cup A can pick up Fe while cup B
+  picks up Zn and every other element in both cups is good, so they stay on the per-element ladder.
+  Multiplicative faults (weighing, dilution, volume error) scale a whole cup, leaving the same ratio
+  cup A / cup B across nearly every element.
+  - Evaluable elements: both cups above the switch point (D-28), not analyst-excluded.
+  - Trigger: ≥ 5 evaluable elements, ≥ 75% of their ratios within ±5% of the median ratio, and the
+    median ratio itself fails the RPD limit. (Ruleset parameters; demo defaults.)
+  - Decision, once per sample: spike witnesses across elements (the spike is a separate weighing);
+    ≥ 2 conclusive witnesses that agree pick the cup, else the sample's verdict is RERUN. The choice
+    applies to every element inside the cluster and is recorded once in the trace.
+  - Elements outside the cluster go down the per-element ladder, so contamination on top of a scale
+    fault is still caught.
+  - Rejected: "≥ 75% disagree in the same direction" (contamination can look like that); forcing one
+    cup for all elements (discards good data when faults are element-level).
+
+## Ruleset design — direction prior (2026-10-19)
+
+- **D-52 The direction prior is a ruleset table keyed by element, with optional per-prep overrides.**
+  Susceptibility depends on the prep (a hot acid digest can lose Hg/As/Se; glassware leaches B/Na/Si;
+  handling adds Zn/Fe), so a row for (element, prep method) overrides the element default. Values:
+  CONTAMINATION_PRONE (believe the lower cup), LOSS_PRONE (believe the higher cup), NEUTRAL (rung is
+  inconclusive → no decision; no guessing). The table is part of the ruleset, so it's versioned and
+  content-hashed (D-14); the trace records the row used and whether it was a prep override. Demo
+  values are invented but plausible (D-05). After D-51 it only ever handles additive faults.
+
+## Ruleset design — no valid recovery (2026-10-19)
+
+- **D-53 "No valid recovery" splits in two, per element across the batch.** Refines D-37's proposed
+  default.
+  - Every spike NOT_EVALUABLE (4× rule): recovery can't be measured, which says nothing about the
+    prep → NEEDS_SUPERVISOR with a standard qualifier ("spike recovery not evaluable: sample
+    concentration exceeds spike level"); the supervisor may release or order a rerun with a larger
+    spike.
+  - Recoveries evaluated but the pooled median is outside the window (demo 75–125%): evidence the
+    prep or matrix failed → RERUN (a supervisor can still override through an exception, D-09).
+  - Clarifies D-37: the pooled median is taken over evaluable recoveries (individual out-of-window
+    values still count) and the median is what's compared with the window; leave-one-out still
+    applies when a sample's spike chose its cup.
+
+## Ruleset design — reported value, MDL floor, rounding (2026-10-19)
+
+- **D-54 The reported value step.**
+  1. Value: the mean of the two cups when they agree, else the chosen cup; then × dilution.
+  2. MDL floor on the *effective* MDL (MDL × dilution): below it the result reads "< effective MDL".
+  3. Optional quantitation limit (QL), demo default 3.33 × MDL (MDL ≈ 3σ, QL ≈ 10σ): values between
+     MDL and QL carry an "estimated" qualifier. Fits the report's existing MDL/QL column.
+  4. Round once, at the end, to a fixed number of decimal places set per analyte in the ruleset, with a
+     ruleset-wide default (demo 3 dp); round half to even (no upward bias over many results).
+     *Revised the same day:* significant figures were proposed first (constant relative precision
+     across magnitudes) but rejected: customers read fixed-decimal columns, and a column jumping
+     between `0.00123` and `12300` confuses them. The MDL floor already covers the small values that
+     fixed decimals would hurt, and per-analyte places match how LIMS commonly configure reporting.
+  5. Every comparison (agreement, recovery window, spec limits) uses unrounded values; raw and
+     reported values are both stored, so replay (D-17) reproduces the result exactly.
+
+## Ruleset design — ± on the report (2026-10-19)
+
+- **D-55 ± is the half-delta, only when the cups agree.**
+  - Cups agree: ± = (|c1 − c2| / 2) × dilution, rounded to the same decimal places as the value (D-54).
+  - Cups disagree (one cup chosen): N/A. Half the gap would describe the rejected cup, not the result.
+  - Below MDL: N/A.
+  - Labelled as a replicate-based estimate, not an expanded uncertainty.
+  - Rejected: a floor for identical cups and a pooled batch repeatability for chosen cups (too complex
+    for what the customer gains; N/A is more honest than an estimate).
+
+## Ruleset design — verdict from flags (2026-10-19)
+
+- **D-56 No quality score: severity flags, worst wins.** Deliberate departure from D-05's "quality
+  score" shape. Every check emits named flags with a severity INFO → WARN → NEEDS_SUPERVISOR → RERUN
+  (e.g. cup chosen by spike witness = WARN; all spikes NOT_EVALUABLE = NEEDS_SUPERVISOR, D-53; pooled
+  recovery outside the window = RERUN). The flag → severity table belongs to the ruleset (versioned,
+  D-14). The verdict is the most severe flag; none or only INFO/WARN = REPORTABLE. The trace lists
+  every flag, so "why this verdict?" always has a one-line answer.
+  - Rejected: a weighted score with cut-offs (CHEMTEST-style). Weights and cut-offs are tuning knobs
+    nobody can defend; the explicit checks already carry the reasons.
+  - Settles open item 9 and the score → verdict half of item 10.
+
+## Ruleset design — who may clear what (2026-10-19)
+
+- **D-57 Accepting a judgment call is not an exception; releasing a failure is.** Roles (D-50 personas):
+  analyst < reviewer < supervisor.
+  - REPORTABLE (INFO/WARN only): analyst submits → reviewer (not the analyst) reviews, with WARN flags
+    shown → release. Normal events.
+  - NEEDS_SUPERVISOR: the supervisor **accepts** (reason category; standard qualifier printed, D-11)
+    or **sends to rerun**. Recorded as an acceptance event, not flagged as an exception: the rules
+    asked for a human judgment.
+  - RERUN: the normal path is new readings → new version → re-evaluated. Releasing without a rerun is
+    supervisor-only, via an **exception** (D-09: reason category + required text,
+    `released_with_exception` permanently, qualifier on the report) — nonconforming work, ISO 17025
+    §7.10.
+  - Nobody clears or reviews a result on readings they entered (four-eyes on `Actor.id`).
+  - Policy table: (severity, action) → minimum role; tiered by default (higher roles inherit), flat
+    possible (D-10); combined with D-50's accepted identity sources per action.
+  - Closes open item 10 and the ruleset design.
+
+## Ruleset design — gaps found while rewriting DESIGN.md (2026-10-19)
+
+- **D-58 Method blanks: the 10× blank rule, no subtraction.** Per prep batch and element: a blank below
+  MDL is fine. If it exceeds MDL, samples reading ≥ 10× the blank get WARN; samples below 10× the
+  blank get RERUN (the contamination could be a large share of the result). Blank values are never
+  subtracted from results.
+- **D-59 Above the linear range → RERUN.** The limit is the analysis's verified **linear range**, which
+  can extend above the top calibration standard (determined per analysis in practice). It comes per
+  analyte from the ruleset. Any cup over it raises RERUN ("dilute and rerun"); a value beyond the
+  linear range is never reported. *Revised the same day:* first written as "above the calibration
+  range", which would have rerun valid results between the top standard and the linear limit.
+- **D-60 Spec-limit exceedances are INFO only.** Shown on the report; never affect the verdict. The
+  verdict answers "is the data trustworthy?", not "does the sample pass?"; a result over spec is still
+  a valid result. Keeps quality and compliance apart.
+
+## Sign-off (2026-10-19)
+
+- **D-61 Above the top calibration standard but within the linear range → INFO.** The reviewer sees
+  when that zone was used; it never affects the verdict.
+- **Design signed off by Jamie** (DESIGN.md, D-01…D-61) together with the Phase B milestones M0–M7.
+
+## Build — choices made while building M1 (2026-10-19)
+
+- **D-62 Four small workflow choices**, approved by Jamie:
+  1. Each result version stores the IDs of the analysts who entered its readings (`analyst_ids`), so
+     four-eyes can be checked on the result alone.
+  2. A correction is two steps: a CORRECTION_STARTED event on the old version, then the new version.
+     Sign-offs are blocked in between.
+  3. Sending a REPORTABLE result back for a rerun needs a reviewer; a NEEDS_SUPERVISOR one still needs
+     a supervisor (D-57).
+  4. Four-eyes applies to review, accept, exception and release, not to reject or correct: an analyst
+     may correct their own released result, but someone else reviews and releases the new version.
+
+## Build — choices made while building M2 part 1 (2026-10-19)
+
+- **D-63 Seven engine choices**, approved by Jamie:
+  1. A first step, `cup_shape@1`, checks each sample × analyte has cups 1 and 2, one unit across cups
+     and spikes, and an MDL. Wrong shape → nothing reportable (RERUN flag); missing MDL → agreement
+     falls back to the RPD rule alone (NEEDS_SUPERVISOR flag).
+  2. An analyst exclusion applies even when the cups agree (a reading marked bad never feeds a mean);
+     it is always the first rung.
+  3. Only the per-element rungs (spike witness, direction prior) are reorderable in the ruleset;
+     exclusion is always first and the scale-fault check is switched on or off.
+  4. A scale-fault decision applies to every element in the cluster, including any whose cups happen
+     to agree (D-51).
+  5. A batch over the ruleset's size limit is refused (`BatchRejected`), not evaluated with a flag.
+  6. Comparisons use dilution-corrected values; the linear-range check uses the raw instrument
+     reading, which is what the range was verified on.
+  7. When the two cups' MDLs differ, the larger effective MDL is used (cautious).
+

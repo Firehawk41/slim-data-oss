@@ -1,0 +1,47 @@
+{
+  "name": "demo-metals-icpms",
+  "analysis_id": 1,
+  "prep_method": null,
+  "max_batch_size": 20,
+  "steps": [
+    {"step": "cup_shape@1"},
+    {"step": "linear_range@1", "params": {"ranges": [
+      {"code": "Fe", "unit": "ppb", "top_standard": "100", "linear_limit": "500"},
+      {"code": "Zn", "unit": "ppb", "top_standard": "100", "linear_limit": "400"},
+      {"code": "Na", "unit": "ppb", "top_standard": "200", "linear_limit": "1000"}
+    ]}},
+    {"step": "agreement@1", "params": {"switch_multiple": "5", "rpd_limit": "0.20", "absolute_multiple": "1"}},
+    {"step": "cup_choice@1", "params": {
+      "rungs": ["spike_witness", "direction_prior"],
+      "spike_precision": "0.05",
+      "scale_fault": {"enabled": true, "min_elements": 5, "cluster_fraction": "0.75",
+                      "ratio_tolerance": "0.05", "min_witnesses": 2},
+      "direction_prior": [
+        {"code": "Zn", "direction": "CONTAMINATION_PRONE"},
+        {"code": "Fe", "direction": "CONTAMINATION_PRONE"},
+        {"code": "Na", "direction": "CONTAMINATION_PRONE"},
+        {"code": "B", "direction": "CONTAMINATION_PRONE"},
+        {"code": "Si", "direction": "CONTAMINATION_PRONE"},
+        {"code": "Hg", "direction": "LOSS_PRONE"},
+        {"code": "Se", "direction": "LOSS_PRONE"},
+        {"code": "As", "direction": "NEUTRAL"},
+        {"code": "As", "prep_method": "hot block HNO3", "direction": "LOSS_PRONE"}
+      ]
+    }}
+  ],
+  "severities": [
+    {"code": "CUP_COUNT_UNEXPECTED", "severity": "RERUN"},
+    {"code": "UNIT_MISMATCH", "severity": "RERUN"},
+    {"code": "MDL_MISSING", "severity": "NEEDS_SUPERVISOR"},
+    {"code": "ABOVE_LINEAR_RANGE", "severity": "RERUN"},
+    {"code": "ABOVE_TOP_STANDARD", "severity": "INFO"},
+    {"code": "CUPS_DISAGREE", "severity": "INFO"},
+    {"code": "CUP_CHOSEN_BY_EXCLUSION", "severity": "INFO"},
+    {"code": "ALL_CUPS_EXCLUDED", "severity": "RERUN"},
+    {"code": "SCALE_FAULT_CUP_CHOSEN", "severity": "WARN"},
+    {"code": "SCALE_FAULT_UNRESOLVED", "severity": "RERUN"},
+    {"code": "CUP_CHOSEN_BY_SPIKE", "severity": "WARN"},
+    {"code": "CUP_CHOSEN_BY_PRIOR", "severity": "WARN"},
+    {"code": "CUP_CHOICE_UNDECIDED", "severity": "NEEDS_SUPERVISOR"}
+  ]
+}
