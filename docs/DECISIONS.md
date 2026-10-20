@@ -573,8 +573,8 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
 
 ## Build — M6 part 1 (2026-10-20)
 
-- **D-69 Integration choices, slim-data side.** Item 1 approved by Jamie before building; the rest to
-  approve at the M6 walkthrough.
+- **D-69 Integration choices, slim-data side**, approved by Jamie (item 1 before building, the rest at
+  the M6 walkthrough).
   1. **M6 is split** (Jamie). Part 1 changes slim-data only: read models, the adapter, the demo seed
      and the end-to-end test. Part 2 wires slim-data into LabPortal (slim-lims) and needs Jamie's
      go-ahead, since it changes another repo.
@@ -593,3 +593,5 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   5. The demo seed (`demo/scenarios.py`) runs each named scenario through the real service from CSV
      files, with ASSERTED personas, its own TR and batch, and dates relative to today. Not seeded: the
      solo sign-off (it needs its real wait) and billing (invoicing's job).
+  6. **Parked (Jamie):** teach slim-domain which analytes belong to which analysis, so the adapter
+     can refuse e.g. `Cl-` on a metals analysis (item 3 accepts any known analyte until then).

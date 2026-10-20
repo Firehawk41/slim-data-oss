@@ -31,11 +31,16 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | M3 | Persistence: append-only tables + triggers, repositories, `as_of`, audit context, ruleset/policy publishing | ✅ |
 | M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | ✅ |
 | M5 | Workflow service: evaluate, review, release, exceptions, corrections, `report_issues`, amended reports | ✅ (incl. D-68 solo sign-off) |
-| M6 | Integration: part 1 (slim-data) adapter, report/batch views, demo scenarios, e2e test; part 2 LabPortal wiring (needs Jamie's go-ahead) | part 1 ✅ (D-69 items 2–5 await Jamie's OK) |
+| M6 | Integration: part 1 (slim-data) adapter, report/batch views, demo scenarios, e2e test; part 2 LabPortal wiring (needs Jamie's go-ahead) | part 1 ✅; **part 2 next (approved)** |
 | M7 | Finish: `verify` command, README, walkthrough | |
 
-Each milestone ends green on CI and with a walkthrough for Jamie. M0–M5 are merged into `main`;
-M6 part 1 is on `claude/m2-part-2-ujruzt`.
+Each milestone ends green on CI and with a walkthrough for Jamie. M0–M6 part 1 are merged into `main`.
+
+**Next — M6 part 2 (Jamie approved 2026-10-20):** wire slim-data into LabPortal (the slim-lims host):
+run slim-data's migrations, build `SlimReferenceLookup` from the portal's analysis catalog + TR v2
+tables + slim-domain, call `preview_import`/`import_run` on CSV upload, then `evaluate_batch`; screens
+and API for batch review, accept/exception, release (map `ResultsReleased` to TR status), report
+issues; personas per D-50. Read LabPortal's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
 
