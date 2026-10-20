@@ -226,14 +226,13 @@ Invoicing is triggered by staff on a complete-report TR (D-43).
 |---|---|
 | `rulesets` | published rulesets: number, content hash, body (JSON), cliff reason, published by/at |
 | `policies` | published policy tables (roles per action, identity sources per action), versioned like rulesets |
-| `prep_batches`, `prep_batch_samples` | batch, prep method snapshot, samples, spike amounts |
+| `prep_batches`, `prep_batch_samples`, `prep_batch_spikes` | batch, prep method snapshot, samples, spike amounts (D-65) |
 | `runs` | run metadata, source file sha256 (unique), reader name + version |
-| `readings` | one row per reading |
+| `readings` | one row per reading, with its prep batch (a blank's only owner, D-64) |
 | `reading_exclusions` | analyst exclusions (events) |
 | `results` | identity only: tr_number, position, analysis_id, analyte code (unique) |
 | `result_versions` | values, flags, verdict, trace, ruleset id, limits snapshot; PK (result_id, version) doubles as optimistic concurrency |
-| `result_events` | status events: review, acceptance, rerun request, release, correction |
-| `result_exceptions` | exceptions (D-09), queryable lab-wide |
+| `result_events` | status events: review, acceptance, rerun request, exception, release, correction |
 | `report_issues`, `report_issue_lines` | which result versions each report showed, file hash, amended-from link |
 
 Portable schema: enums as ints, JSON via SQLAlchemy `JSON`, no ARRAY columns, Decimal as `Numeric`.

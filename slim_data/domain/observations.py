@@ -11,7 +11,7 @@ from pydantic import AwareDatetime, Field, model_validator
 
 from slim_data.domain.actor import Actor
 from slim_data.domain.base import Dec, Frozen
-from slim_data.domain.enums import ReadingRole
+from slim_data.domain.enums import ExclusionKind, ReadingRole
 from slim_data.domain.values import AnalyteRef, Quantity, SampleRef
 
 
@@ -124,9 +124,11 @@ class Reading(Frozen):
 
 
 class ReadingExclusion(Frozen):
-    """An analyst marks a reading bad (D-32 rung 1). An event; the reading itself never changes."""
+    """An analyst marks a reading bad (D-32 rung 1), or puts it back (RESTORED). An event; the
+    reading itself never changes, and neither does an earlier exclusion."""
 
     reading_id: int
+    kind: ExclusionKind = ExclusionKind.EXCLUDED
     reason: str = Field(min_length=1, max_length=500)
     actor: Actor
     at: AwareDatetime | None = None  # set from the database clock when stored (D-21)

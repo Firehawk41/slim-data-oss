@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-64, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-65, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -28,15 +28,13 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | M0 | Skeleton: packaging, layers, OSS guard, Alembic (own version table), architecture test, CI | ✅ |
 | M1 | Domain: values, observations, results, policies, workflow rules | ✅ |
 | M2 | Engine: cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling, reported_value, uncertainty, method_blank, spec_limits; verdict = worst flag | ✅ |
-| M3 | Persistence: append-only tables + triggers, repository, `as_of`, audit log, ruleset publishing | |
+| M3 | Persistence: append-only tables + triggers, repositories, `as_of`, audit context, ruleset/policy publishing | ✅ |
 | M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | |
 | M5 | Workflow service: review, release, exceptions, corrections, `report_issues`, amended reports | |
 | M6 | Integration: ReferenceLookup adapter, report read model, host wiring, demo scenarios, e2e test | |
 | M7 | Finish: `verify` command, README, walkthrough | |
 
-Each milestone ends green on CI and with a walkthrough for Jamie. M0–M2 part 1 are in PR
-Firehawk41/slim-data-oss#1 (branch `claude/wonderful-dijkstra-jwxssi`); M2 part 2 is on
-`claude/m2-part-2-ujruzt`, stacked on it.
+Each milestone ends green on CI and with a walkthrough for Jamie. M0–M3 are merged into `main`.
 
 ## File map
 
@@ -49,10 +47,11 @@ slim_data/
 │                    #   reported_value, uncertainty, method_blank, spec_limits (all @1)
 ├── rulesets/        # ruleset files (JSON): demo_metals.json
 ├── pipeline/        # (M4) reader plugins -> import plan
-├── persistence/     # oss_guard, db (make_engine = the only create_engine), migrate, migrations/
+├── persistence/     # oss_guard, db (make_engine = the only create_engine), migrate, migrations/,
+│                    #   types, tables, append_only, audit; repositories: rulesets, observations, results
 ├── service/         # (M5) ResultService facade, DESIGN.md §11
 └── adapters/        # (M6) ReferenceLookup over slim-domain
-tests/               # factories.py; domain/; engine/ (helpers.py, step_manifest.txt); guard, architecture, migrations
+tests/               # factories.py; domain/; engine/ (helpers, step_manifest.txt); persistence/; guard, architecture, migrations
 .github/workflows/ci.yml  # ruff + {SQLite, Postgres 16} × {3.11, 3.12} + 95% branch coverage on domain + engine
 ```
 

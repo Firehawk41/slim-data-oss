@@ -11,6 +11,13 @@ class ReadingRole(IntEnum):
     BLANK = 3  # the prep batch's method blank
 
 
+class ExclusionKind(IntEnum):
+    """An analyst takes a reading out, or puts it back (D-65). The newest one for a reading decides."""
+
+    EXCLUDED = 1
+    RESTORED = 2
+
+
 class IdentitySource(IntEnum):
     """How the caller knows who the actor is (D-18, D-50)."""
 

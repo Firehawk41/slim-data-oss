@@ -432,3 +432,40 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   10. The verdict (§7.2 row 12) is not a step: `CellOutcome.verdict` is the worst flag (D-56).
       Spec limits arrive in the evaluation input (the caller looks them up, §5) and are snapshotted on
       the outcome (D-04).
+
+## Build — choices made while building M3 (2026-10-20)
+
+- **D-65 Persistence choices**, approved by Jamie (items 1–2 before building, #10 revised at their
+  request, the rest at the M3 walkthrough).
+  1. **No `result_exceptions` table.** An exception is a `result_events` row of kind EXCEPTION (it
+     already holds the category and the required text), indexed on kind for the lab-wide query.
+     Rejected: a second table holding the same facts, which could drift. Revises DESIGN.md §10.1.
+  2. **slim-data sets the audit settings itself.** Every write sets `app.changed_by` (Actor.id) and
+     `app.change_reason`, the two names slim-domain's `audit_log` reads; nothing on SQLite. Rejected:
+     importing slim-domain, which would make it (and openpyxl) a hard dependency. A test compares the
+     names with slim-domain's when it is installed.
+  3. The database clock is read **per statement**: `clock_timestamp()` on Postgres (`now()` is frozen
+     for the whole transaction, so a review and a release in one transaction would tie), millisecond
+     `strftime` on SQLite. `as_of` resolves to that tick: microseconds on Postgres, milliseconds on
+     SQLite (acceptable for the demo database; the row id still orders ties).
+  4. The append-only triggers are installed on SQLite too, so the tests prove them on both databases;
+     Postgres also refuses TRUNCATE.
+  5. Decimals are `NUMERIC` on Postgres and text on SQLite (which would store floats), so `12.40` keeps
+     its digits on both.
+  6. Publishing the same content again returns the existing number instead of a new row. To make an
+     older ruleset current again, publish it changed (e.g. renamed). Reads re-check the content hash,
+     so a body edited behind the triggers' back is refused.
+  7. One policy is in force at a time: the latest published.
+  8. A reading row carries its prep batch (where a blank belongs, D-64); spike amounts get their own
+     table, `prep_batch_spikes`.
+  9. People are stored as an id column (what four-eyes and queries compare) plus the whole Actor as
+     JSON, identity source included, as it stood then.
+  10. **An exclusion can be undone** (Jamie, same day; first written as "never withdrawn"). Each
+      exclusion row is EXCLUDED or RESTORED, with a reason and the person; the newest row for a reading
+      decides, so a reading can go out, come back and go out again with its history kept, and `as_of`
+      shows what was excluded at any moment. Results already decided don't change; the next explicit
+      re-evaluation reads the new state (D-12). Spikes can't be excluded, matching the engine.
+  11. `make_engine` lets SQLAlchemy emit BEGIN on SQLite (the documented pysqlite recipe), so
+      savepoints and transactional DDL work as on Postgres.
+  12. `ResultVersion` gains `raw` and `recovery` (DESIGN.md §6.2 and D-38 say a version holds them).
+  13. The report-issue tables exist now; their repository comes with `record_issue` in M5.

@@ -42,9 +42,11 @@ class ResultVersion(Frozen):
 
     version: int = Field(ge=1)
     ruleset_id: int = Field(ge=1)  # the published ruleset that produced it (D-12)
+    raw: Dec | None = None  # unrounded, dilution-corrected value, kept beside the reported one (D-54)
     reported: Quantity | None  # rounded value; for BELOW_MDL, the effective MDL
     qualifier: Qualifier
     uncertainty: Dec | None = None  # ± half-delta, same unit (D-55); None reads N/A
+    recovery: Dec | None = None  # pooled spike recovery, a fraction, shown beside the result (D-38)
     flags: tuple[Flag, ...] = ()
     trace: dict[str, Any] = Field(default_factory=dict)  # step-by-step decision trace (D-16)
     limits: dict[str, Any] = Field(default_factory=dict)  # spec limits as they stood (D-04)

@@ -12,6 +12,7 @@ from logging.config import fileConfig
 
 from alembic import context
 
+from slim_data.persistence import tables  # noqa: F401  (registers the tables on Base)
 from slim_data.persistence.db import Base, make_engine
 from slim_data.persistence.migrate import VERSION_TABLE
 
