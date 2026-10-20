@@ -151,9 +151,11 @@ reading_exclusions = Table(
     "reading_exclusions",
     metadata,
     Column("id", Integer, primary_key=True),
-    Column("reading_id", ForeignKey("readings.id"), nullable=False, unique=True),
+    Column("reading_id", ForeignKey("readings.id"), nullable=False),
+    Column("kind", Integer, nullable=False),  # ExclusionKind: the newest row per reading decides
     Column("reason", String(500), nullable=False),
     *_created(),
+    Index("ix_reading_exclusions_reading", "reading_id"),
 )
 
 results = Table(

@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from slim_data.domain.actor import Actor
-from slim_data.domain.enums import ReadingRole
+from slim_data.domain.enums import ExclusionKind, ReadingRole
 from slim_data.domain.observations import PrepBatch, Reading, ReadingExclusion, Run, SourceFile, SpikeAddition
 from slim_data.domain.values import AnalyteRef, Quantity, SampleRef
 from slim_data.engine.model import EvaluationInput
@@ -176,24 +176,30 @@ def get_run(session: Session, run_id: int) -> Run:
 
 
 def exclude_reading(session: Session, exclusion: ReadingExclusion) -> ReadingExclusion:
+    """Takes a reading out (EXCLUDED) or puts it back (RESTORED). Results already decided don't
+    change; the next explicit re-evaluation reads the new state (D-12)."""
     role = session.scalar(select(readings.c.role).where(readings.c.id == exclusion.reading_id))
     if role is None:
         raise NotFound(f"no reading {exclusion.reading_id}")
     if role == ReadingRole.SPIKE:
         raise ValueError("a spike can't be excluded: only cups and blanks")
+    currently_excluded = exclusion.reading_id in _excluded(
+        session, readings.c.id == exclusion.reading_id, None
+    )
+    if exclusion.kind == ExclusionKind.EXCLUDED and currently_excluded:
+        raise ValueError(f"reading {exclusion.reading_id} is already excluded")
+    if exclusion.kind == ExclusionKind.RESTORED and not currently_excluded:
+        raise ValueError(f"reading {exclusion.reading_id} is not excluded, so there is nothing to restore")
     set_change_context(session, exclusion.actor, exclusion.reason)
-    try:
-        with session.begin_nested():
-            exclusion_id = session.execute(
-                reading_exclusions.insert().values(
-                    reading_id=exclusion.reading_id,
-                    reason=exclusion.reason,
-                    created_by_id=exclusion.actor.id,
-                    created_by=actor_json(exclusion.actor),
-                )
-            ).inserted_primary_key[0]
-    except IntegrityError:
-        raise ValueError(f"reading {exclusion.reading_id} is already excluded") from None
+    exclusion_id = session.execute(
+        reading_exclusions.insert().values(
+            reading_id=exclusion.reading_id,
+            kind=int(exclusion.kind),
+            reason=exclusion.reason,
+            created_by_id=exclusion.actor.id,
+            created_by=actor_json(exclusion.actor),
+        )
+    ).inserted_primary_key[0]
     at = session.scalar(
         select(reading_exclusions.c.created_at).where(reading_exclusions.c.id == exclusion_id)
     )
@@ -216,12 +222,20 @@ def evaluation_input(session: Session, code: str, as_of: datetime | None = None)
     found = batch_readings(session, batch.id, as_of)
     if not found:
         raise NotFound(f"prep batch {code} has no readings yet")
-    excluded = session.scalars(
-        select(reading_exclusions.c.reading_id)
+    excluded = _excluded(session, readings.c.batch_id == batch.id, as_of)
+    return EvaluationInput(batch=batch, readings=found, excluded_reading_ids=excluded)
+
+
+def _excluded(session: Session, which, as_of: datetime | None) -> frozenset[int]:
+    """Readings whose newest exclusion row (as of `as_of`) says EXCLUDED."""
+    rows = session.execute(
+        select(reading_exclusions.c.reading_id, reading_exclusions.c.kind)
         .join(readings, readings.c.id == reading_exclusions.c.reading_id)
-        .where(readings.c.batch_id == batch.id, as_of_filter(reading_exclusions.c.created_at, as_of))
+        .where(which, as_of_filter(reading_exclusions.c.created_at, as_of))
+        .order_by(reading_exclusions.c.created_at, reading_exclusions.c.id)
     ).all()
-    return EvaluationInput(batch=batch, readings=found, excluded_reading_ids=frozenset(excluded))
+    latest = {row.reading_id: row.kind for row in rows}
+    return frozenset(reading for reading, kind in latest.items() if kind == ExclusionKind.EXCLUDED)
 
 
 def _reading(row) -> Reading:

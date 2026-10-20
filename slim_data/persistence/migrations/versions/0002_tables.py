@@ -220,6 +220,7 @@ def upgrade() -> None:
         "reading_exclusions",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("reading_id", sa.Integer(), nullable=False),
+        sa.Column("kind", sa.Integer(), nullable=False),
         sa.Column("reason", sa.String(length=500), nullable=False),
         sa.Column("created_by_id", sa.String(length=100), nullable=False),
         sa.Column("created_by", sa.JSON(), nullable=False),
@@ -228,8 +229,8 @@ def upgrade() -> None:
             ["reading_id"], ["readings.id"], name=op.f("fk_reading_exclusions_reading_id_readings")
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_reading_exclusions")),
-        sa.UniqueConstraint("reading_id", name=op.f("uq_reading_exclusions_reading_id")),
     )
+    op.create_index("ix_reading_exclusions_reading", "reading_exclusions", ["reading_id"])
     op.create_table(
         "report_issue_lines",
         sa.Column("id", sa.Integer(), nullable=False),

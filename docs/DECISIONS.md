@@ -460,8 +460,11 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      table, `prep_batch_spikes`.
   9. People are stored as an id column (what four-eyes and queries compare) plus the whole Actor as
      JSON, identity source included, as it stood then.
-  10. One exclusion per reading, never withdrawn (withdrawing would need a new event kind; not built).
-      Spikes can't be excluded, matching the engine.
+  10. **An exclusion can be undone** (Jamie, same day; first written as "never withdrawn"). Each
+      exclusion row is EXCLUDED or RESTORED, with a reason and the person; the newest row for a reading
+      decides, so a reading can go out, come back and go out again with its history kept, and `as_of`
+      shows what was excluded at any moment. Results already decided don't change; the next explicit
+      re-evaluation reads the new state (D-12). Spikes can't be excluded, matching the engine.
   11. `make_engine` lets SQLAlchemy emit BEGIN on SQLite (the documented pysqlite recipe), so
       savepoints and transactional DDL work as on Postgres.
   12. `ResultVersion` gains `raw` and `recovery` (DESIGN.md §6.2 and D-38 say a version holds them).

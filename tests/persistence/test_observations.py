@@ -2,7 +2,7 @@
 
 import pytest
 
-from slim_data.domain.enums import ReadingRole
+from slim_data.domain.enums import ExclusionKind, ReadingRole
 from slim_data.domain.observations import ReadingExclusion
 from slim_data.engine.runner import evaluate
 from slim_data.persistence._rows import NotFound
@@ -105,3 +105,28 @@ def test_stored_readings_evaluate_exactly_like_the_originals(session, stored):
         c.model_dump(exclude={"trace"}) for c in from_db.cells
     ]
     assert [c.trace for c in fresh.cells] == [c.trace for c in from_db.cells]
+
+
+def test_a_reading_can_be_restored_and_excluded_again_with_its_history_kept(session, stored):
+    _, batch, _ = stored
+    cup = evaluation_input(session, batch.code).readings[0]
+
+    def change(kind, reason):
+        return exclude_reading(
+            session, ReadingExclusion(reading_id=cup.id, kind=kind, reason=reason, actor=ANA)
+        )
+
+    with pytest.raises(ValueError, match="nothing to restore"):
+        change(ExclusionKind.RESTORED, "never excluded")
+    change(ExclusionKind.EXCLUDED, "bubble")
+    while_excluded = instant(session)
+    restored = change(ExclusionKind.RESTORED, "wrong cup excluded")
+    assert restored.kind == ExclusionKind.RESTORED
+    after_restore = instant(session)
+    assert evaluation_input(session, batch.code).excluded_reading_ids == frozenset()
+    change(ExclusionKind.EXCLUDED, "bubble after all")
+    assert evaluation_input(session, batch.code).excluded_reading_ids == {cup.id}
+    assert evaluation_input(session, batch.code, as_of=while_excluded).excluded_reading_ids == {cup.id}
+    assert evaluation_input(session, batch.code, as_of=after_restore).excluded_reading_ids == frozenset()
+    with pytest.raises(ValueError, match="already excluded"):
+        change(ExclusionKind.EXCLUDED, "again")
