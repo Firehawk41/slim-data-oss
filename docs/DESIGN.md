@@ -183,7 +183,8 @@ the stored trace exactly; `verify` runs it across the database and is also a tes
   tiered by default, flat possible.
 - A second policy says which identity sources each action accepts (D-50): the demo lets ASSERTED
   personas release; a production config would require AUTHENTICATED.
-- Nobody reviews or clears a result on readings they entered (four-eyes on `Actor.id`).
+- Nobody reviews or clears a result on readings they entered (four-eyes on `Actor.id`), except a
+  **solo** review and release by a chemist working alone, after the policy's delay, labelled (D-68).
 
 *Supersedes in part:* D-09's "NEEDS_SUPERVISOR is overridden by an exception" (now an acceptance) and
 D-10's example tiers ("RERUN → quality"; now supervisor, matching the demo roles).

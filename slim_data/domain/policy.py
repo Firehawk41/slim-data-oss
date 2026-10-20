@@ -30,6 +30,9 @@ class Policy(Frozen):
     name: str = Field(min_length=1, max_length=60)
     role_rules: tuple[RoleRule, ...]
     identity_rules: tuple[IdentityRule, ...]
+    # Minutes a chemist working alone must wait before a solo review or release of their own
+    # results (D-68); None = solo sign-offs not allowed: strict four-eyes.
+    solo_review_minutes: int | None = Field(default=None, ge=0)
 
     @model_validator(mode="after")
     def _no_duplicates(self) -> Self:
@@ -78,6 +81,7 @@ DEMO_POLICY = Policy(
     name="demo",
     role_rules=_TIERED_ROLES,
     identity_rules=tuple(IdentityRule(action=action, sources=_ANY_SOURCE) for action in Action),
+    solo_review_minutes=15,
 )
 """The public demo: tiered roles; demo personas (ASSERTED) may do everything their role allows."""
 

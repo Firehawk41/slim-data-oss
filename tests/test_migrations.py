@@ -20,11 +20,11 @@ def _version(connection) -> str | None:
 def test_upgrade_downgrade_upgrade(engine):
     with engine.begin() as connection:
         migrate.upgrade(connection)
-        assert _version(connection) == "0003"
+        assert _version(connection) == "0004"
         migrate.downgrade(connection)
         assert _version(connection) is None
         migrate.upgrade(connection)
-        assert _version(connection) == "0003"
+        assert _version(connection) == "0004"
         migrate.downgrade(connection)
 
 
@@ -66,7 +66,7 @@ def test_models_match_migrations(engine):
             migrate.downgrade(connection)
 
 
-REBUILT = ("runs", "readings", "prep_batch_samples", "prep_batch_spikes")  # tables 0003 alters
+REBUILT = ("runs", "readings", "prep_batch_samples", "prep_batch_spikes", "result_events")  # 0003, 0004
 
 
 def test_append_only_survives_a_downgrade(engine):

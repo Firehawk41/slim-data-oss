@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-67, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-68, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -30,7 +30,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | M2 | Engine: cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling, reported_value, uncertainty, method_blank, spec_limits; verdict = worst flag | ✅ |
 | M3 | Persistence: append-only tables + triggers, repositories, `as_of`, audit context, ruleset/policy publishing | ✅ |
 | M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | ✅ |
-| M5 | Workflow service: evaluate, review, release, exceptions, corrections, `report_issues`, amended reports | ✅ (D-67 items 3–11 await Jamie's OK) |
+| M5 | Workflow service: evaluate, review, release, exceptions, corrections, `report_issues`, amended reports | ✅ (D-67 items 3–11 await Jamie's OK; D-68 solo sign-off built) |
 | M6 | Integration: ReferenceLookup adapter, report read model, host wiring, demo scenarios, e2e test | |
 | M7 | Finish: `verify` command, README, walkthrough | |
 

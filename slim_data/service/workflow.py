@@ -24,7 +24,7 @@ from slim_data.domain.values import AnalyteRef, SampleRef
 from slim_data.engine.model import CellOutcome, EvaluationInput, SampleLimits
 from slim_data.engine.registry import StepRegistry
 from slim_data.engine.runner import evaluate
-from slim_data.persistence._rows import NotFound
+from slim_data.persistence._rows import NotFound, database_time
 from slim_data.persistence.observations import entered_by, evaluation_input, get_batch
 from slim_data.persistence.results import (
     add_event,
@@ -252,9 +252,10 @@ def start_correction(session, sample, analyte, actor, reason: str) -> ResultEven
     return _act(session, sample, analyte, workflow.start_correction, actor, reason)
 
 
-def review_batch(session: Session, code: str, actor: Actor, note: str = "") -> int:
-    """Reviews every draft of a batch at once (D-19), or none if any can't be: returns how many."""
-    policy = _policy(session)
+def review_batch(session: Session, code: str, actor: Actor, note: str = "", solo: bool = False) -> int:
+    """Reviews every draft of a batch at once (D-19), or none if any can't be: returns how many.
+    `solo`: a chemist alone reviewing their own results, with `note` as the reason (D-68)."""
+    policy, now = _policy(session), database_time(session)
     drafts = [
         r
         for r in results_for_batch(session, get_batch(session, code).id)
@@ -263,7 +264,7 @@ def review_batch(session: Session, code: str, actor: Actor, note: str = "") -> i
     events, problems = [], []
     for result in drafts:
         try:
-            events.append((result, workflow.review(result, actor, policy, note)))
+            events.append((result, workflow.review(result, actor, policy, note, solo, now)))
         except workflow.WorkflowError as error:
             problems.append(f"{result.sample} {result.analyte.code}: {error}")
     if problems:
@@ -274,10 +275,11 @@ def review_batch(session: Session, code: str, actor: Actor, note: str = "") -> i
 
 
 def release(
-    session: Session, sample: SampleRef, analysis_id: int, actor: Actor, note: str = ""
+    session: Session, sample: SampleRef, analysis_id: int, actor: Actor, note: str = "", solo: bool = False
 ) -> ResultsReleased:
-    """Releases the elements of a sample + analysis that are ready; the others wait (D-67)."""
-    policy = _policy(session)
+    """Releases the elements of a sample + analysis that are ready; the others wait (D-67). `solo`
+    as in `review_batch` (D-68)."""
+    policy, now = _policy(session), database_time(session)
     candidates = [
         r
         for r in results_for_tr(session, sample.tr_number)
@@ -286,7 +288,7 @@ def release(
     released, waiting = [], []
     for result in candidates:
         try:
-            event = workflow.release(result, actor, policy, note)
+            event = workflow.release(result, actor, policy, note, solo, now)
         except workflow.WorkflowError as error:
             waiting.append((result.analyte.code, str(error)))
             continue

@@ -1,13 +1,16 @@
 """Workflow rules (D-57, D-09, D-20): who may do what, when, with four-eyes throughout."""
 
+from datetime import timedelta
+
 import pytest
+from pydantic import ValidationError
 
 from slim_data.domain import workflow
 from slim_data.domain.enums import EventKind, IdentitySource, ResultStatus, Role, Severity
 from slim_data.domain.policy import DEMO_POLICY, PRODUCTION_EXAMPLE_POLICY
-from slim_data.domain.results import Result
+from slim_data.domain.results import Result, ResultEvent
 from slim_data.domain.workflow import FourEyesViolation, InvalidTransition, NotPermitted
-from tests.factories import ANA, ROB, SUE, actor, flag, result, version
+from tests.factories import ANA, NOW, ROB, SUE, actor, flag, result, version
 
 P = DEMO_POLICY
 NEEDS = version(1, flag(Severity.NEEDS_SUPERVISOR))
@@ -171,3 +174,51 @@ def test_rejection_is_final():
     assert r.status == ResultStatus.REJECTED
     with pytest.raises(InvalidTransition, match="rejected"):
         workflow.start_correction(r, ANA, P, reason="try again")
+
+
+# --- solo sign-off: one chemist on site (D-68) ----------------------------------------------------------
+
+ROBS_OWN = result(version(1, analysts=("rob",), created_at=NOW))
+WHY = "only chemist on site"
+
+
+def test_a_solo_review_and_release_after_the_delay_are_labelled():
+    later = NOW + timedelta(minutes=15)
+    event = workflow.review(ROBS_OWN, ROB, P, WHY, solo=True, now=later)
+    assert event.solo and event.kind == EventKind.REVIEWED
+    released = workflow.release(apply(ROBS_OWN, event), ROB, P, WHY, solo=True, now=later)
+    assert released.solo  # no second wait: the review was the fresh look
+
+
+def test_solo_waits_for_the_delay_after_the_last_change():
+    with pytest.raises(InvalidTransition, match="15 min after the last change; 5 min to go"):
+        workflow.review(ROBS_OWN, ROB, P, WHY, solo=True, now=NOW + timedelta(minutes=10, seconds=1))
+    # A decision of his own on the result restarts the clock.
+    own_call = ResultEvent(
+        kind=EventKind.RERUN_REQUESTED, version=1, actor=ROB, at=NOW + timedelta(minutes=20)
+    )
+    with pytest.raises(InvalidTransition, match="min to go"):
+        workflow._check_solo(apply(ROBS_OWN, own_call), ROB, P, NOW + timedelta(minutes=25))
+
+
+def test_solo_needs_the_policy_a_reason_and_a_clock():
+    with pytest.raises(NotPermitted, match="doesn't allow solo review"):
+        workflow.review(ROBS_OWN, ROB, PRODUCTION_EXAMPLE_POLICY, WHY, solo=True, now=NOW)
+    with pytest.raises(ValidationError, match="needs a reason"):
+        workflow.review(ROBS_OWN, ROB, P, "", solo=True, now=NOW + timedelta(hours=1))
+    with pytest.raises(ValueError, match="current time"):
+        workflow.review(ROBS_OWN, ROB, P, WHY, solo=True)
+    undated = result(version(1, analysts=("rob",)))
+    with pytest.raises(InvalidTransition, match="can't tell when"):
+        workflow.review(undated, ROB, P, WHY, solo=True, now=NOW)
+
+
+def test_solo_never_covers_supervisor_decisions_and_is_only_recorded_when_needed():
+    own_needs = result(version(1, flag(Severity.NEEDS_SUPERVISOR), analysts=("sue",), created_at=NOW))
+    with pytest.raises(FourEyesViolation):
+        workflow.accept(own_needs, SUE, P, "judgment call")
+    assert not workflow.review(result(), ROB, P, WHY, solo=True, now=NOW).solo  # not his readings
+    with pytest.raises(FourEyesViolation):
+        workflow.review(ROBS_OWN, ROB, P)  # strict four-eyes unless solo is asked for
+    with pytest.raises(ValidationError, match="only a review or a release"):
+        ResultEvent(kind=EventKind.ACCEPTED, version=1, actor=SUE, reason_category="x", note="y", solo=True)

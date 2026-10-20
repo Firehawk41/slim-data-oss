@@ -552,3 +552,21 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   11. A version's trace holds the ruleset's content hash, the selection, the chosen cup and every
       step's entry, so it explains itself without the ruleset at hand.
   Left for M6: the report read model (`report_view`) and `batch_view`; for M7: `verify`.
+
+## Build — solo sign-off (2026-10-20)
+
+- **D-68 A chemist working alone may sign off their own results, after a delay, labelled solo.**
+  Jamie's lab practice: on weekends the one chemist on site makes the report and its decisions, waits
+  about 15 minutes (cleaning up), then validates and sends it: fresh eyes on their own work instead
+  of a second person. ISO 17025 asks for review and authorization before release, not strictly two
+  people; what an auditor wants is a documented rule and evidence it was followed.
+  - The policy sets `solo_review_minutes`; None (the default, and the production example) means
+    strict four-eyes. The demo policy allows it with 15 minutes.
+  - **Review and release only** (Jamie). Accepting a NEEDS_SUPERVISOR result and recording an
+    exception stay strictly four-eyes.
+  - The chemist asks for it (`solo=True`) with a reason (e.g. "only chemist on site"). It is allowed
+    once the delay has passed since the result last changed: its current version, or a decision the
+    chemist took on it since (a sign-off doesn't restart the clock). Measured by the database clock.
+  - The event is marked `solo` forever; `exceptions(solo=True)` lists every solo sign-off for an
+    auditor. Solo sign-offs are not exceptions.
+  - Rejected: a retrospective second check on the next working day (Jamie: not needed).

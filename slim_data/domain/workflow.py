@@ -10,8 +10,13 @@ the ResultEvent for the caller to store. Nothing here touches a database or a cl
 | RERUN            | rerun, or supervisor exception          | EXCEPTION (D-09)       |
 
 Release needs status REVIEWED and a cleared verdict. Four-eyes: nobody reviews, accepts, records an
-exception for or releases a result on readings they entered.
+exception for or releases a result on readings they entered, with one exception (D-68): when the
+policy allows it, a chemist working alone may review and release their own results as a **solo**
+sign-off, with a reason, once the policy's delay has passed since the result last changed (fresh
+eyes on their own work). It is labelled as solo forever.
 """
+
+from datetime import datetime, timedelta
 
 from slim_data.domain.actor import Actor
 from slim_data.domain.enums import Action, EventKind, ResultStatus, Verdict
@@ -36,10 +41,20 @@ class FourEyesViolation(WorkflowError):
 
 
 _FOUR_EYES = {Action.REVIEW, Action.ACCEPT, Action.RECORD_EXCEPTION, Action.RELEASE}
+_SOLO_ALLOWED = {Action.REVIEW, Action.RELEASE}
+_SIGN_OFFS = {EventKind.REVIEWED, EventKind.RELEASED}
 _OPEN = {ResultStatus.DRAFT, ResultStatus.REVIEWED}
 
 
-def _authorize(result: Result, actor: Actor, action: Action, policy: Policy) -> None:
+def _authorize(
+    result: Result,
+    actor: Actor,
+    action: Action,
+    policy: Policy,
+    solo: bool = False,
+    now: datetime | None = None,
+) -> bool:
+    """Raises if the action isn't allowed; returns whether it is a solo sign-off (D-68)."""
     verdict = result.current.verdict
     min_role = policy.min_role(action, verdict)
     if min_role is None:
@@ -50,8 +65,36 @@ def _authorize(result: Result, actor: Actor, action: Action, policy: Policy) -> 
         raise NotPermitted(
             f"policy {policy.name!r} doesn't accept {actor.identity_source.name} identities for {action.name}"
         )
-    if action in _FOUR_EYES and actor.id in result.current.analyst_ids:
+    if action not in _FOUR_EYES or actor.id not in result.current.analyst_ids:
+        return False
+    if not solo or action not in _SOLO_ALLOWED:
         raise FourEyesViolation(f"{actor.display} entered readings behind this result; someone else must")
+    _check_solo(result, actor, policy, now)
+    return True
+
+
+def _check_solo(result: Result, actor: Actor, policy: Policy, now: datetime | None) -> None:
+    if policy.solo_review_minutes is None:
+        raise NotPermitted(f"policy {policy.name!r} doesn't allow solo review")
+    if now is None:
+        raise ValueError("a solo sign-off needs the current time (the database clock)")
+    # The last change: the version itself, or a decision the actor took on it since (not a sign-off).
+    changes = [result.current.created_at] + [
+        e.at
+        for e in result.events_for(result.current.version)
+        if e.actor.id == actor.id and e.kind not in _SIGN_OFFS
+    ]
+    known = [at for at in changes if at is not None]
+    if not known:
+        raise InvalidTransition(
+            "can't tell when this result last changed, so the solo delay can't be checked"
+        )
+    wait = timedelta(minutes=policy.solo_review_minutes) - (now - max(known))
+    if wait > timedelta(0):
+        left = -(-wait.total_seconds() // 60)  # whole minutes, rounded up
+        raise InvalidTransition(
+            f"solo review needs {policy.solo_review_minutes} min after the last change; {left:.0f} min to go"
+        )
 
 
 def _require_open(result: Result, action: Action) -> None:
@@ -64,7 +107,12 @@ def _require_open(result: Result, action: Action) -> None:
 
 
 def _event(
-    result: Result, kind: EventKind, actor: Actor, note: str = "", reason_category: str = ""
+    result: Result,
+    kind: EventKind,
+    actor: Actor,
+    note: str = "",
+    reason_category: str = "",
+    solo: bool = False,
 ) -> ResultEvent:
     return ResultEvent(
         kind=kind,
@@ -72,15 +120,23 @@ def _event(
         actor=actor,
         note=note,
         reason_category=reason_category,
+        solo=solo,
     )
 
 
-def review(result: Result, actor: Actor, policy: Policy, note: str = "") -> ResultEvent:
+def review(
+    result: Result,
+    actor: Actor,
+    policy: Policy,
+    note: str = "",
+    solo: bool = False,
+    now: datetime | None = None,
+) -> ResultEvent:
     _require_open(result, Action.REVIEW)
     if result.status != ResultStatus.DRAFT:
         raise InvalidTransition("only a draft can be reviewed")
-    _authorize(result, actor, Action.REVIEW, policy)
-    return _event(result, EventKind.REVIEWED, actor, note)
+    is_solo = _authorize(result, actor, Action.REVIEW, policy, solo, now)
+    return _event(result, EventKind.REVIEWED, actor, note, solo=is_solo)
 
 
 def accept(result: Result, actor: Actor, policy: Policy, reason_category: str, note: str = "") -> ResultEvent:
@@ -111,7 +167,14 @@ def record_exception(
     return _event(result, EventKind.EXCEPTION, actor, note, reason_category)
 
 
-def release(result: Result, actor: Actor, policy: Policy, note: str = "") -> ResultEvent:
+def release(
+    result: Result,
+    actor: Actor,
+    policy: Policy,
+    note: str = "",
+    solo: bool = False,
+    now: datetime | None = None,
+) -> ResultEvent:
     _require_open(result, Action.RELEASE)
     if result.status != ResultStatus.REVIEWED:
         raise InvalidTransition("only a reviewed result can be released")
@@ -119,8 +182,8 @@ def release(result: Result, actor: Actor, policy: Policy, note: str = "") -> Res
         verdict = result.current.verdict
         needed = "an acceptance" if verdict == Verdict.NEEDS_SUPERVISOR else "a rerun or an exception"
         raise InvalidTransition(f"a {verdict.name} result needs {needed} before release")
-    _authorize(result, actor, Action.RELEASE, policy)
-    return _event(result, EventKind.RELEASED, actor, note)
+    is_solo = _authorize(result, actor, Action.RELEASE, policy, solo, now)
+    return _event(result, EventKind.RELEASED, actor, note, solo=is_solo)
 
 
 def reject(result: Result, actor: Actor, policy: Policy, note: str) -> ResultEvent:

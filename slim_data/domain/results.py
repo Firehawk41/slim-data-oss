@@ -87,6 +87,7 @@ class ResultEvent(Frozen):
     actor: Actor
     reason_category: str = ""  # standard category, printed as qualifier text on the report (D-11)
     note: str = ""  # free text; stays internal (D-11)
+    solo: bool = False  # a solo sign-off on one's own results (D-68)
     at: AwareDatetime | None = None  # database clock (D-21)
 
     @model_validator(mode="after")
@@ -95,6 +96,11 @@ class ResultEvent(Frozen):
             raise ValueError(f"{self.kind.name} needs a reason category")
         if self.kind in _NEEDS_NOTE and not self.note.strip():
             raise ValueError(f"{self.kind.name} needs a note")
+        if self.solo:
+            if self.kind not in (EventKind.REVIEWED, EventKind.RELEASED):
+                raise ValueError("only a review or a release can be solo")
+            if not self.note.strip():
+                raise ValueError("a solo sign-off needs a reason, e.g. 'only chemist on site'")
         return self
 
 

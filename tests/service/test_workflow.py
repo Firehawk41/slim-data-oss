@@ -13,7 +13,7 @@ from slim_data.domain.values import Limits
 from slim_data.domain.workflow import InvalidTransition
 from slim_data.persistence._rows import NotFound
 from slim_data.persistence.observations import register_batch
-from slim_data.persistence.results import issues_for_tr, load_result
+from slim_data.persistence.results import exceptions, issues_for_tr, load_result
 from slim_data.persistence.rulesets import publish_policy, publish_ruleset
 from slim_data.service import workflow as wf
 from slim_data.service.imports import import_run
@@ -190,3 +190,21 @@ def test_missing_ruleset_policy_or_result(session):
     publish_policy(session, DEMO_POLICY, SUE)
     with pytest.raises(NotFound, match="no result"):
         wf.accept(session, S1, CU, SUE, "x")
+
+
+def test_a_chemist_alone_signs_off_their_own_results_after_the_delay_labelled_solo(session, lab):
+    lab([edit(r, analyst="rob") for r in ROWS])  # Rob runs, uploads and reports alone: a weekend
+    with pytest.raises(wf.BatchReviewRefused, match="Rob entered readings"):
+        wf.review_batch(session, "PB-0001", ROB)
+    with pytest.raises(wf.BatchReviewRefused, match="15 min after the last change"):
+        wf.review_batch(session, "PB-0001", ROB, "only chemist on site", solo=True)
+    publish_policy(session, DEMO_POLICY.model_copy(update={"name": "no-wait", "solo_review_minutes": 0}), SUE)
+    assert wf.review_batch(session, "PB-0001", ROB, "only chemist on site", solo=True) == 2
+    assert wf.release(session, S1, 1, ROB, "only chemist on site", solo=True).released == ("Cu",)
+    signoffs = exceptions(session, solo=True)
+    assert [(str(s), e.kind.name) for s, _, e in signoffs] == [
+        ("TR00042-01", "REVIEWED"),
+        ("TR00042-02", "REVIEWED"),
+        ("TR00042-01", "RELEASED"),
+    ]
+    assert exceptions(session) == []  # solo sign-offs are not exceptions

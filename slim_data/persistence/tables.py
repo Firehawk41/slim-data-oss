@@ -12,6 +12,7 @@ including its identity source (D-50), as it stood at the time.
 
 from sqlalchemy import (
     JSON,
+    Boolean,
     CheckConstraint,
     Column,
     ForeignKey,
@@ -23,6 +24,7 @@ from sqlalchemy import (
     Table,
     Text,
     UniqueConstraint,
+    false,
 )
 
 from slim_data.persistence.db import Base
@@ -205,6 +207,7 @@ result_events = Table(
     Column("kind", Integer, nullable=False),  # EventKind; EXCEPTION rows are the exception log (D-65)
     Column("reason_category", String(100), nullable=False),
     Column("note", Text, nullable=False),
+    Column("solo", Boolean, nullable=False, server_default=false()),  # solo sign-off (D-68)
     *_created("actor"),
     ForeignKeyConstraint(["result_id", "version"], ["result_versions.result_id", "result_versions.version"]),
     Index("ix_result_events_result", "result_id"),

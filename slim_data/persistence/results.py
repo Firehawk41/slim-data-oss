@@ -93,6 +93,7 @@ def add_event(session: Session, sample: SampleRef, analyte: AnalyteRef, event: R
             kind=int(event.kind),
             reason_category=event.reason_category,
             note=event.note,
+            solo=event.solo,
             actor_id=event.actor.id,
             actor=actor_json(event.actor),
         )
@@ -206,9 +207,10 @@ def results_for_tr(session: Session, tr_number: str, as_of: datetime | None = No
 
 
 def exceptions(
-    session: Session, as_of: datetime | None = None
+    session: Session, as_of: datetime | None = None, solo: bool = False
 ) -> list[tuple[SampleRef, AnalyteRef, ResultEvent]]:
-    """Every exception recorded lab-wide (D-09): EXCEPTION events, oldest first."""
+    """Every exception recorded lab-wide (D-09): EXCEPTION events, oldest first. With `solo`, every
+    solo sign-off instead (D-68): what an auditor asks for."""
     rows = session.execute(
         select(
             result_events,
@@ -219,7 +221,8 @@ def exceptions(
         )
         .join(results, results.c.id == result_events.c.result_id)
         .where(
-            result_events.c.kind == int(EventKind.EXCEPTION), as_of_filter(result_events.c.created_at, as_of)
+            result_events.c.solo.is_(True) if solo else result_events.c.kind == int(EventKind.EXCEPTION),
+            as_of_filter(result_events.c.created_at, as_of),
         )
         .order_by(result_events.c.created_at, result_events.c.id)
     ).all()
@@ -303,5 +306,6 @@ def _event(row) -> ResultEvent:
         actor=Actor.model_validate(row.actor),
         reason_category=row.reason_category,
         note=row.note,
+        solo=row.solo,
         at=row.created_at,
     )
