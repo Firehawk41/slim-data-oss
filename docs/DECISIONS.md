@@ -627,3 +627,7 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      are unknown samples to the adapter). Spec limits come from SLIM's `specifications` (kind
      "specification", exact location), read by the host the way slim-domain's `get_specs` does.
   8. New read `batches()`: the prep batches, newest first, for the host's list (takes `as_of`).
+  9. *Same-day revision (Jamie):* **the public demo runs on Postgres only**; SQLite stays for tests and
+     quick local runs. Revises DESIGN §2's "SQLite for tests and the demo": on SQLite the demo would
+     lose the append-only triggers, slim-domain's hash-chained `audit_log` (so `verify` has no chain to
+     check) and concurrent visitors.

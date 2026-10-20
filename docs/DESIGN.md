@@ -41,7 +41,7 @@ Rules that keep the modules independent:
 
 - slim-data is a **library** (D-02). It never imports the host or another module's internals; it
   sees the outside world only through the ports in §5.
-- **One Postgres** (SQLite for tests and the demo). slim-data owns only its own tables, migrated by
+- **One Postgres** (SQLite for tests and quick local runs; the demo runs on Postgres, D-70). slim-data owns only its own tables, migrated by
   its own Alembic environment (`alembic_version_slim_data`). **No foreign keys** into other modules'
   tables (D-03).
 - **The caller owns the transaction** (D-23): slim-data flushes, never commits, and returns facts
