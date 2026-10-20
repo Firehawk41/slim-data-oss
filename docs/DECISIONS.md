@@ -674,3 +674,15 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   - Rejected: wait for the report engine (blocks slice 3); also store the rendered page (duplicates
     what `as_of` rebuilds).
 
+- **D-74 Demo personas are real user rows** (Jamie: option A), the host side of D-50.
+  1. The host's users table gets `is_persona`; the demo seed creates the personas from a data file
+     (customer, analyst, reviewer, supervisor), each with a random password nobody knows. Everything
+     already built works unchanged (four-eyes on the user ID, analyst initials in result files, customers
+     seeing only their own TRs); `actor_for` records persona actions as ASSERTED.
+  2. Offered only when the host's `DEMO_PERSONAS` flag is on (explicit, not tied to the production
+     setting, since the public sandbox runs as production): a "Continue as..." page, a switcher in the
+     header and a banner. Personas can't sign in through the password login and can't manage users or
+     lab roles; the host has no policy or ruleset screens to restrict.
+  3. Billing persona: added with invoicing (D-43); no billing role exists yet.
+  - Rejected: session-only personas (every place that loads a user would need a second path).
+
