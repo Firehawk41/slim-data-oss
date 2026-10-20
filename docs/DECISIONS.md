@@ -657,3 +657,20 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   - Rejected: free text (wording drifts, the report prints whatever was typed); category codes resolved
     to text at print time (a later policy would rewrite old reports, or needs a snapshot column).
 
+- **D-73 Report issues before the report engine is wired** (Jamie: option B). The Excel report engine
+  joins later (LabPortal item D, needs Jamie's go-ahead); issues shouldn't wait for it.
+  1. The host shows the report as a page built from `report_view` (released results, latest versions)
+     and "Issue report" records those versions with the sha256 of a canonical JSON form of what the
+     page shows (internal facts like solo sign-off left out). Nothing extra is stored: `report_view`
+     with `as_of` rebuilds it, and the hash proves the rebuild matches. Once the engine renders a file,
+     the hash becomes the file's; callers don't change.
+  2. Build choices: a report shows every released result (cumulative); issuing again with nothing
+     changed is refused; a report carrying a corrected result amends the latest issue automatically;
+     any staff member may issue (the release was the sign-off). The TR moves in the same transaction
+     (D-71): partial report, or complete report when every ordered analysis on every sample has
+     results and none wait; never backwards (an amended report on a complete TR leaves it complete).
+     An ordered analysis slim-data never gets readings for (e.g. pH) keeps the TR partial until staff
+     close it with the status form.
+  - Rejected: wait for the report engine (blocks slice 3); also store the rendered page (duplicates
+    what `as_of` rebuilds).
+

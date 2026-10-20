@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-72, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-73, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -31,7 +31,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | M3 | Persistence: append-only tables + triggers, repositories, `as_of`, audit context, ruleset/policy publishing | ✅ |
 | M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | ✅ |
 | M5 | Workflow service: evaluate, review, release, exceptions, corrections, `report_issues`, amended reports | ✅ (incl. D-68 solo sign-off) |
-| M6 | Integration: part 1 (slim-data) adapter, report/batch views, demo scenarios, e2e test; part 2 LabPortal wiring in 3 slices (D-70) | part 1 ✅; part 2: **slices 1–2 built**, slice 3 next |
+| M6 | Integration: part 1 (slim-data) adapter, report/batch views, demo scenarios, e2e test; part 2 LabPortal wiring in 3 slices (D-70) | part 1 ✅; part 2: slices 1–2 built; **slice 3 in progress** (issues ✅) |
 | M7 | Finish: `verify` command, README, walkthrough | |
 
 Each milestone ends green on CI and with a walkthrough for Jamie. M0–M6 part 1 are merged into `main`.
@@ -40,7 +40,8 @@ Each milestone ends green on CI and with a walkthrough for Jamie. M0–M6 part 1
 `results_routes.py`). Slice 1 ✅: migrations, `SlimReferenceLookup` + `StaffDirectory` over the portal,
 demo ruleset bound to 10 Elements, CSV upload → preview / import → evaluate, batch page + API, staff
 `lab_role`. Slice 2 ✅: review / accept / rerun / exception / reject / correct / release on the batch
-page and API; first readings → TR in progress (D-71). **Next, slice 3:** report view + record issue (→ partial / complete report, D-71), personas (D-50), demo scenarios in the portal.
+page and API; first readings → TR in progress (D-71). Slice 3: report page + issues ✅ (D-73: canonical-JSON hash until the report engine is wired; → partial /
+complete report, D-71). **Next:** personas (D-50), demo scenarios in the portal.
 Read LabPortal's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
