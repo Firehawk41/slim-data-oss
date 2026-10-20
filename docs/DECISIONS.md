@@ -404,8 +404,8 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
 
 ## Build — choices made while building M2 part 2 (2026-10-19)
 
-- **D-64 Ten engine choices.** Item 1 approved by Jamie before building; the rest to approve at the
-  M2 walkthrough.
+- **D-64 Ten engine choices**, approved by Jamie (item 1 before building, the rest at the M2
+  walkthrough; the method blank stays a contamination check, never a correction, as D-58 says).
   1. **A method blank has no sample.** `Reading.sample` is required for CUP and SPIKE and must be empty
      for BLANK: the blank belongs to its prep batch (M3 stores the batch on the reading; in the CSV,
      M4, `lab_sample_id` reads `BLANK` beside `prep_batch`). Rejected: a separate BlankReading type

@@ -27,7 +27,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 |---|---|---|
 | M0 | Skeleton: packaging, layers, OSS guard, Alembic (own version table), architecture test, CI | ✅ |
 | M1 | Domain: values, observations, results, policies, workflow rules | ✅ |
-| M2 | Engine: cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling, reported_value, uncertainty, method_blank, spec_limits; verdict = worst flag | ✅ (D-64 items 2–10 await Jamie's OK) |
+| M2 | Engine: cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling, reported_value, uncertainty, method_blank, spec_limits; verdict = worst flag | ✅ |
 | M3 | Persistence: append-only tables + triggers, repository, `as_of`, audit log, ruleset publishing | |
 | M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | |
 | M5 | Workflow service: review, release, exceptions, corrections, `report_issues`, amended reports | |
