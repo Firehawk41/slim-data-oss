@@ -31,7 +31,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | M3 | Persistence: append-only tables + triggers, repositories, `as_of`, audit context, ruleset/policy publishing | ✅ |
 | M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | ✅ |
 | M5 | Workflow service: evaluate, review, release, exceptions, corrections, `report_issues`, amended reports | ✅ (incl. D-68 solo sign-off) |
-| M6 | Integration: part 1 (slim-data) adapter, report/batch views, demo scenarios, e2e test; part 2 LabPortal wiring in 3 slices (D-70) | part 1 ✅; part 2: **slice 1 built**, slices 2–3 next |
+| M6 | Integration: part 1 (slim-data) adapter, report/batch views, demo scenarios, e2e test; part 2 LabPortal wiring in 3 slices (D-70) | part 1 ✅; part 2: **slices 1–2 built**, slice 3 next |
 | M7 | Finish: `verify` command, README, walkthrough | |
 
 Each milestone ends green on CI and with a walkthrough for Jamie. M0–M6 part 1 are merged into `main`.
@@ -39,8 +39,8 @@ Each milestone ends green on CI and with a walkthrough for Jamie. M0–M6 part 1
 **M6 part 2 (D-70)** wires slim-data into LabPortal (the slim-lims host; `slim_lab_portal/results.py`,
 `results_routes.py`). Slice 1 ✅: migrations, `SlimReferenceLookup` + `StaffDirectory` over the portal,
 demo ruleset bound to 10 Elements, CSV upload → preview / import → evaluate, batch page + API, staff
-`lab_role`. **Next, slice 2:** review / accept / rerun / exception / release screens; first readings →
-TR in progress (D-71). Slice 3: report view + record issue (→ partial / complete report, D-71), personas (D-50), demo scenarios in the portal.
+`lab_role`. Slice 2 ✅: review / accept / rerun / exception / reject / correct / release on the batch
+page and API; first readings → TR in progress (D-71). **Next, slice 3:** report view + record issue (→ partial / complete report, D-71), personas (D-50), demo scenarios in the portal.
 Read LabPortal's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
