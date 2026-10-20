@@ -201,8 +201,9 @@ D-10's example tiers ("RERUN → quality"; now supervisor, matching the demo rol
 
 ### 8.3 Facts returned to the host
 
-`ResultsReleased(tr_number, sample, analysis)`, `ReportIssued(...)`, etc. The host maps them to TR
-status changes (in progress → partial report → complete report) in the same transaction (D-23).
+`ResultsReleased(tr_number, sample, analysis)`, `ReportIssued(...)`, etc. The host moves the TR in the
+same transaction (D-23, D-71): first readings → in progress; a report issue → partial or complete
+report. A release changes results only.
 Invoicing is triggered by staff on a complete-report TR (D-43).
 
 ## 9. Data in

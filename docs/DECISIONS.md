@@ -631,3 +631,14 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      quick local runs. Revises DESIGN §2's "SQLite for tests and the demo": on SQLite the demo would
      lose the append-only triggers, slim-domain's hash-chained `audit_log` (so `verify` has no chain to
      check) and concurrent visitors.
+
+- **D-71 TR status follows what happened, not releases** (Jamie). In the portal, "partial report" and
+  "complete report" mean a report reached the customer; a release only clears results for reporting.
+  1. The first readings imported for a TR's sample move it received → in progress, in the import's
+     transaction.
+  2. Recording a report issue (`ReportIssued`) moves it to partial report, or complete report when every
+     analysis ordered on every sample has results, all released and on an issued report. The host checks
+     "ordered" against the TR, since slim-data doesn't know which analytes make up a panel (D-69 item 6).
+  3. A release changes results only. Automatic moves go forward only; staff keep the manual status form.
+  - Rejected: release drives the status (DESIGN §8.3 as signed off): the TR would read "partial report"
+    before any report existed. *Supersedes* DESIGN §8.3's mapping of `ResultsReleased`.

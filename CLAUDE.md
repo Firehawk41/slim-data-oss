@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-70, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-71, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -39,8 +39,8 @@ Each milestone ends green on CI and with a walkthrough for Jamie. M0–M6 part 1
 **M6 part 2 (D-70)** wires slim-data into LabPortal (the slim-lims host; `slim_lab_portal/results.py`,
 `results_routes.py`). Slice 1 ✅: migrations, `SlimReferenceLookup` + `StaffDirectory` over the portal,
 demo ruleset bound to 10 Elements, CSV upload → preview / import → evaluate, batch page + API, staff
-`lab_role`. **Next, slice 2:** review / accept / rerun / exception / release screens, `ResultsReleased`
-→ TR status. Slice 3: report view + record issue, personas (D-50), demo scenarios in the portal.
+`lab_role`. **Next, slice 2:** review / accept / rerun / exception / release screens; first readings →
+TR in progress (D-71). Slice 3: report view + record issue (→ partial / complete report, D-71), personas (D-50), demo scenarios in the portal.
 Read LabPortal's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
