@@ -686,3 +686,15 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   3. Billing persona: added with invoicing (D-43); no billing role exists yet.
   - Rejected: session-only personas (every place that loads a user would need a second path).
 
+- **D-75 The demo scenarios are host-agnostic** (Jamie: option A). One copy of the scenario data,
+  run by slim-data's own tests and by the host's demo seed.
+  1. `run_scenarios(session, host, today)` takes a `DemoHost`: analysis code and ID, the reference lookup
+     and staff directory, the analyst (and how files name them), reviewer and supervisor, `new_tr(scenario,
+     samples, spec)` for a received TR, and `report_sha256` for what the host's issue would record. The
+     host publishes the ruleset and policy first. `seed` keeps the in-memory host (TR00101...).
+  2. LabPortal's host makes real TRs (checked in by the supervisor persona, 10 Elements, customer A's
+     "Chemical 01", or customer B's when a spec is needed: the OSS demo data's Zn spec), uses the demo
+     personas, records issues with D-73's canonical-report hash, then settles each TR's status by D-71.
+     Runs once (skipped when results exist).
+  - Rejected: a portal copy of the nine scenarios (duplicated data that drifts).
+
