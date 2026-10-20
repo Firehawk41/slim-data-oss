@@ -7,7 +7,9 @@ from collections.abc import Iterator
 
 import pytest
 from sqlalchemy import Engine
+from sqlalchemy.orm import Session
 
+from slim_data.persistence import migrate
 from slim_data.persistence.db import make_engine
 
 
@@ -21,3 +23,18 @@ def engine(database_url) -> Iterator[Engine]:
     engine = make_engine(database_url)
     yield engine
     engine.dispose()
+
+
+@pytest.fixture
+def session(engine) -> Iterator[Session]:
+    """A freshly migrated schema inside one transaction, rolled back afterwards (Postgres and SQLite
+    both roll back DDL), so tests never see each other's rows."""
+    with engine.connect() as connection:
+        transaction = connection.begin()
+        migrate.upgrade(connection)
+        session = Session(bind=connection, join_transaction_mode="create_savepoint")
+        try:
+            yield session
+        finally:
+            session.close()
+            transaction.rollback()

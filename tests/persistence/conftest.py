@@ -1,35 +1,18 @@
-"""Each persistence test runs on a freshly migrated schema inside one transaction that is rolled back
-afterwards (Postgres and SQLite both roll back DDL), so tests never see each other's rows."""
+"""Builders for persistence tests (the `session` fixture is in tests/conftest.py)."""
 
 import time
-from collections.abc import Iterator
 from datetime import UTC, datetime
 from hashlib import sha256
 
 import pytest
-from sqlalchemy.orm import Session
 
 from slim_data.domain.enums import ReadingRole
 from slim_data.domain.observations import PrepBatch, Reading, Run, SourceFile, SpikeAddition
-from slim_data.persistence import migrate
 from slim_data.persistence._rows import database_time
 from slim_data.persistence.observations import record_run, register_batch
 from slim_data.persistence.rulesets import publish_ruleset
 from tests.engine.helpers import DEMO
-from tests.factories import ANA, analyte, qty, sample
-
-
-@pytest.fixture
-def session(engine) -> Iterator[Session]:
-    with engine.connect() as connection:
-        transaction = connection.begin()
-        migrate.upgrade(connection)
-        session = Session(bind=connection, join_transaction_mode="create_savepoint")
-        try:
-            yield session
-        finally:
-            session.close()
-            transaction.rollback()
+from tests.factories import ANA, ROB, analyte, qty, sample
 
 
 def make_run(name: str = "run1.csv") -> Run:
@@ -37,6 +20,7 @@ def make_run(name: str = "run1.csv") -> Run:
         run_code="RUN-0042",
         instrument="ICP-MS 1",
         analyst=ANA,
+        imported_by=ROB,
         analyzed_at=datetime(2026, 10, 19, 9, 30, tzinfo=UTC),
         source=SourceFile(name=name, sha256=sha256(name.encode()).hexdigest(), reader="generic_csv/1"),
     )

@@ -1,0 +1,4 @@
+﻿lab_sample_id,analysis_code,analyte,role,replicate,value,unit,mdl,run_code,instrument,analyst,analyzed_at,prep_batch
+TR00042-01,metals_icpms,Cu,CUP,1,10.00,ppb,0.05,RUN-0042,ICP-MS 1,ana,2026-10-19T09:30:00-05:00,PB-0001
+
+TR00042-01,metals_icpms,Cu,CUP,2,10.20,ppb,0.05,RUN-0042,ICP-MS 1,ana,2026-10-19T09:30:00-05:00,PB-0001

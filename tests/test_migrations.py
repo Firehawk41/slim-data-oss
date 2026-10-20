@@ -20,11 +20,11 @@ def _version(connection) -> str | None:
 def test_upgrade_downgrade_upgrade(engine):
     with engine.begin() as connection:
         migrate.upgrade(connection)
-        assert _version(connection) == "0002"
+        assert _version(connection) == "0003"
         migrate.downgrade(connection)
         assert _version(connection) is None
         migrate.upgrade(connection)
-        assert _version(connection) == "0002"
+        assert _version(connection) == "0003"
         migrate.downgrade(connection)
 
 
@@ -62,5 +62,22 @@ def test_models_match_migrations(engine):
                 },
             )
             assert compare_metadata(context, Base.metadata) == []
+        finally:
+            migrate.downgrade(connection)
+
+
+def test_append_only_survives_a_downgrade(engine):
+    with engine.begin() as connection:
+        migrate.upgrade(connection)
+        migrate.downgrade(connection, "0002")
+        try:
+            triggers = connection.execute(
+                text("SELECT count(*) FROM sqlite_master WHERE type = 'trigger' AND tbl_name = 'runs'")
+                if connection.dialect.name == "sqlite"
+                else text(
+                    "SELECT count(*) FROM pg_trigger WHERE tgrelid = 'runs'::regclass AND NOT tgisinternal"
+                )
+            ).scalar()
+            assert triggers == 2
         finally:
             migrate.downgrade(connection)

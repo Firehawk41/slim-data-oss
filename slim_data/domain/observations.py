@@ -76,14 +76,24 @@ class SourceFile(Frozen):
 
 
 class Run(Frozen):
-    """One instrument run = one imported file (D-25)."""
+    """One instrument run = one imported file (D-25).
+
+    `analyst` is who the file names (a claim, so ASSERTED); `imported_by` is who uploaded it, which
+    may be someone else on the analyst's behalf. Four-eyes keeps both off the review (D-66).
+    """
 
     id: int | None = None
     run_code: str = Field(min_length=1, max_length=50)
     instrument: str = Field(min_length=1, max_length=100)
     analyst: Actor
+    imported_by: Actor
     analyzed_at: AwareDatetime
     source: SourceFile
+
+    @property
+    def entered_by(self) -> frozenset[str]:
+        """Everyone who put these readings in: neither may review or release them (D-62, D-66)."""
+        return frozenset({self.analyst.id, self.imported_by.id})
 
 
 class Reading(Frozen):

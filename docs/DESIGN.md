@@ -77,10 +77,14 @@ slim-domain unchanged; an architecture test enforces it (D-26).
 
 ```python
 class ReferenceLookup(Protocol):
+    def analysis_id(self, code: str) -> int | None: ...                        # metals_icpms -> 1 (D-66)
     def sample_exists(self, ref: SampleRef) -> bool: ...
     def sample_requests(self, ref: SampleRef, analysis_id: int) -> bool: ...   # was it ordered?
     def analyte_valid(self, analyte: AnalyteRef) -> bool: ...
     def limits_for(self, ref: SampleRef, analyte: AnalyteRef) -> Limits: ...    # spec limits, snapshotted
+
+class StaffDirectory(Protocol):                                                 # the host's staff (D-66)
+    def find(self, staff_id: str) -> Actor | None: ...
 
 class Clock(Protocol): ...          # injected; tests and the demo seed control time
 ```
@@ -215,8 +219,8 @@ Invoicing is triggered by staff on a complete-report TR (D-43).
 | `role`, `replicate` | `CUP`, `2` | D-06 |
 | `value`, `unit` | `12.40`, `ppb` | text → Decimal |
 | `mdl`, `dilution_factor` | `0.05`, `10` | dilution optional, default 1 |
-| `run_code`, `instrument`, `analyst`, `analyzed_at` | | run columns; ISO 8601 with offset |
-| `prep_batch`, `prep_method`, `spike_added` | | optional; registers the batch when no prep call was made (D-24) |
+| `run_code`, `instrument`, `analyst`, `analyzed_at` | | run columns; ISO 8601 with offset; `analyst` is a staff ID, the uploader is recorded separately (D-66) |
+| `prep_batch`, `prep_method`, `spike_added` | | `prep_batch` required; the others register the batch when no prep call was made (D-24, D-66) |
 
 ## 10. Persistence, time travel, audit
 

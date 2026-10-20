@@ -1,0 +1,7 @@
+lab_sample_id,analysis_code,analyte,role,replicate,value,unit,mdl,dilution_factor,run_code,instrument,analyst,analyzed_at,prep_batch,prep_method,spike_added
+TR00042-01,metals_icpms,Cu,CUP,1,10.00,ppb,0.05,1,RUN-0042,ICP-MS 1,ana,2026-10-19T09:30:00-05:00,PB-0001,microwave HNO3,
+TR00042-01,metals_icpms,Cu,CUP,2,10.20,ppb,0.05,1,RUN-0042,ICP-MS 1,ana,2026-10-19T09:30:00-05:00,PB-0001,microwave HNO3,
+TR00042-01,metals_icpms,Cu,SPIKE,1,30.0,ppb,0.05,1,RUN-0042,ICP-MS 1,ana,2026-10-19T09:30:00-05:00,PB-0001,microwave HNO3,20
+TR00042-02,metals_icpms,Cu,CUP,1,0.510,ppb,0.05,10,RUN-0042,ICP-MS 1,ana,2026-10-19T09:30:00-05:00,PB-0001,microwave HNO3,
+TR00042-02,metals_icpms,Cu,CUP,2,0.530,ppb,,10,RUN-0042,ICP-MS 1,ana,2026-10-19T09:30:00-05:00,PB-0001,microwave HNO3,
+BLANK,metals_icpms,Cu,BLANK,1,0.010,ppb,0.05,,RUN-0042,ICP-MS 1,ana,2026-10-19T09:30:00-05:00,PB-0001,microwave HNO3,

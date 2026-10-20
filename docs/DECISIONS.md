@@ -469,3 +469,35 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
       savepoints and transactional DDL work as on Postgres.
   12. `ResultVersion` gains `raw` and `recovery` (DESIGN.md §6.2 and D-38 say a version holds them).
   13. The report-issue tables exist now; their repository comes with `record_issue` in M5.
+
+## Build — choices made while building M4 (2026-10-20)
+
+- **D-66 Data-in choices.** Items 1–2 approved by Jamie before building; the rest to approve at the M4
+  walkthrough.
+  1. **The file names the analyst; the uploader is recorded too.** Someone may upload on the analyst's
+     behalf (lab efficiency). The run's analyst is whoever the file's `analyst` column names, checked
+     against the host's staff (`StaffDirectory` port) and stored as ASSERTED, since a file is a claim,
+     not a login (D-50). `Run.imported_by` is who uploaded it. **Neither may review or release** those
+     results: `Run.entered_by` feeds the result version's `analyst_ids` (D-62), wired in M5.
+     Rejected: the importer as the only analyst (no uploads on someone's behalf); trusting the file
+     alone (someone could upload their own readings under a colleague's name, then review them).
+  2. **Lookups go through `ReferenceLookup`**, which gains `analysis_id(code)`. The preview turns its
+     checks into row errors: unknown analysis, analyte not in the analysis, unknown sample, analysis
+     not ordered for the sample. Rejected: a numeric `analysis_id` column with no checks.
+  3. `prep_batch` is required on every row: every reading belongs to a batch (a blank has nothing
+     else, D-64). `prep_method` is needed only to register a new batch; `spike_added` only on SPIKE
+     rows.
+  4. A file may add readings to a batch that is already registered, but must match it: same analysis
+     and prep method, samples in the batch, spike amounts as recorded. A registered batch is never
+     changed by a file (append-only).
+  5. A reading the batch already has (same sample, analyte, role and replicate) is refused, so a batch
+     can never hold two cup 1s. **Open for M5:** how a rerun's new readings replace the old ones
+     when the batch is re-evaluated.
+  6. The reader is strict: missing, unknown (usually a typo) or repeated columns are file errors;
+     values are read as text, so digits are kept; `analyzed_at` needs a UTC offset.
+  7. Preview and import are in `service/imports.py`, since they read the database; the reader in
+     `pipeline/` stays pure. The import runs in a savepoint, so it is all or nothing even inside the
+     host's larger transaction.
+  8. Migration 0003 adds `runs.imported_by` as nullable: a run stored before it has no separate
+     uploader (none exist outside tests). On SQLite the downgrade puts back the append-only triggers
+     that rebuilding the table drops.

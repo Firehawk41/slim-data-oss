@@ -110,10 +110,15 @@ def get_batch(session: Session, code: str, as_of: datetime | None = None) -> Pre
     )
 
 
+def run_for_file(session: Session, sha256: str) -> int | None:
+    """The run a file was imported as, if it was."""
+    return session.scalar(select(runs.c.id).where(runs.c.source_sha256 == sha256))
+
+
 def record_run(session: Session, run: Run, batch_readings: Sequence[tuple[str, Reading]]) -> Run:
     """Stores one run and its readings, each tagged with its prep batch's code. Refuses a file that
     was imported before, and readings that don't fit their batch."""
-    previous = session.scalar(select(runs.c.id).where(runs.c.source_sha256 == run.source.sha256))
+    previous = run_for_file(session, run.source.sha256)
     if previous is not None:
         raise AlreadyImported(previous)
     if not batch_readings:
@@ -125,7 +130,7 @@ def record_run(session: Session, run: Run, batch_readings: Sequence[tuple[str, R
             raise ValueError(f"reading for {reading.analyte}, which is not batch {code}'s analysis")
         if reading.sample is not None and reading.sample not in batch.samples:
             raise ValueError(f"reading for {reading.sample}, which is not in batch {code}")
-    set_change_context(session, run.analyst, f"import {run.source.name}")
+    set_change_context(session, run.imported_by, f"import {run.source.name}")
     run_id = session.execute(
         runs.insert().values(
             run_code=run.run_code,
@@ -136,6 +141,8 @@ def record_run(session: Session, run: Run, batch_readings: Sequence[tuple[str, R
             reader=run.source.reader,
             analyst_id=run.analyst.id,
             analyst=actor_json(run.analyst),
+            imported_by_id=run.imported_by.id,
+            imported_by=actor_json(run.imported_by),
         )
     ).inserted_primary_key[0]
     session.execute(
@@ -170,6 +177,7 @@ def get_run(session: Session, run_id: int) -> Run:
         run_code=row.run_code,
         instrument=row.instrument,
         analyst=Actor.model_validate(row.analyst),
+        imported_by=Actor.model_validate(row.imported_by or row.analyst),
         analyzed_at=row.analyzed_at,
         source=SourceFile(name=row.source_name, sha256=row.source_sha256, reader=row.reader),
     )
