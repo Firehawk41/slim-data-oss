@@ -87,6 +87,7 @@ class ResultEvent(Frozen):
     actor: Actor
     reason_category: str = ""  # standard category, printed as qualifier text on the report (D-11)
     note: str = ""  # free text; stays internal (D-11)
+    solo: bool = False  # a solo sign-off on one's own results (D-68)
     at: AwareDatetime | None = None  # database clock (D-21)
 
     @model_validator(mode="after")
@@ -95,7 +96,44 @@ class ResultEvent(Frozen):
             raise ValueError(f"{self.kind.name} needs a reason category")
         if self.kind in _NEEDS_NOTE and not self.note.strip():
             raise ValueError(f"{self.kind.name} needs a note")
+        if self.solo:
+            if self.kind not in (EventKind.REVIEWED, EventKind.RELEASED):
+                raise ValueError("only a review or a release can be solo")
+            if not self.note.strip():
+                raise ValueError("a solo sign-off needs a reason, e.g. 'only chemist on site'")
         return self
+
+
+class ReportLine(Frozen):
+    sample: SampleRef
+    analyte: AnalyteRef
+    version: int = Field(ge=1)
+
+
+class ReportIssue(Frozen):
+    """What one customer report showed (D-22, D-47): the exact result versions, the file's hash, and
+    the issue it replaces if it is an amended report (D-20)."""
+
+    id: int | None = None
+    tr_number: str = Field(min_length=1, max_length=20)
+    file_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    lines: tuple[ReportLine, ...] = Field(min_length=1)
+    amends: int | None = None
+    created_by: Actor
+    created_at: AwareDatetime | None = None
+
+    @model_validator(mode="after")
+    def _one_tr(self) -> Self:
+        if any(line.sample.tr_number != self.tr_number for line in self.lines):
+            raise ValueError(f"every line must be a sample of {self.tr_number}")
+        keys = [(line.sample, line.analyte) for line in self.lines]
+        if len(set(keys)) != len(keys):
+            raise ValueError("a result appears twice on the report")
+        return self
+
+    @property
+    def is_amended(self) -> bool:
+        return self.amends is not None
 
 
 class Result(Frozen):

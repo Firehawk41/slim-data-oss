@@ -1,6 +1,5 @@
 """Preview and all-or-nothing import (DESIGN.md §9, D-24, D-66)."""
 
-from dataclasses import dataclass, field
 from pathlib import Path
 
 import pytest
@@ -20,36 +19,10 @@ from slim_data.service.imports import ImportRefused, import_run, preview_import
 from tests.engine.helpers import demo
 from tests.factories import ANA, ROB, analyte, qty, sample
 from tests.persistence.conftest import instant, make_batch
+from tests.service.fakes import FakeLookup, FakeStaff
 
 GOOD = (Path(__file__).parents[1] / "pipeline" / "fixtures" / "good.csv").read_bytes()
 HEADER, *ROWS = GOOD.decode().splitlines()
-
-
-@dataclass
-class FakeLookup:
-    analyses: dict = field(default_factory=lambda: {"metals_icpms": 1, "anions_ic": 2})
-    samples: set = field(default_factory=lambda: {sample(1), sample(2), sample(3)})
-    unordered: set = field(default_factory=set)  # (sample, analysis_id) not ordered
-
-    def analysis_id(self, code):
-        return self.analyses.get(code)
-
-    def sample_exists(self, ref):
-        return ref in self.samples
-
-    def sample_requests(self, ref, analysis_id):
-        return (ref, analysis_id) not in self.unordered
-
-    def analyte_valid(self, a):
-        return a.code in {"Cu", "Zn", "Fe", "Cl-"}
-
-    def limits_for(self, ref, a):
-        return None
-
-
-class FakeStaff:
-    def find(self, staff_id):
-        return {"ana": ANA, "rob": ROB}.get(staff_id)
 
 
 def preview(session, content=GOOD, name="run42.csv", lookup=None):
