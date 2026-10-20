@@ -11,23 +11,38 @@ from typing import Any, Self
 
 from pydantic import Field, model_validator
 
-from slim_data.domain.base import Frozen
-from slim_data.domain.enums import ReadingRole
+from slim_data.domain.base import Dec, Frozen
+from slim_data.domain.enums import Qualifier, ReadingRole, Verdict
 from slim_data.domain.observations import PrepBatch, Reading
-from slim_data.domain.results import Flag
-from slim_data.domain.values import AnalyteRef, SampleRef
+from slim_data.domain.results import Flag, verdict_from_flags
+from slim_data.domain.values import AnalyteRef, Limits, Quantity, SampleRef
+
+
+class SampleLimits(Frozen):
+    """Spec limits for one sample × analyte, looked up by the caller (DESIGN.md §5, D-60)."""
+
+    sample: SampleRef
+    analyte: AnalyteRef
+    limits: Limits
 
 
 class EvaluationInput(Frozen):
-    """Everything one evaluation reads: the batch, its readings and the analyst's exclusions."""
+    """Everything one evaluation reads: the batch, its readings, the analyst's exclusions and the
+    samples' spec limits."""
 
     batch: PrepBatch
     readings: tuple[Reading, ...] = Field(min_length=1)
     excluded_reading_ids: frozenset[int] = frozenset()
+    limits: tuple[SampleLimits, ...] = ()
 
     @model_validator(mode="after")
     def _belongs_to_batch(self) -> Self:
         members = set(self.batch.samples)
+        keys = [(entry.sample, entry.analyte) for entry in self.limits]
+        if len(set(keys)) != len(keys):
+            raise ValueError("two spec limits for the same sample and analyte")
+        if any(sample not in members for sample, _ in keys):
+            raise ValueError("spec limits for a sample that is not in the batch")
         for reading in self.readings:
             if reading.role != ReadingRole.BLANK and reading.sample not in members:
                 raise ValueError(f"reading for {reading.sample}, which is not in batch {self.batch.code}")
@@ -72,6 +87,12 @@ class Cell:
     selection: Selection = Selection.UNDECIDED
     chosen_replicate: int | None = None
     chosen_by: str | None = None  # the ladder rung that decided (D-32), e.g. "spike_witness"
+    own_recovery: Decimal | None = None  # this sample's own spike recovery, if evaluable (D-36)
+    recovery: Decimal | None = None  # the recovery reported beside the result: pooled (D-37)
+    qualifier: Qualifier | None = None
+    reported: Decimal | None = None  # rounded once (D-54); for BELOW_MDL, the effective MDL
+    uncertainty: Decimal | None = None  # ± half-delta (D-55); None reads N/A
+    limits: Limits | None = None
     flags: list[EmittedFlag] = field(default_factory=list)
     trace: list[dict[str, Any]] = field(default_factory=list)
 
@@ -79,12 +100,22 @@ class Cell:
         reading = self.cups[replicate]
         return reading.value.value * reading.dilution
 
+    def value(self) -> Decimal | None:
+        """The unrounded value the result reports (D-54): the mean of agreeing cups, else the chosen
+        cup; None when nothing is reportable."""
+        if self.selection == Selection.AGREED:
+            return (self.cup_value(1) + self.cup_value(2)) / 2
+        if self.selection == Selection.CHOSEN:
+            return self.cup_value(self.chosen_replicate)
+        return None
+
 
 @dataclass
 class BatchState:
     batch: PrepBatch
     cells: dict[tuple[SampleRef, AnalyteRef], Cell]
     blanks: tuple[Reading, ...] = ()
+    limits: dict[tuple[SampleRef, AnalyteRef], Limits] = field(default_factory=dict)
     shared: dict[str, Any] = field(default_factory=dict)  # facts one step leaves for a later one
 
 
@@ -95,8 +126,19 @@ class CellOutcome(Frozen):
     analyte: AnalyteRef
     selection: Selection
     chosen_replicate: int | None
+    raw: Dec | None = None  # unrounded, dilution-corrected (D-54): stored beside the reported value
+    reported: Quantity | None = None
+    qualifier: Qualifier | None = None
+    uncertainty: Dec | None = None
+    recovery: Dec | None = None  # fraction, e.g. 0.98; reported beside the result, never applied (D-38)
+    limits: Limits | None = None  # snapshot of the spec limits used (D-04)
     flags: tuple[Flag, ...]
     trace: tuple[dict[str, Any], ...]
+
+    @property
+    def verdict(self) -> Verdict:
+        """The worst flag decides (D-56); the trace lists every flag, so the reason is always there."""
+        return verdict_from_flags(self.flags)
 
 
 class BatchEvaluation(Frozen):

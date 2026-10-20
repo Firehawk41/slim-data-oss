@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-63, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-64, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -27,16 +27,16 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 |---|---|---|
 | M0 | Skeleton: packaging, layers, OSS guard, Alembic (own version table), architecture test, CI | ✅ |
 | M1 | Domain: values, observations, results, policies, workflow rules | ✅ |
-| M2 | Engine: framework + `cup_shape`, `linear_range`, `agreement`, `cup_choice` | ✅ part 1 |
-| | **Next — M2 part 2:** recovery + pooling (D-36, D-37, D-53), reported value / MDL / QL / rounding (D-54), ± (D-55), method blank (D-58; BLANK readings aren't TR samples — decide how they're keyed), spec-limit flags (D-60), verdict (D-56) | |
+| M2 | Engine: cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling, reported_value, uncertainty, method_blank, spec_limits; verdict = worst flag | ✅ |
 | M3 | Persistence: append-only tables + triggers, repository, `as_of`, audit log, ruleset publishing | |
 | M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | |
 | M5 | Workflow service: review, release, exceptions, corrections, `report_issues`, amended reports | |
 | M6 | Integration: ReferenceLookup adapter, report read model, host wiring, demo scenarios, e2e test | |
 | M7 | Finish: `verify` command, README, walkthrough | |
 
-Each milestone ends green on CI and with a walkthrough for Jamie. Work is on branch
-`claude/wonderful-dijkstra-jwxssi`; PR Firehawk41/slim-data-oss#1 is open (merges on Jamie's approval).
+Each milestone ends green on CI and with a walkthrough for Jamie. M0–M2 part 1 are in PR
+Firehawk41/slim-data-oss#1 (branch `claude/wonderful-dijkstra-jwxssi`); M2 part 2 is on
+`claude/m2-part-2-ujruzt`, stacked on it.
 
 ## File map
 
@@ -45,7 +45,8 @@ slim_data/
 ├── domain/          # pure (stdlib + pydantic): base (Frozen, Dec), enums, values, actor,
 │                    #   observations, results, policy, workflow
 ├── engine/          # pure (+ domain): numbers, model, step, ruleset, registry, runner
-│   └── steps/       # cup_shape@1, linear_range@1, agreement@1, cup_choice@1
+│   └── steps/       # cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling,
+│                    #   reported_value, uncertainty, method_blank, spec_limits (all @1)
 ├── rulesets/        # ruleset files (JSON): demo_metals.json
 ├── pipeline/        # (M4) reader plugins -> import plan
 ├── persistence/     # oss_guard, db (make_engine = the only create_engine), migrate, migrations/

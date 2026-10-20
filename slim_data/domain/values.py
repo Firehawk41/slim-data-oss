@@ -3,7 +3,7 @@
 import re
 from typing import Self
 
-from pydantic import Field, field_validator
+from pydantic import Field, field_validator, model_validator
 
 from slim_data.domain.base import Dec, Frozen
 
@@ -60,3 +60,19 @@ class Quantity(Frozen):
 
     def __str__(self) -> str:
         return f"{self.value} {self.unit}"
+
+
+class Limits(Frozen):
+    """A sample's spec limits for one analyte (D-60), as the host reported them (snapshotted, D-04)."""
+
+    unit: str = Field(min_length=1, max_length=20)
+    low: Dec | None = None
+    high: Dec | None = None
+
+    @model_validator(mode="after")
+    def _ordered(self) -> Self:
+        if self.low is None and self.high is None:
+            raise ValueError("limits need a low or a high value")
+        if self.low is not None and self.high is not None and self.low > self.high:
+            raise ValueError("low limit is above the high limit")
+        return self

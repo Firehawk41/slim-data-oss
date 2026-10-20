@@ -97,7 +97,9 @@ def validate_ruleset(ruleset: Ruleset, registry) -> ValidatedRuleset:
         except ValidationError as error:
             raise RulesetError(f"bad params for {config.step}: {error}") from error
         for code in sorted(step.flag_codes):
-            ruleset.severity_of(code)
+            severity = ruleset.severity_of(code)
+            if code in step.info_only and severity != Severity.INFO:
+                raise RulesetError(f"{code} from {config.step} must be INFO: it never affects the verdict")
         resolved.append(ResolvedStep(step=step, params=params))
         seen.add(step.name)
     warnings = tuple(w for r in resolved for w in r.step.warnings(r.params))

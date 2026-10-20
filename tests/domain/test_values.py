@@ -7,7 +7,7 @@ from hypothesis import given
 from hypothesis import strategies as st
 from pydantic import ValidationError
 
-from slim_data.domain.values import AnalyteRef, Quantity, SampleRef
+from slim_data.domain.values import AnalyteRef, Limits, Quantity, SampleRef
 
 
 def test_sample_ref_parses_and_prints_the_lab_format():
@@ -62,3 +62,11 @@ def test_domain_objects_are_immutable():
     ref = SampleRef(tr_number="TR00042", position=1)
     with pytest.raises(ValidationError):
         ref.position = 2
+
+
+def test_limits_need_a_bound_in_order():
+    assert Limits(unit="ppb", high=Decimal("50")).low is None
+    with pytest.raises(ValidationError, match="low or a high"):
+        Limits(unit="ppb")
+    with pytest.raises(ValidationError, match="above the high"):
+        Limits(unit="ppb", low=Decimal("5"), high=Decimal("1"))

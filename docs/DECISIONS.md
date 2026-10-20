@@ -401,3 +401,34 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      reading, which is what the range was verified on.
   7. When the two cups' MDLs differ, the larger effective MDL is used (cautious).
 
+
+## Build — choices made while building M2 part 2 (2026-10-19)
+
+- **D-64 Ten engine choices**, approved by Jamie (item 1 before building, the rest at the M2
+  walkthrough; the method blank stays a contamination check, never a correction, as D-58 says).
+  1. **A method blank has no sample.** `Reading.sample` is required for CUP and SPIKE and must be empty
+     for BLANK: the blank belongs to its prep batch (M3 stores the batch on the reading; in the CSV,
+     M4, `lab_sample_id` reads `BLANK` beside `prep_batch`). Rejected: a separate BlankReading type
+     (a second reading path through import, persistence and replay) and a reserved fake SampleRef
+     (a fake TR number would leak into every module). Several blanks → the highest is judged
+     (cautious); an excluded blank is dropped.
+  2. Spike agreement (§7.2 row 5) runs inside `recovery@1` with the same agreement function (D-34),
+     not as a step of its own. Disagreeing spikes → SPIKES_DISAGREE, no recovery from that sample.
+  3. Leave-one-out (D-37) applies when the cup was chosen by the spike witness *or* the scale-fault
+     check, whose witnesses are spikes too.
+  4. Every result gets its element's pooled recovery; the window is judged on the recovery each result
+     reports (with leave-one-out it can differ from the batch median).
+  5. New flags, demo severities: SPIKE_AMOUNT_MISSING (WARN), RECOVERY_NOT_MEASURED — no usable spike
+     for the element in the batch (NEEDS_SUPERVISOR), RECOVERY_USED_FOR_SELECTION (WARN),
+     BLANK_MISSING (NEEDS_SUPERVISOR). Missing QC is never silent.
+  6. The "< MDL" figure is the effective MDL rounded **up**, so a report never states a lower limit
+     than was achieved; values still round half to even (D-54).
+  7. A result below MDL is not affected by a contaminated blank (contamination only pushes up).
+     Against spec limits it is below a low limit only if its MDL is; SPEC_UNDECIDED when its MDL is
+     above a high limit.
+  8. D-60 is enforced: a step can mark flags INFO-only, and a ruleset rating them higher is refused.
+     Limits in another unit are not compared (SPEC_UNIT_MISMATCH; unit conversion is parked).
+  9. The blank is judged against its own effective MDL, else the cups'.
+  10. The verdict (§7.2 row 12) is not a step: `CellOutcome.verdict` is the worst flag (D-56).
+      Spec limits arrive in the evaluation input (the caller looks them up, §5) and are snapshotted on
+      the outcome (D-04).

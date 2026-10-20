@@ -99,7 +99,8 @@ branches (D-05).
 - **Run**: one instrument run = one imported file (D-25), with the file's sha256 and the reader name
   and version.
 - **Reading** (D-06): one row per measurement: sample, analyte, **role** (CUP, SPIKE, BLANK, …),
-  replicate, value (Decimal, keeps its digits), unit, MDL, dilution. No fixed cup columns.
+  replicate, value (Decimal, keeps its digits), unit, MDL, dilution. No fixed cup columns. A BLANK
+  reading has no sample: it belongs to its prep batch (D-64).
 - **ReadingExclusion**: an analyst marks a reading bad, with a reason. An event, never an edit.
 
 ### 6.2 What is decided
@@ -209,7 +210,7 @@ Invoicing is triggered by staff on a complete-report TR (D-43).
 
 | Column | Example | Notes |
 |---|---|---|
-| `lab_sample_id` | `TR00042-03` | `SampleRef` |
+| `lab_sample_id` | `TR00042-03` | `SampleRef`; `BLANK` for a method blank (D-64) |
 | `analysis_code`, `analyte` | `metals_icpms`, `Fe` | → `AnalyteRef` |
 | `role`, `replicate` | `CUP`, `2` | D-06 |
 | `value`, `unit` | `12.40`, `ppb` | text → Decimal |
