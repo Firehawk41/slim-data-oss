@@ -319,7 +319,8 @@ and readers versioned, never removed; recalculation only ever by explicit re-eva
 
 Full measurement-uncertainty budgets · unit conversion to the customer's units · instrument-native
 readers · result-entry UI · optional recovery correction (would have to be stated on the report) · a
-prep-book module (the register call is ready for it).
+prep-book module (the register call is ready for it) · an analysis → analyte table in slim-domain
+(D-69).
 
 ## 14. Gaps closed during the rewrite
 
