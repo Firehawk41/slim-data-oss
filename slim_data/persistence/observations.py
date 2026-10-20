@@ -280,6 +280,31 @@ def _reading(row) -> Reading:
     )
 
 
+def entered_by(session: Session, batch_id: int) -> dict[tuple[SampleRef, AnalyteRef], frozenset[str]]:
+    """For each sample × analyte of a batch, everyone who put its readings in: the analyst each file
+    named and whoever uploaded it (D-62, D-66). Four-eyes keeps them all off the review."""
+    rows = session.execute(
+        select(
+            readings.c.tr_number,
+            readings.c.position,
+            readings.c.analysis_id,
+            readings.c.analyte_code,
+            runs.c.analyst_id,
+            runs.c.imported_by_id,
+        )
+        .join(runs, runs.c.id == readings.c.run_id)
+        .where(readings.c.batch_id == batch_id, readings.c.tr_number.isnot(None))
+    ).all()
+    people: dict = {}
+    for row in rows:
+        key = (
+            SampleRef(tr_number=row.tr_number, position=row.position),
+            AnalyteRef(analysis_id=row.analysis_id, code=row.analyte_code),
+        )
+        people.setdefault(key, set()).update(p for p in (row.analyst_id, row.imported_by_id) if p)
+    return {key: frozenset(ids) for key, ids in people.items()}
+
+
 def stored_with_runs(session: Session, batch_id: int) -> list[tuple[Reading, str, bool]]:
     """Every reading of a batch with its run's code and whether it is excluded now, oldest first:
     what an import compares a re-exported file against (D-66)."""

@@ -13,11 +13,17 @@ from sqlalchemy.orm import Session
 
 from slim_data.domain.actor import Actor
 from slim_data.domain.enums import EventKind, Qualifier
-from slim_data.domain.results import Flag, Result, ResultEvent, ResultVersion
+from slim_data.domain.results import Flag, ReportIssue, ReportLine, Result, ResultEvent, ResultVersion
 from slim_data.domain.values import AnalyteRef, Quantity, SampleRef
 from slim_data.persistence._rows import ConcurrentChange, NotFound, actor_json, as_of_filter
 from slim_data.persistence.audit import set_change_context
-from slim_data.persistence.tables import result_events, result_versions, results
+from slim_data.persistence.tables import (
+    report_issue_lines,
+    report_issues,
+    result_events,
+    result_versions,
+    results,
+)
 
 
 def _result_id(session: Session, sample: SampleRef, analyte: AnalyteRef) -> int | None:
@@ -101,6 +107,92 @@ def load_result(
     """The result with every version and event that existed at `as_of`; None if it didn't exist yet."""
     result_id = _result_id(session, sample, analyte)
     return None if result_id is None else _load(session, result_id, sample, analyte, as_of)
+
+
+def results_for_batch(session: Session, batch_id: int, as_of: datetime | None = None) -> list[Result]:
+    """Every result with a version made from this prep batch."""
+    ids = session.scalars(
+        select(result_versions.c.result_id).where(result_versions.c.batch_id == batch_id).distinct()
+    ).all()
+    rows = session.execute(
+        select(results)
+        .where(results.c.id.in_(ids))
+        .order_by(results.c.tr_number, results.c.position, results.c.analysis_id, results.c.analyte_code)
+    ).all()
+    loaded = (_load(session, row.id, *_identity(row), as_of) for row in rows)
+    return [result for result in loaded if result is not None]
+
+
+def record_issue(session: Session, issue: ReportIssue) -> ReportIssue:
+    """Stores what a report showed. The caller checks that every line was released (M5 service)."""
+    if issue.amends is not None:
+        replaced = session.scalar(select(report_issues.c.tr_number).where(report_issues.c.id == issue.amends))
+        if replaced is None:
+            raise NotFound(f"no report issue {issue.amends} to amend")
+        if replaced != issue.tr_number:
+            raise ValueError(f"report issue {issue.amends} is for {replaced}, not {issue.tr_number}")
+    result_ids = []
+    for line in issue.lines:
+        result_id = _result_id(session, line.sample, line.analyte)
+        if result_id is None:
+            raise NotFound(f"no result for {line.sample} {line.analyte.code}")
+        result_ids.append(result_id)
+    set_change_context(session, issue.created_by, f"report issued for {issue.tr_number}")
+    issue_id = session.execute(
+        report_issues.insert().values(
+            tr_number=issue.tr_number,
+            file_sha256=issue.file_sha256,
+            amends_id=issue.amends,
+            created_by_id=issue.created_by.id,
+            created_by=actor_json(issue.created_by),
+        )
+    ).inserted_primary_key[0]
+    session.execute(
+        report_issue_lines.insert(),
+        [
+            {"issue_id": issue_id, "result_id": result_id, "version": line.version}
+            for result_id, line in zip(result_ids, issue.lines, strict=True)
+        ],
+    )
+    return issues_for_tr(session, issue.tr_number, only=issue_id)[0]
+
+
+def issues_for_tr(
+    session: Session, tr_number: str, as_of: datetime | None = None, only: int | None = None
+) -> list[ReportIssue]:
+    """Every report issued for a TR, oldest first (invoicing bills from these, D-43)."""
+    condition = (
+        report_issues.c.id == only if only is not None else as_of_filter(report_issues.c.created_at, as_of)
+    )
+    issues = session.execute(
+        select(report_issues)
+        .where(report_issues.c.tr_number == tr_number, condition)
+        .order_by(report_issues.c.created_at, report_issues.c.id)
+    ).all()
+    found = []
+    for issue in issues:
+        lines = session.execute(
+            select(report_issue_lines.c.version, results)
+            .join(results, results.c.id == report_issue_lines.c.result_id)
+            .where(report_issue_lines.c.issue_id == issue.id)
+            .order_by(report_issue_lines.c.id)
+        ).all()
+        found.append(
+            ReportIssue(
+                id=issue.id,
+                tr_number=issue.tr_number,
+                file_sha256=issue.file_sha256,
+                lines=tuple(
+                    ReportLine(sample=s, analyte=a, version=line.version)
+                    for line in lines
+                    for s, a in [_identity(line)]
+                ),
+                amends=issue.amends_id,
+                created_by=Actor.model_validate(issue.created_by),
+                created_at=issue.created_at,
+            )
+        )
+    return found
 
 
 def results_for_tr(session: Session, tr_number: str, as_of: datetime | None = None) -> list[Result]:

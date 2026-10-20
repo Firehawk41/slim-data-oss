@@ -98,6 +98,38 @@ class ResultEvent(Frozen):
         return self
 
 
+class ReportLine(Frozen):
+    sample: SampleRef
+    analyte: AnalyteRef
+    version: int = Field(ge=1)
+
+
+class ReportIssue(Frozen):
+    """What one customer report showed (D-22, D-47): the exact result versions, the file's hash, and
+    the issue it replaces if it is an amended report (D-20)."""
+
+    id: int | None = None
+    tr_number: str = Field(min_length=1, max_length=20)
+    file_sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
+    lines: tuple[ReportLine, ...] = Field(min_length=1)
+    amends: int | None = None
+    created_by: Actor
+    created_at: AwareDatetime | None = None
+
+    @model_validator(mode="after")
+    def _one_tr(self) -> Self:
+        if any(line.sample.tr_number != self.tr_number for line in self.lines):
+            raise ValueError(f"every line must be a sample of {self.tr_number}")
+        keys = [(line.sample, line.analyte) for line in self.lines]
+        if len(set(keys)) != len(keys):
+            raise ValueError("a result appears twice on the report")
+        return self
+
+    @property
+    def is_amended(self) -> bool:
+        return self.amends is not None
+
+
 class Result(Frozen):
     """The aggregate callers get back: every version and every event of one result."""
 

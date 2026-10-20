@@ -56,6 +56,7 @@ class Qualifier(IntEnum):
     DETECTED = 1  # a plain number
     BELOW_MDL = 2  # "< effective MDL"
     ESTIMATED = 3  # between MDL and QL
+    NOT_REPORTABLE = 4  # the engine found nothing to report (e.g. no cup could be chosen); no value
 
 
 class ResultStatus(IntEnum):

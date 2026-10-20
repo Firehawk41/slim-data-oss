@@ -8,8 +8,8 @@ from hypothesis import strategies as st
 from pydantic import ValidationError
 
 from slim_data.domain.enums import EventKind, Qualifier, ResultStatus, Severity, Verdict
-from slim_data.domain.results import Flag, ResultEvent, verdict_from_flags
-from tests.factories import ANA, ROB, SUE, flag, qty, result, version
+from slim_data.domain.results import Flag, ReportIssue, ReportLine, ResultEvent, verdict_from_flags
+from tests.factories import ANA, ROB, SUE, analyte, flag, qty, result, sample, version
 
 
 def event(kind, n=1, actor=ROB, **fields):
@@ -115,3 +115,13 @@ def test_released_with_exception_is_permanent():
 def test_flag_needs_code_and_step():
     with pytest.raises(ValidationError):
         Flag(code="", severity=Severity.INFO, step="x@1")
+
+
+def test_a_report_issue_holds_one_trs_results_once():
+    line = ReportLine(sample=sample(1), analyte=analyte(), version=1)
+    issue = ReportIssue(tr_number="TR00042", file_sha256="a" * 64, lines=(line,), created_by=ANA)
+    assert not issue.is_amended and issue.model_copy(update={"amends": 3}).is_amended
+    with pytest.raises(ValidationError, match="every line must be a sample of TR00043"):
+        ReportIssue(tr_number="TR00043", file_sha256="a" * 64, lines=(line,), created_by=ANA)
+    with pytest.raises(ValidationError, match="appears twice"):
+        ReportIssue(tr_number="TR00042", file_sha256="a" * 64, lines=(line, line), created_by=ANA)

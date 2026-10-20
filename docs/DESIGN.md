@@ -191,7 +191,8 @@ D-10's example tiers ("RERUN → quality"; now supervisor, matching the demo rol
 ### 8.2 Granularity
 
 - **Review per prep batch**, with per-result exclusions (D-19).
-- **Release per sample + analysis**, so partial reports are natural (D-19).
+- **Release per sample + analysis**, so partial reports are natural (D-19): the ready elements go;
+  the rest wait. Released results stay as reported while the batch is still running (D-67).
 - **Re-evaluation is explicit** and creates new versions; a ruleset change never touches existing
   results (D-12).
 - **Corrections after reporting** go through the full cycle → new draft version → review → release →

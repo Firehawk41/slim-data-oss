@@ -518,3 +518,37 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   **Open for M5:** early release vs. batch pooling. A result released while the batch is still
   running gets its recovery from fewer spikes, which may change later (an amended report). M5 needs a
   rule, e.g. release only once the batch's blank and enough spikes are in, or a provisional recovery.
+
+## Build — choices made while building M5 (2026-10-20)
+
+- **D-67 Workflow-service choices.** Items 1–2 approved by Jamie before building; the rest to approve at
+  the M5 walkthrough.
+  1. **Released results stay as reported** (early release vs. batch pooling, open since D-66). Results
+     may be released while the batch is still running; the gate is the engine's own flags (no blank
+     yet, or no usable spike for the element, is NEEDS_SUPERVISOR), so one usable spike is the
+     minimum. A released result is frozen with the recovery it was released with, and its trace
+     lists the spikes behind it. Re-evaluating only changes unreleased results; a released one that
+     would now read differently is listed in `released_affected`, so a person can start a correction
+     (and an amended report). Rejected: no release until the batch is done (no early results);
+     re-evaluating released results too (many amended reports).
+  2. **Release the ready elements.** `release(sample, analysis)` releases the elements that are
+     reviewed and cleared; the rest wait, with the reason, for a later partial or complete report.
+     Rejected: all or nothing per sample + analysis.
+  3. `evaluate_batch` stores a new version only when the outcome changed (values, flags, trace,
+     ruleset or who entered the readings), so calling it after every line-by-line import is cheap.
+     The reason defaults to "re-evaluated after new readings or exclusions"; a correction always
+     makes a new version, with the correction's own reason.
+  4. "Reads differently" for a released result means its reported value, qualifier or verdict
+     changed; a pooled recovery that moved with later spikes alone doesn't count.
+  5. A rejected result is never re-evaluated.
+  6. A version's `analyst_ids` are everyone who entered any reading of that sample × analyte in the
+     batch: each file's named analyst and its uploader (D-62, D-66).
+  7. New qualifier NOT_REPORTABLE for a result with nothing to report (e.g. no cup could be chosen).
+  8. `review_batch` reviews every draft of the batch or none (listing every problem); results waiting
+     on a rerun or a correction are left for later.
+  9. `record_issue` accepts only released versions; a line carrying a version released after a
+     correction makes the report amended, so it must name the issue it replaces, of the same TR.
+  10. Actions use the latest published policy and refuse when none is published.
+  11. A version's trace holds the ruleset's content hash, the selection, the chosen cup and every
+      step's entry, so it explains itself without the ruleset at hand.
+  Left for M6: the report read model (`report_view`) and `batch_view`; for M7: `verify`.
