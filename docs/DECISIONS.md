@@ -472,9 +472,9 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
 
 ## Build — choices made while building M4 (2026-10-20)
 
-- **D-66 Data-in choices.** Items 1–2 approved by Jamie before building, items 3–8 at the M4
-  walkthrough (4 and 5 revised the same day, below); items 9–11 follow from Jamie's lab practice
-  (results exported line by line while the run goes on; cups rejected and rerun in the run).
+- **D-66 Data-in choices**, approved by Jamie: items 1–2 before building, 3–8 at the M4 walkthrough,
+  then 4 (revised) and 9–11, which follow from Jamie's lab practice (results exported line by line
+  while the run goes on; cups rejected and rerun in the run).
   1. **The file names the analyst; the uploader is recorded too.** Someone may upload on the analyst's
      behalf (lab efficiency). The run's analyst is whoever the file's `analyst` column names, checked
      against the host's staff (`StaffDirectory` port) and stored as ASSERTED, since a file is a claim,
