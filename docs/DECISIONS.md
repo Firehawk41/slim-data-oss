@@ -435,8 +435,8 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
 
 ## Build — choices made while building M3 (2026-10-20)
 
-- **D-65 Persistence choices.** Items 1–2 approved by Jamie before building; the rest to approve at the
-  M3 walkthrough.
+- **D-65 Persistence choices**, approved by Jamie (items 1–2 before building, #10 revised at their
+  request, the rest at the M3 walkthrough).
   1. **No `result_exceptions` table.** An exception is a `result_events` row of kind EXCEPTION (it
      already holds the category and the required text), indexed on kind for the lab-wide query.
      Rejected: a second table holding the same facts, which could drift. Revises DESIGN.md §10.1.
