@@ -570,3 +570,26 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   - The event is marked `solo` forever; `exceptions(solo=True)` lists every solo sign-off for an
     auditor. Solo sign-offs are not exceptions.
   - Rejected: a retrospective second check on the next working day (Jamie: not needed).
+
+## Build — M6 part 1 (2026-10-20)
+
+- **D-69 Integration choices, slim-data side.** Item 1 approved by Jamie before building; the rest to
+  approve at the M6 walkthrough.
+  1. **M6 is split** (Jamie). Part 1 changes slim-data only: read models, the adapter, the demo seed
+     and the end-to-end test. Part 2 wires slim-data into LabPortal (slim-lims) and needs Jamie's
+     go-ahead, since it changes another repo.
+  2. The `ReferenceLookup` adapter (`adapters/slim.py`) is built from plain objects and callables in
+     slim-domain's and LabPortal's shapes (analysis catalog code → SLIM name → slim-domain ID;
+     elements; a `TrSamples` reader the host provides; `SpecificationService.get_specs`), so it
+     imports neither. TR samples come from the host until D-45 moves TR v2 into slim-domain.
+  3. slim-domain has no analysis → element table, so any known element or ion is a valid analyte.
+     Specs are slim-domain's upper limits (floats, read back through `str`, so `0.5` stays `0.5`),
+     in a unit given to the adapter; warning limits are not used.
+  4. `report_view` shows, per result, the latest released version: the printed text (`12.400`,
+     `< 0.050`, `0.120 (estimated)`), ±, recovery, acceptance and exception categories as the
+     standard qualifiers (D-11), the spec-limit INFO flags (D-60), and whether it is amended.
+     Unreleased results are listed as waiting; rejected ones are neither. Solo sign-off is carried
+     for the record, not for printing. Every read takes `as_of`, so an issued report can be rebuilt.
+  5. The demo seed (`demo/scenarios.py`) runs each named scenario through the real service from CSV
+     files, with ASSERTED personas, its own TR and batch, and dates relative to today. Not seeded: the
+     solo sign-off (it needs its real wait) and billing (invoicing's job).
