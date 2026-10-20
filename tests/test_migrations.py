@@ -4,7 +4,10 @@ from alembic.autogenerate import compare_metadata
 from alembic.migration import MigrationContext
 from sqlalchemy import inspect, text
 
-from slim_data.persistence import migrate
+from slim_data.persistence import (
+    migrate,
+    tables,  # noqa: F401  (registers the tables on Base)
+)
 from slim_data.persistence.db import Base
 
 
@@ -17,11 +20,11 @@ def _version(connection) -> str | None:
 def test_upgrade_downgrade_upgrade(engine):
     with engine.begin() as connection:
         migrate.upgrade(connection)
-        assert _version(connection) == "0001"
+        assert _version(connection) == "0002"
         migrate.downgrade(connection)
         assert _version(connection) is None
         migrate.upgrade(connection)
-        assert _version(connection) == "0001"
+        assert _version(connection) == "0002"
         migrate.downgrade(connection)
 
 
