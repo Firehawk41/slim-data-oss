@@ -12,7 +12,7 @@ from slim_data.domain.values import AnalyteRef, SampleRef
 from slim_data.persistence._rows import NotFound
 from slim_data.persistence.results import exceptions, issues_for_tr
 from slim_data.service import workflow as wf
-from slim_data.service.views import batch_view, report_view, trace, value_text
+from slim_data.service.views import batch_view, batches, report_view, trace, value_text
 from tests.factories import qty, version
 
 
@@ -121,3 +121,10 @@ def test_views_read_estimates_and_nothing_reportable_and_skip_rejected(session, 
     assert rejected.waiting == () and not rejected.complete  # nothing to report, nothing waiting
     with pytest.raises(NotFound):
         trace(session, scale, AnalyteRef(analysis_id=1, code="Fe"), version=9)
+
+
+def test_batches_lists_every_scenario_batch(session, demo):
+    listed = batches(session)
+    assert {b.code for b in listed} == {f"PB-{tr[2:]}" for tr in demo[0].values()}
+    assert all(b.analysis_id == 1 and b.prep_method == "microwave HNO3" for b in listed)
+    assert batches(session, as_of=datetime(2000, 1, 1, tzinfo=UTC)) == ()

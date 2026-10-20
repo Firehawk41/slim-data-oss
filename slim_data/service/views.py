@@ -6,6 +6,7 @@ Every read takes `as_of` (D-21), so a report can be rebuilt exactly as it stood 
   prints, ±, recovery, the standard qualifier of an acceptance or exception (D-11), and the INFO
   flags the report shows (spec exceedances, D-60). Unreleased results are listed as waiting.
 * `batch_view(batch)`: every result of a prep batch as it stands, for review.
+* `batches()`: the prep batches, newest first, for the host's list of batches.
 """
 
 from datetime import datetime
@@ -17,7 +18,7 @@ from slim_data.domain.enums import EventKind, Qualifier, ResultStatus, Severity,
 from slim_data.domain.results import Result, ResultVersion
 from slim_data.domain.values import AnalyteRef, Quantity, SampleRef
 from slim_data.persistence._rows import NotFound
-from slim_data.persistence.observations import get_batch
+from slim_data.persistence.observations import get_batch, list_batches
 from slim_data.persistence.results import load_result, results_for_batch, results_for_tr
 
 
@@ -149,6 +150,22 @@ def batch_view(session: Session, code: str, as_of: datetime | None = None) -> Ba
         )
     return BatchView(
         code=batch.code, prep_method=batch.prep_method, samples=batch.samples, results=tuple(rows)
+    )
+
+
+class BatchSummary(Frozen):
+    code: str
+    analysis_id: int
+    prep_method: str
+    registered_at: datetime
+
+
+def batches(session: Session, as_of: datetime | None = None) -> tuple[BatchSummary, ...]:
+    return tuple(
+        BatchSummary(
+            code=r.code, analysis_id=r.analysis_id, prep_method=r.prep_method, registered_at=r.created_at
+        )
+        for r in list_batches(session, as_of)
     )
 
 

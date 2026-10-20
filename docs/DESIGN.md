@@ -274,7 +274,7 @@ record_exception(result, category, text, actor)
 release(sample, analysis, actor) -> ResultsReleased   correct(result, reason, actor)
 record_issue(tr_number, versions, file_sha256, amends=None, actor) -> ReportIssued
 
-reads (all take as_of):  report_view(tr_number)  results_for_tr(tr_number)  batch_view(batch)
+reads (all take as_of):  report_view(tr_number)  results_for_tr(tr_number)  batch_view(batch)  batches()
                          trace(result, version)  exceptions(filter)  issues_for_tr(tr_number)
 verify() -> VerifyReport                              # replay + audit chain
 ```

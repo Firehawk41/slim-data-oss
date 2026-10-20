@@ -595,3 +595,35 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      solo sign-off (it needs its real wait) and billing (invoicing's job).
   6. **Parked (Jamie):** teach slim-domain which analytes belong to which analysis, so the adapter
      can refuse e.g. `Cl-` on a metals analysis (item 3 accepts any known analyte until then).
+
+## Build — M6 part 2: wiring into the host (2026-10-20)
+
+- **D-70 Host-side choices for wiring slim-data into LabPortal (slim-lims)**, approved by Jamie before
+  building (items 1–4); items 5–8 are build choices for the slice 1 walkthrough.
+  1. **Staff roles: a `lab_role` on portal users** (analyst / reviewer / supervisor, stored as `Role`'s
+     ints; staff only). `Actor.id` is the user's UUID (what four-eyes compares; stays right if initials
+     change), `display` their initials, AUTHENTICATED. The result file's `analyst` column is the staff
+     member's initials, now unique. Rejected: initials as `Actor.id` (four-eyes history breaks if
+     initials are reused or changed).
+  2. **LabPortal requires slim-data**, installed from `git+https://github.com/Firehawk41/slim-data-oss@main`
+     (not on PyPI; a bare name could resolve to an unrelated package). Results are core to the LIMS, so
+     the tests always run. Rejected: an optional local checkout with skipped tests.
+  3. **Three slices, one PR each:** (1) wiring, upload → preview / import → evaluate, batch page and
+     API; (2) review / accept / rerun / exception / release screens, `ResultsReleased` → TR status;
+     (3) report view + record issue, demo personas (D-50), the demo scenarios seeded in the portal.
+  4. **The demo metals ruleset is bound to "10 Elements" by catalog code at publish time.** slim-data's
+     own demo uses an invented analysis (`metals_icpms`, ID 1); in the portal, analysis IDs come from
+     the SLIM demo seed (real panel names, IDs in alphabetical order), so the seed resolves
+     `10_elements_icpms` → its ID by name and refuses to publish if the code is missing; the ruleset
+     body stays data. 10 Elements: the smallest real ICP-MS panel, closest to the demo's six elements.
+     Rejected: one copy per ICP-MS panel (near-identical rulesets); a catalog code inside the ruleset
+     file (cleanest, but changes slim-data's ruleset format: parked beside D-69 item 6).
+  5. Only a supervisor may give a lab role above analyst or change one (existing staff start as
+     analysts; the CLI sets any role, since it needs server access). Nobody changes their own role.
+  6. A file is imported and then **every prep batch it names is evaluated, in one transaction**; if
+     evaluation fails (e.g. no published ruleset for the batch's analysis), the whole upload rolls
+     back, so readings never sit in a batch nothing can decide.
+  7. A TR's samples take readings from received until invoiced (submitted, cancelled and invoiced TRs
+     are unknown samples to the adapter). Spec limits come from SLIM's `specifications` (kind
+     "specification", exact location), read by the host the way slim-domain's `get_specs` does.
+  8. New read `batches()`: the prep batches, newest first, for the host's list (takes `as_of`).

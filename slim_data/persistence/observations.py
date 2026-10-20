@@ -131,6 +131,20 @@ def get_batch(session: Session, code: str, as_of: datetime | None = None) -> Pre
     )
 
 
+def list_batches(session: Session, as_of: datetime | None = None) -> list:
+    """Every prep batch's code, analysis, prep method and registration time, newest first."""
+    return session.execute(
+        select(
+            prep_batches.c.code,
+            prep_batches.c.analysis_id,
+            prep_batches.c.prep_method,
+            prep_batches.c.created_at,
+        )
+        .where(as_of_filter(prep_batches.c.created_at, as_of))
+        .order_by(prep_batches.c.created_at.desc(), prep_batches.c.id.desc())
+    ).all()
+
+
 def run_for_file(session: Session, sha256: str) -> int | None:
     """The run a file was imported as, if it was."""
     return session.scalar(select(runs.c.id).where(runs.c.source_sha256 == sha256))
