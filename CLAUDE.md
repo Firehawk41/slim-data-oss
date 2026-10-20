@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-65, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-66, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -29,29 +29,29 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | M1 | Domain: values, observations, results, policies, workflow rules | ✅ |
 | M2 | Engine: cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling, reported_value, uncertainty, method_blank, spec_limits; verdict = worst flag | ✅ |
 | M3 | Persistence: append-only tables + triggers, repositories, `as_of`, audit context, ruleset/policy publishing | ✅ |
-| M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | |
+| M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | ✅ |
 | M5 | Workflow service: review, release, exceptions, corrections, `report_issues`, amended reports | |
 | M6 | Integration: ReferenceLookup adapter, report read model, host wiring, demo scenarios, e2e test | |
 | M7 | Finish: `verify` command, README, walkthrough | |
 
-Each milestone ends green on CI and with a walkthrough for Jamie. M0–M3 are merged into `main`.
+Each milestone ends green on CI and with a walkthrough for Jamie. M0–M4 are merged into `main`.
 
 ## File map
 
 ```
 slim_data/
 ├── domain/          # pure (stdlib + pydantic): base (Frozen, Dec), enums, values, actor,
-│                    #   observations, results, policy, workflow
+│                    #   observations, results, policy, workflow, ports (ReferenceLookup, StaffDirectory)
 ├── engine/          # pure (+ domain): numbers, model, step, ruleset, registry, runner
 │   └── steps/       # cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling,
 │                    #   reported_value, uncertainty, method_blank, spec_limits (all @1)
 ├── rulesets/        # ruleset files (JSON): demo_metals.json
-├── pipeline/        # (M4) reader plugins -> import plan
+├── pipeline/        # reader contract (reader.py) + generic_csv/1; pure
 ├── persistence/     # oss_guard, db (make_engine = the only create_engine), migrate, migrations/,
 │                    #   types, tables, append_only, audit; repositories: rulesets, observations, results
-├── service/         # (M5) ResultService facade, DESIGN.md §11
+├── service/         # imports (preview / all-or-nothing import); (M5) ResultService facade, DESIGN.md §11
 └── adapters/        # (M6) ReferenceLookup over slim-domain
-tests/               # factories.py; domain/; engine/ (helpers, step_manifest.txt); persistence/; guard, architecture, migrations
+tests/               # factories.py; conftest (session); domain/; engine/; persistence/; pipeline/ (fixtures); service/
 .github/workflows/ci.yml  # ruff + {SQLite, Postgres 16} × {3.11, 3.12} + 95% branch coverage on domain + engine
 ```
 

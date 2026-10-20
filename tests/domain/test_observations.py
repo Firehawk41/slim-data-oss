@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from slim_data.domain.enums import ReadingRole
 from slim_data.domain.observations import PrepBatch, Reading, ReadingExclusion, Run, SourceFile, SpikeAddition
-from tests.factories import ANA, NOW, analyte, qty, sample
+from tests.factories import ANA, NOW, ROB, analyte, qty, sample
 
 
 def spike(position=1, code="Fe", added="10", analysis_id=1):
@@ -81,13 +81,20 @@ def test_reading_rejects_bad_values(overrides, message):
 
 def test_run_and_exclusion():
     source = SourceFile(name="run43.csv", sha256="a" * 64, reader="generic_csv/1")
-    run = Run(run_code="RUN-0043", instrument="ICP-MS 1", analyst=ANA, analyzed_at=NOW, source=source)
-    assert run.source.reader == "generic_csv/1"
+    run = Run(
+        run_code="RUN-0043",
+        instrument="ICP-MS 1",
+        analyst=ANA,
+        imported_by=ROB,
+        analyzed_at=NOW,
+        source=source,
+    )
+    assert run.source.reader == "generic_csv/1" and run.entered_by == {"ana", "rob"}
     with pytest.raises(ValidationError):
         SourceFile(name="run43.csv", sha256="not-a-hash", reader="generic_csv/1")
     with pytest.raises(ValidationError):
-        Run(run_code="RUN-0043", instrument="ICP-MS 1", analyst=ANA, analyzed_at=NOW.replace(tzinfo=None),
-            source=source)  # fmt: skip
+        Run(run_code="RUN-0043", instrument="ICP-MS 1", analyst=ANA, imported_by=ANA,
+            analyzed_at=NOW.replace(tzinfo=None), source=source)  # fmt: skip
     assert ReadingExclusion(reading_id=7, reason="cup cracked", actor=ANA).at is None
     with pytest.raises(ValidationError):
         ReadingExclusion(reading_id=7, reason="", actor=ANA)

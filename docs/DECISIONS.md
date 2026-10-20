@@ -469,3 +469,52 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
       savepoints and transactional DDL work as on Postgres.
   12. `ResultVersion` gains `raw` and `recovery` (DESIGN.md §6.2 and D-38 say a version holds them).
   13. The report-issue tables exist now; their repository comes with `record_issue` in M5.
+
+## Build — choices made while building M4 (2026-10-20)
+
+- **D-66 Data-in choices**, approved by Jamie: items 1–2 before building, 3–8 at the M4 walkthrough,
+  then 4 (revised) and 9–11, which follow from Jamie's lab practice (results exported line by line
+  while the run goes on; cups rejected and rerun in the run).
+  1. **The file names the analyst; the uploader is recorded too.** Someone may upload on the analyst's
+     behalf (lab efficiency). The run's analyst is whoever the file's `analyst` column names, checked
+     against the host's staff (`StaffDirectory` port) and stored as ASSERTED, since a file is a claim,
+     not a login (D-50). `Run.imported_by` is who uploaded it. **Neither may review or release** those
+     results: `Run.entered_by` feeds the result version's `analyst_ids` (D-62), wired in M5.
+     Rejected: the importer as the only analyst (no uploads on someone's behalf); trusting the file
+     alone (someone could upload their own readings under a colleague's name, then review them).
+  2. **Lookups go through `ReferenceLookup`**, which gains `analysis_id(code)`. The preview turns its
+     checks into row errors: unknown analysis, analyte not in the analysis, unknown sample, analysis
+     not ordered for the sample. Rejected: a numeric `analysis_id` column with no checks.
+  3. `prep_batch` is required on every row: every reading belongs to a batch (a blank has nothing
+     else, D-64). `prep_method` is needed only to register a new batch; `spike_added` only on SPIKE
+     rows.
+  4. A file may add readings to a batch that is already registered, but must match it: same analysis
+     and prep method, spike amounts as recorded. *Revised the same day:* it may also **add** samples
+     and spike amounts the batch doesn't have yet (new rows, never changes), because a file exported
+     while the run is going registers the batch with only the samples it has so far. A batch's sample
+     and spike rows carry `created_at`, so `as_of` shows the batch as it stood.
+  5. *Revised the same day:* first "a reading the batch already has is refused". Replaced by items
+     9–10.
+  6. The reader is strict: missing, unknown (usually a typo) or repeated columns are file errors;
+     values are read as text, so digits are kept; `analyzed_at` needs a UTC offset.
+  7. Preview and import are in `service/imports.py`, since they read the database; the reader in
+     `pipeline/` stays pure. The import runs in a savepoint, so it is all or nothing even inside the
+     host's larger transaction.
+  8. Migration 0003 adds `runs.imported_by` as nullable: a run stored before it has no separate
+     uploader (none exist outside tests). On SQLite the downgrade puts back the append-only triggers
+     that rebuilding the table drops.
+  9. **Re-exports of a growing file.** For each cup, the file's n-th reading in a run must match the
+     n-th one already stored from that run (value, unit, MDL and dilution, digits included); it is
+     then skipped. A difference is a row error: nothing is overwritten. Readings beyond those are new.
+     A file with nothing new imports nothing (no run row).
+  10. **Attempts: every reading is kept; the newest good one counts.** A cup measured again (rejected
+      and rerun in the run, or rerun in a later run) is a new attempt of the same cup. The engine uses,
+      per cup, the newest attempt that isn't excluded, else the newest one (as excluded); the others
+      are listed in the trace as set aside. This replaces a separate rerun design for M5.
+  11. **Rejected in the run.** Optional `rejected` (yes/no) and `note` columns: a rejected row is
+      imported and then excluded, with the note as the reason (default "rejected in run …"), recorded
+      as the file's analyst's exclusion. A rejection that appears only on a re-export excludes the
+      stored reading. Spikes may now be excluded too: an excluded spike is as if it wasn't measured.
+  **Open for M5:** early release vs. batch pooling. A result released while the batch is still
+  running gets its recovery from fewer spikes, which may change later (an amended report). M5 needs a
+  rule, e.g. release only once the batch's blank and enough spikes are in, or a provisional recovery.

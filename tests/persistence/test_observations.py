@@ -42,6 +42,7 @@ def test_readings_keep_their_digits_and_blanks_have_no_sample(session, stored):
 
 def test_the_same_file_is_refused_with_a_pointer_to_the_first_import(session, stored):
     _, batch, run = stored
+    assert get_run(session, run.id).imported_by.id == "rob"
     with pytest.raises(AlreadyImported) as refused:
         record_run(session, make_run(), [(batch.code, make_reading(1, ReadingRole.CUP, 1, "1"))])
     assert refused.value.run_id == run.id
@@ -79,8 +80,8 @@ def test_exclusions_are_events_and_as_of_sees_the_batch_before_them(session, sto
     assert evaluation_input(session, batch.code, as_of=before).excluded_reading_ids == frozenset()
     with pytest.raises(ValueError, match="already excluded"):
         exclude_reading(session, ReadingExclusion(reading_id=cup.id, reason="again", actor=ANA))
-    with pytest.raises(ValueError, match="spike can't be excluded"):
-        exclude_reading(session, ReadingExclusion(reading_id=spike.id, reason="x", actor=ANA))
+    exclude_reading(session, ReadingExclusion(reading_id=spike.id, reason="spike spilled", actor=ANA))
+    assert evaluation_input(session, batch.code).excluded_reading_ids == {cup.id, spike.id}
     with pytest.raises(NotFound):
         exclude_reading(session, ReadingExclusion(reading_id=999, reason="x", actor=ANA))
 

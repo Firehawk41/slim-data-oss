@@ -7,6 +7,7 @@ same flags and the same trace, which is what `replay` checks.
 from collections import defaultdict
 
 from slim_data.domain.enums import ReadingRole
+from slim_data.domain.observations import Reading
 from slim_data.domain.results import Flag
 from slim_data.domain.values import Quantity
 from slim_data.engine.model import BatchEvaluation, BatchState, Cell, CellOutcome, EvaluationInput
@@ -18,29 +19,55 @@ class BatchRejected(ValueError):
     """The batch can't be evaluated under this ruleset at all (e.g. over the size limit, D-07)."""
 
 
+def _current(data: EvaluationInput) -> tuple[list[tuple[Reading, bool]], list[int]]:
+    """Each measurement's attempt that counts (D-66): the newest one not excluded, else the newest
+    (marked excluded). Returns (reading, excluded) pairs and the ids of the attempts set aside."""
+    attempts = defaultdict(list)
+    for reading in data.readings:
+        attempts[(reading.sample, reading.analyte, reading.role, reading.replicate)].append(reading)
+    chosen, superseded = [], []
+    for key, readings in attempts.items():
+        readings.sort(key=lambda r: r.attempt)
+        numbers = [r.attempt for r in readings]
+        if len(set(numbers)) != len(numbers):
+            raise ValueError(
+                f"two {key[2].name} readings with replicate {key[3]}, same attempt, for {key[:2]}"
+            )
+        good = [r for r in readings if r.id is None or r.id not in data.excluded_reading_ids]
+        current = good[-1] if good else readings[-1]
+        chosen.append((current, not good))
+        superseded.extend(r.id for r in readings if r is not current and r.id is not None)
+    return chosen, superseded
+
+
 def _build_state(data: EvaluationInput) -> BatchState:
     cells: dict = {}
     blanks = []
     excluded_by_cell = defaultdict(set)
-    for reading in data.readings:
+    chosen, superseded = _current(data)
+    for reading, excluded in chosen:
         if reading.role == ReadingRole.BLANK:
-            if (
-                reading.id is None or reading.id not in data.excluded_reading_ids
-            ):  # an excluded blank is dropped
+            if not excluded:  # an excluded blank is dropped
                 blanks.append(reading)
             continue
         key = (reading.sample, reading.analyte)
         cell = cells.setdefault(key, Cell(sample=reading.sample, analyte=reading.analyte))
-        target = cell.cups if reading.role == ReadingRole.CUP else cell.spikes
-        if reading.replicate in target:
-            raise ValueError(f"two {reading.role.name} readings with replicate {reading.replicate} for {key}")
-        target[reading.replicate] = reading
-        if reading.id is not None and reading.id in data.excluded_reading_ids:
-            if reading.role != ReadingRole.CUP:
-                raise ValueError("only cup readings can be excluded")
+        if reading.role == ReadingRole.SPIKE:
+            if excluded:  # an excluded spike is dropped: as if it wasn't measured
+                superseded.append(reading.id)
+            else:
+                cell.spikes[reading.replicate] = reading
+            continue
+        cell.cups[reading.replicate] = reading
+        if excluded:
             excluded_by_cell[key].add(reading.replicate)
     for key, replicates in excluded_by_cell.items():
         cells[key].excluded = frozenset(replicates)
+    by_id = {r.id: r for r in data.readings}
+    for reading_id in sorted(superseded):
+        cell = cells.get((by_id[reading_id].sample, by_id[reading_id].analyte))
+        if cell is not None:
+            cell.superseded.append(reading_id)
     ordered = dict(sorted(cells.items(), key=lambda item: (str(item[0][0]), item[0][1].code)))
     limits = {(entry.sample, entry.analyte): entry.limits for entry in data.limits}
     return BatchState(batch=data.batch, cells=ordered, blanks=tuple(blanks), limits=limits)
@@ -74,7 +101,8 @@ def evaluate(data: EvaluationInput, ruleset: ValidatedRuleset) -> BatchEvaluatio
                 )
                 for f in cell.flags
             ),
-            trace=tuple(cell.trace),
+            trace=(({"step": "attempts", "set_aside": cell.superseded},) if cell.superseded else ())
+            + tuple(cell.trace),
         )
         for cell in state.cells.values()
     )

@@ -92,6 +92,7 @@ prep_batch_samples = Table(
     Column("id", Integer, primary_key=True),
     Column("batch_id", ForeignKey("prep_batches.id"), nullable=False),
     *_sample(),
+    Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),  # a file may add later
     UniqueConstraint("batch_id", "tr_number", "position", name="uq_prep_batch_samples_sample"),
 )
 
@@ -104,6 +105,7 @@ prep_batch_spikes = Table(
     *_analyte(),
     Column("added", ExactDecimal(), nullable=False),
     Column("unit", String(20), nullable=False),
+    Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
     UniqueConstraint(
         "batch_id", "tr_number", "position", "analysis_id", "analyte_code", name="uq_prep_batch_spikes_spike"
     ),
@@ -119,8 +121,10 @@ runs = Table(
     Column("source_name", String(255), nullable=False),
     Column("source_sha256", String(64), nullable=False, unique=True),  # one file, one import (§9)
     Column("reader", String(50), nullable=False),
-    Column("analyst_id", String(100), nullable=False),
+    Column("analyst_id", String(100), nullable=False),  # who the file names (D-66)
     Column("analyst", JSON, nullable=False),
+    Column("imported_by_id", String(100)),  # who uploaded it; NULL only before migration 0003
+    Column("imported_by", JSON),
     Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
 )
 
@@ -134,6 +138,7 @@ readings = Table(
     *_analyte(),
     Column("role", Integer, nullable=False),
     Column("replicate", Integer, nullable=False),
+    Column("attempt", Integer, nullable=False, server_default="1"),  # newest good one counts (D-66)
     Column("value", ExactDecimal(), nullable=False),
     Column("unit", String(20), nullable=False),
     Column("mdl", ExactDecimal()),
