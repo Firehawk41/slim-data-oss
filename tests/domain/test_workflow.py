@@ -9,7 +9,7 @@ from slim_data.domain import workflow
 from slim_data.domain.enums import EventKind, IdentitySource, ResultStatus, Role, Severity
 from slim_data.domain.policy import DEMO_POLICY, PRODUCTION_EXAMPLE_POLICY
 from slim_data.domain.results import Result, ResultEvent
-from slim_data.domain.workflow import FourEyesViolation, InvalidTransition, NotPermitted
+from slim_data.domain.workflow import FourEyesViolation, InvalidTransition, NotPermitted, UnknownCategory
 from tests.factories import ANA, NOW, ROB, SUE, actor, flag, result, version
 
 P = DEMO_POLICY
@@ -41,7 +41,7 @@ def test_needs_supervisor_is_accepted_then_released_without_an_exception():
     r = reviewed(result(NEEDS))
     with pytest.raises(InvalidTransition, match="needs an acceptance"):
         workflow.release(r, ROB, P)
-    r = apply(r, workflow.accept(r, SUE, P, reason_category="spike not evaluable"))
+    r = apply(r, workflow.accept(r, SUE, P, reason_category="MDL taken from the method validation"))
     r = apply(r, workflow.release(r, ROB, P))
     assert r.status == ResultStatus.RELEASED
     assert not r.released_with_exception
@@ -51,7 +51,10 @@ def test_rerun_released_only_through_a_supervisor_exception():
     r = reviewed(result(RERUN))
     with pytest.raises(InvalidTransition, match="needs a rerun or an exception"):
         workflow.release(r, ROB, P)
-    r = apply(r, workflow.record_exception(r, SUE, P, "insufficient sample", "customer accepts qualifier"))
+    r = apply(
+        r,
+        workflow.record_exception(r, SUE, P, "Insufficient sample for a rerun", "customer accepts qualifier"),
+    )
     r = apply(r, workflow.release(r, SUE, P))
     assert r.status == ResultStatus.RELEASED
     assert r.released_with_exception
@@ -87,7 +90,10 @@ def test_nobody_signs_off_their_own_readings(call):
         "record_exception": result(RERUN),
         "release": reviewed(),
     }[call]
-    args = {"accept": ("matrix",), "record_exception": ("no sample", "agreed")}.get(call, ())
+    args = {
+        "accept": ("MDL taken from the method validation",),
+        "record_exception": ("Insufficient sample for a rerun", "agreed"),
+    }.get(call, ())
     with pytest.raises(FourEyesViolation):
         getattr(workflow, call)(r, supervisor_analyst, P, *args)
 
@@ -104,8 +110,8 @@ def test_analyst_may_correct_their_own_result():
     "call, r, who, args",
     [
         ("review", result(), actor("al", Role.ANALYST), ()),
-        ("accept", result(NEEDS), ROB, ("matrix",)),
-        ("record_exception", result(RERUN), ROB, ("no sample", "agreed")),
+        ("accept", result(NEEDS), ROB, ("MDL taken from the method validation",)),
+        ("record_exception", result(RERUN), ROB, ("Insufficient sample for a rerun", "agreed")),
         ("request_rerun", result(NEEDS), ROB, ()),
         ("reject", result(), actor("al", Role.ANALYST), ("bad prep",)),
     ],
@@ -145,25 +151,39 @@ def test_state_rules():
     with pytest.raises(InvalidTransition, match="only a reviewed"):
         workflow.release(result(), ROB, P)
     with pytest.raises(InvalidTransition, match="only a NEEDS_SUPERVISOR"):
-        workflow.accept(result(), SUE, P, "matrix")
+        workflow.accept(result(), SUE, P, "MDL taken from the method validation")
     with pytest.raises(InvalidTransition, match="isn't one"):
-        workflow.record_exception(result(NEEDS), SUE, P, "x", "y")
+        workflow.record_exception(result(NEEDS), SUE, P, "Released without rerun", "y")
 
 
 def test_clearing_twice_is_refused():
-    accepted = apply(result(NEEDS), workflow.accept(result(NEEDS), SUE, P, "matrix"))
+    accepted = apply(
+        result(NEEDS), workflow.accept(result(NEEDS), SUE, P, "MDL taken from the method validation")
+    )
     with pytest.raises(InvalidTransition, match="already accepted"):
-        workflow.accept(accepted, SUE, P, "matrix")
-    excepted = apply(result(RERUN), workflow.record_exception(result(RERUN), SUE, P, "x", "y"))
+        workflow.accept(accepted, SUE, P, "MDL taken from the method validation")
+    excepted = apply(
+        result(RERUN), workflow.record_exception(result(RERUN), SUE, P, "Released without rerun", "y")
+    )
     with pytest.raises(InvalidTransition, match="already recorded"):
-        workflow.record_exception(excepted, SUE, P, "x", "y")
+        workflow.record_exception(excepted, SUE, P, "Released without rerun", "y")
+
+
+def test_categories_come_from_the_policy():
+    with pytest.raises(UnknownCategory, match="choose one of: MDL taken"):
+        workflow.accept(result(NEEDS), SUE, P, "matrix, probably")
+    with pytest.raises(UnknownCategory, match="Released without rerun"):
+        workflow.record_exception(result(RERUN), SUE, P, "MDL taken from the method validation", "y")
+    none_listed = P.model_copy(update={"reason_categories": ()})
+    with pytest.raises(UnknownCategory, match="lists none"):
+        workflow.accept(result(NEEDS), SUE, none_listed, "MDL taken from the method validation")
 
 
 def test_a_rerun_request_blocks_sign_offs_until_a_new_version():
     r = apply(result(NEEDS), workflow.request_rerun(result(NEEDS), SUE, P, note="re-prep"))
     assert r.rerun_requested
     with pytest.raises(InvalidTransition, match="rerun was requested"):
-        workflow.accept(r, SUE, P, "matrix")
+        workflow.accept(r, SUE, P, "MDL taken from the method validation")
     fresh = r.model_copy(update={"versions": r.versions + (version(2),)})
     assert not fresh.rerun_requested
     assert workflow.review(fresh, ROB, P).version == 2
@@ -216,7 +236,7 @@ def test_solo_needs_the_policy_a_reason_and_a_clock():
 def test_solo_never_covers_supervisor_decisions_and_is_only_recorded_when_needed():
     own_needs = result(version(1, flag(Severity.NEEDS_SUPERVISOR), analysts=("sue",), created_at=NOW))
     with pytest.raises(FourEyesViolation):
-        workflow.accept(own_needs, SUE, P, "judgment call")
+        workflow.accept(own_needs, SUE, P, "MDL taken from the method validation")
     assert not workflow.review(result(), ROB, P, WHY, solo=True, now=NOW).solo  # not his readings
     with pytest.raises(FourEyesViolation):
         workflow.review(ROBS_OWN, ROB, P)  # strict four-eyes unless solo is asked for

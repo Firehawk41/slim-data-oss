@@ -88,7 +88,7 @@ def test_release_sends_the_ready_elements_and_the_rest_wait(session, lab):
     wf.review_batch(session, "PB-0001", REV)
     with pytest.raises(wf.NothingReleased, match="needs an acceptance"):
         wf.release(session, S2, 1, REV)  # Cu: MDL missing; Zn: one cup only
-    wf.accept(session, S2, CU, SUE, "MDL from the method file")
+    wf.accept(session, S2, CU, SUE, "MDL taken from the method validation")
     released = wf.release(session, S2, 1, REV)
     assert released.released == ("Cu",) and released.waiting[0][0] == "Zn"
     assert wf.release(session, S1, 1, REV).released == ("Cu",)
@@ -160,7 +160,9 @@ def test_releasing_a_rerun_result_needs_a_supervisor_exception(session, lab):
     wf.review_batch(session, "PB-0001", REV)
     with pytest.raises(wf.NothingReleased, match="needs a rerun or an exception"):
         wf.release(session, S1, 1, REV)
-    event = wf.record_exception(session, S1, CU, SUE, "customer deadline", "no sample left to rerun")
+    event = wf.record_exception(
+        session, S1, CU, SUE, "Insufficient sample for a rerun", "no sample left to rerun"
+    )
     assert event.kind == EventKind.EXCEPTION
     assert wf.release(session, S1, 1, REV).released == ("Cu",)
     assert current(session).released_with_exception

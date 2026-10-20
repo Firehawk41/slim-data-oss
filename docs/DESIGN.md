@@ -233,7 +233,7 @@ Invoicing is triggered by staff on a complete-report TR (D-43).
 | Table | Holds |
 |---|---|
 | `rulesets` | published rulesets: number, content hash, body (JSON), cliff reason, published by/at |
-| `policies` | published policy tables (roles per action, identity sources per action), versioned like rulesets |
+| `policies` | published policy tables (roles per action, identity sources per action, reason categories D-72), versioned like rulesets |
 | `prep_batches`, `prep_batch_samples`, `prep_batch_spikes` | batch, prep method snapshot, samples, spike amounts (D-65) |
 | `runs` | run metadata, source file sha256 (unique), reader name + version |
 | `readings` | one row per reading, with its prep batch (a blank's only owner, D-64) |

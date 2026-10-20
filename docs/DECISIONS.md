@@ -642,3 +642,18 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   3. A release changes results only. Automatic moves go forward only; staff keep the manual status form.
   - Rejected: release drives the status (DESIGN §8.3 as signed off): the TR would read "partial report"
     before any report existed. *Supersedes* DESIGN §8.3's mapping of `ResultsReleased`.
+
+- **D-72 Reason categories are a fixed list in the policy** (Jamie). D-11 prints a standard text per
+  category on the report, so the category can't be typed at the bench.
+  1. `Policy.reason_categories`: (action, text) pairs, for ACCEPT and RECORD_EXCEPTION only, each listed
+     once, in the order the screens offer them. An acceptance or exception must give one of its action's
+     texts (`UnknownCategory` otherwise); an action with none listed can't be given at all.
+  2. The event stores the text itself (no code), so a report rebuilt `as_of` prints exactly what it did,
+     even after a later policy changes the list; no schema change.
+  3. Demo and production-example policies carry the same invented wording (D-05): accept: "MDL taken from
+     the method validation", "Blank contribution assessed as negligible", "Recovery from a single spike
+     accepted"; exception: "Released without rerun", "Insufficient sample for a rerun", "Matrix
+     interference confirmed". Changing the list = publishing a new policy (content-hashed).
+  - Rejected: free text (wording drifts, the report prints whatever was typed); category codes resolved
+    to text at print time (a later policy would rewrite old reports, or needs a snapshot column).
+
