@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-75, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-77, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -31,8 +31,8 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | M3 | Persistence: append-only tables + triggers, repositories, `as_of`, audit context, ruleset/policy publishing | ✅ |
 | M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | ✅ |
 | M5 | Workflow service: evaluate, review, release, exceptions, corrections, `report_issues`, amended reports | ✅ (incl. D-68 solo sign-off) |
-| M6 | Integration: part 1 (slim-data) adapter, report/batch views, demo scenarios, e2e test; part 2 LabPortal wiring in 3 slices (D-70) | part 1 ✅; part 2: **slices 1–3 built** (walkthrough next) |
-| M7 | Finish: `verify` command, README, walkthrough | |
+| M6 | Integration: part 1 (slim-data) adapter, report/batch views, demo scenarios, e2e test; part 2 LabPortal wiring in 3 slices (D-70) | ✅ (part 2 walkthrough done 2026-10-21) |
+| M7 | Finish: `verify` command, README, walkthrough | `verify` ✅ (D-76, D-77); README, walkthrough next |
 
 Each milestone ends green on CI and with a walkthrough for Jamie. M0–M6 part 1 are merged into `main`.
 
@@ -42,7 +42,11 @@ demo ruleset bound to 10 Elements, CSV upload → preview / import → evaluate,
 `lab_role`. Slice 2 ✅: review / accept / rerun / exception / reject / correct / release on the batch
 page and API; first readings → TR in progress (D-71). Slice 3: report page + issues ✅ (D-73: canonical-JSON hash until the report engine is wired; → partial /
 complete report, D-71); personas ✅ (D-74); demo scenarios seeded in the portal ✅ (D-75, host-agnostic
-`run_scenarios`). **Next:** M6 walkthrough with Jamie, then M7.
+`run_scenarios`). Walkthrough ✅.
+
+**M7:** `service/verify.py` ✅: replays every stored version `as_of` its making, and runs the host's
+audit-chain check if passed one (D-76); LabPortal installs slim-domain's audit log and has `cli verify`
+(D-77). **Next:** README, then the final walkthrough.
 Read LabPortal's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
@@ -59,7 +63,7 @@ slim_data/
 ├── persistence/     # oss_guard, db (make_engine = the only create_engine), migrate, migrations/,
 │                    #   types, tables, append_only, audit; repositories: rulesets, observations, results
 ├── service/         # imports (preview / all-or-nothing import), workflow (evaluate, review, release,
-│                    #   issues), views (report_view, batch_view, trace)
+│                    #   issues), views (report_view, batch_view, trace), verify (replay + host's chain check)
 ├── demo/            # scenarios.py: the named demo scenarios (DemoHost, run_scenarios), seeded through the service
 └── adapters/        # slim.py: ReferenceLookup over slim-domain + the host's TR samples
 tests/               # factories.py; conftest (session); domain/; engine/; persistence/; pipeline/ (fixtures); service/
