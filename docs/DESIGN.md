@@ -41,7 +41,7 @@ Rules that keep the modules independent:
 
 - slim-data is a **library** (D-02). It never imports the host or another module's internals; it
   sees the outside world only through the ports in §5.
-- **One Postgres** (SQLite for tests and the demo). slim-data owns only its own tables, migrated by
+- **One Postgres** (SQLite for tests and quick local runs; the demo runs on Postgres, D-70). slim-data owns only its own tables, migrated by
   its own Alembic environment (`alembic_version_slim_data`). **No foreign keys** into other modules'
   tables (D-03).
 - **The caller owns the transaction** (D-23): slim-data flushes, never commits, and returns facts
@@ -201,8 +201,9 @@ D-10's example tiers ("RERUN → quality"; now supervisor, matching the demo rol
 
 ### 8.3 Facts returned to the host
 
-`ResultsReleased(tr_number, sample, analysis)`, `ReportIssued(...)`, etc. The host maps them to TR
-status changes (in progress → partial report → complete report) in the same transaction (D-23).
+`ResultsReleased(tr_number, sample, analysis)`, `ReportIssued(...)`, etc. The host moves the TR in the
+same transaction (D-23, D-71): first readings → in progress; a report issue → partial or complete
+report. A release changes results only.
 Invoicing is triggered by staff on a complete-report TR (D-43).
 
 ## 9. Data in
@@ -232,7 +233,7 @@ Invoicing is triggered by staff on a complete-report TR (D-43).
 | Table | Holds |
 |---|---|
 | `rulesets` | published rulesets: number, content hash, body (JSON), cliff reason, published by/at |
-| `policies` | published policy tables (roles per action, identity sources per action), versioned like rulesets |
+| `policies` | published policy tables (roles per action, identity sources per action, reason categories D-72), versioned like rulesets |
 | `prep_batches`, `prep_batch_samples`, `prep_batch_spikes` | batch, prep method snapshot, samples, spike amounts (D-65) |
 | `runs` | run metadata, source file sha256 (unique), reader name + version |
 | `readings` | one row per reading, with its prep batch (a blank's only owner, D-64) |
@@ -274,7 +275,7 @@ record_exception(result, category, text, actor)
 release(sample, analysis, actor) -> ResultsReleased   correct(result, reason, actor)
 record_issue(tr_number, versions, file_sha256, amends=None, actor) -> ReportIssued
 
-reads (all take as_of):  report_view(tr_number)  results_for_tr(tr_number)  batch_view(batch)
+reads (all take as_of):  report_view(tr_number)  results_for_tr(tr_number)  batch_view(batch)  batches()
                          trace(result, version)  exceptions(filter)  issues_for_tr(tr_number)
 verify() -> VerifyReport                              # replay + audit chain
 ```

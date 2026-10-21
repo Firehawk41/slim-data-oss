@@ -1,10 +1,17 @@
-"""Policies are data: tiered roles and accepted identity sources (D-10, D-50, D-57)."""
+"""Policies are data: tiered roles, accepted identity sources, reason categories (D-10, D-50, D-57, D-72)."""
 
 import pytest
 from pydantic import ValidationError
 
 from slim_data.domain.enums import Action, IdentitySource, Role, Verdict
-from slim_data.domain.policy import DEMO_POLICY, PRODUCTION_EXAMPLE_POLICY, IdentityRule, Policy, RoleRule
+from slim_data.domain.policy import (
+    DEMO_POLICY,
+    PRODUCTION_EXAMPLE_POLICY,
+    IdentityRule,
+    Policy,
+    ReasonCategory,
+    RoleRule,
+)
 
 
 def test_verdict_specific_rule_wins_over_general():
@@ -41,3 +48,17 @@ def test_duplicate_rules_are_refused():
     rule = IdentityRule(action=Action.REVIEW, sources=frozenset(IdentitySource))
     with pytest.raises(ValidationError, match="two identity rules"):
         Policy(name="dup", role_rules=(), identity_rules=(rule, rule))
+
+
+def test_reason_categories_are_listed_per_action_in_order():
+    assert DEMO_POLICY.categories(Action.RECORD_EXCEPTION)[0] == "Released without rerun"
+    assert "MDL taken from the method validation" in DEMO_POLICY.categories(Action.ACCEPT)
+    assert DEMO_POLICY.categories(Action.RELEASE) == ()
+
+
+def test_only_acceptances_and_exceptions_take_categories_once_each():
+    with pytest.raises(ValidationError, match="takes no reason category"):
+        ReasonCategory(action=Action.RELEASE, text="because")
+    twice = (ReasonCategory(action=Action.ACCEPT, text="judgment"),) * 2
+    with pytest.raises(ValidationError, match="listed twice"):
+        Policy(name="dup", role_rules=(), identity_rules=(), reason_categories=twice)

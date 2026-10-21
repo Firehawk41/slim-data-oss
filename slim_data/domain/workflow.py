@@ -40,6 +40,19 @@ class FourEyesViolation(WorkflowError):
     """The actor entered the readings behind this result."""
 
 
+class UnknownCategory(WorkflowError):
+    """The reason category isn't one the policy lists for this action (D-72)."""
+
+
+def _check_category(policy: Policy, action: Action, reason_category: str) -> None:
+    allowed = policy.categories(action)
+    if reason_category not in allowed:
+        raise UnknownCategory(
+            f"{reason_category!r} is not a reason category for {action.name} under policy {policy.name!r}"
+            + (f"; choose one of: {', '.join(allowed)}" if allowed else "; it lists none")
+        )
+
+
 _FOUR_EYES = {Action.REVIEW, Action.ACCEPT, Action.RECORD_EXCEPTION, Action.RELEASE}
 _SOLO_ALLOWED = {Action.REVIEW, Action.RELEASE}
 _SIGN_OFFS = {EventKind.REVIEWED, EventKind.RELEASED}
@@ -145,6 +158,7 @@ def accept(result: Result, actor: Actor, policy: Policy, reason_category: str, n
         raise InvalidTransition("only a NEEDS_SUPERVISOR result is accepted")
     if result.is_cleared:
         raise InvalidTransition("already accepted")
+    _check_category(policy, Action.ACCEPT, reason_category)
     _authorize(result, actor, Action.ACCEPT, policy)
     return _event(result, EventKind.ACCEPTED, actor, note, reason_category)
 
@@ -163,6 +177,7 @@ def record_exception(
         raise InvalidTransition("an exception releases a RERUN result without rerunning; this isn't one")
     if result.is_cleared:
         raise InvalidTransition("an exception is already recorded")
+    _check_category(policy, Action.RECORD_EXCEPTION, reason_category)
     _authorize(result, actor, Action.RECORD_EXCEPTION, policy)
     return _event(result, EventKind.EXCEPTION, actor, note, reason_category)
 

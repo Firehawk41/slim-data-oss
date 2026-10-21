@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-69, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-75, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -31,16 +31,19 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | M3 | Persistence: append-only tables + triggers, repositories, `as_of`, audit context, ruleset/policy publishing | ✅ |
 | M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | ✅ |
 | M5 | Workflow service: evaluate, review, release, exceptions, corrections, `report_issues`, amended reports | ✅ (incl. D-68 solo sign-off) |
-| M6 | Integration: part 1 (slim-data) adapter, report/batch views, demo scenarios, e2e test; part 2 LabPortal wiring (needs Jamie's go-ahead) | part 1 ✅; **part 2 next (approved)** |
+| M6 | Integration: part 1 (slim-data) adapter, report/batch views, demo scenarios, e2e test; part 2 LabPortal wiring in 3 slices (D-70) | part 1 ✅; part 2: **slices 1–3 built** (walkthrough next) |
 | M7 | Finish: `verify` command, README, walkthrough | |
 
 Each milestone ends green on CI and with a walkthrough for Jamie. M0–M6 part 1 are merged into `main`.
 
-**Next — M6 part 2 (Jamie approved 2026-10-20):** wire slim-data into LabPortal (the slim-lims host):
-run slim-data's migrations, build `SlimReferenceLookup` from the portal's analysis catalog + TR v2
-tables + slim-domain, call `preview_import`/`import_run` on CSV upload, then `evaluate_batch`; screens
-and API for batch review, accept/exception, release (map `ResultsReleased` to TR status), report
-issues; personas per D-50. Read LabPortal's CLAUDE.md first (OSS guard, CSRF, CSP rules).
+**M6 part 2 (D-70)** wires slim-data into LabPortal (the slim-lims host; `slim_lab_portal/results.py`,
+`results_routes.py`). Slice 1 ✅: migrations, `SlimReferenceLookup` + `StaffDirectory` over the portal,
+demo ruleset bound to 10 Elements, CSV upload → preview / import → evaluate, batch page + API, staff
+`lab_role`. Slice 2 ✅: review / accept / rerun / exception / reject / correct / release on the batch
+page and API; first readings → TR in progress (D-71). Slice 3: report page + issues ✅ (D-73: canonical-JSON hash until the report engine is wired; → partial /
+complete report, D-71); personas ✅ (D-74); demo scenarios seeded in the portal ✅ (D-75, host-agnostic
+`run_scenarios`). **Next:** M6 walkthrough with Jamie, then M7.
+Read LabPortal's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
 
@@ -57,7 +60,7 @@ slim_data/
 │                    #   types, tables, append_only, audit; repositories: rulesets, observations, results
 ├── service/         # imports (preview / all-or-nothing import), workflow (evaluate, review, release,
 │                    #   issues), views (report_view, batch_view, trace)
-├── demo/            # scenarios.py: the named demo scenarios, seeded through the service
+├── demo/            # scenarios.py: the named demo scenarios (DemoHost, run_scenarios), seeded through the service
 └── adapters/        # slim.py: ReferenceLookup over slim-domain + the host's TR samples
 tests/               # factories.py; conftest (session); domain/; engine/; persistence/; pipeline/ (fixtures); service/
 .github/workflows/ci.yml  # ruff + {SQLite, Postgres 16} × {3.11, 3.12} + 95% branch coverage on domain + engine

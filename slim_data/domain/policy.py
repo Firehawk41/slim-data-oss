@@ -1,8 +1,10 @@
 """Who may do what (D-10, D-50, D-57): data, not code.
 
-A policy answers two questions for an action on a result with a given verdict:
+A policy answers three questions for an action on a result with a given verdict:
   * which role is the minimum (roles are tiered: a higher role can do what a lower one can);
-  * which identity sources are accepted (a production lab would refuse ASSERTED for releases).
+  * which identity sources are accepted (a production lab would refuse ASSERTED for releases);
+  * for an acceptance or an exception, which reason categories may be given: each is the standard
+    text the report prints (D-11, D-72), so the wording is the lab's, never typed at the bench.
 Anything a policy doesn't grant is denied. Lab-real versus demo is a different policy, never a
 code branch (D-05).
 """
@@ -26,10 +28,27 @@ class IdentityRule(Frozen):
     sources: frozenset[IdentitySource] = Field(min_length=1)
 
 
+_CATEGORY_ACTIONS = frozenset({Action.ACCEPT, Action.RECORD_EXCEPTION})
+
+
+class ReasonCategory(Frozen):
+    action: Action  # ACCEPT or RECORD_EXCEPTION
+    text: str = Field(min_length=1, max_length=100)  # printed on the report as is (D-11)
+
+    @model_validator(mode="after")
+    def _takes_a_category(self) -> Self:
+        if self.action not in _CATEGORY_ACTIONS:
+            raise ValueError(f"{self.action.name} takes no reason category")
+        return self
+
+
 class Policy(Frozen):
     name: str = Field(min_length=1, max_length=60)
     role_rules: tuple[RoleRule, ...]
     identity_rules: tuple[IdentityRule, ...]
+    # The only reason categories an acceptance or an exception may give (D-72); none listed for an
+    # action means it can't be given at all.
+    reason_categories: tuple[ReasonCategory, ...] = ()
     # Minutes a chemist working alone must wait before a solo review or release of their own
     # results (D-68); None = solo sign-offs not allowed: strict four-eyes.
     solo_review_minutes: int | None = Field(default=None, ge=0)
@@ -42,7 +61,13 @@ class Policy(Frozen):
         identity_keys = [r.action for r in self.identity_rules]
         if len(set(identity_keys)) != len(identity_keys):
             raise ValueError("two identity rules for the same action")
+        if len(set(self.reason_categories)) != len(self.reason_categories):
+            raise ValueError("a reason category is listed twice")
         return self
+
+    def categories(self, action: Action) -> tuple[str, ...]:
+        """The reason categories `action` may give, in the policy's order."""
+        return tuple(c.text for c in self.reason_categories if c.action == action)
 
     def min_role(self, action: Action, verdict: Verdict) -> Role | None:
         """The minimum role for `action` on a result with `verdict`; None means nobody may."""
@@ -77,9 +102,27 @@ _TIERED_ROLES = (
     RoleRule(action=Action.CORRECT, min_role=Role.ANALYST),
 )
 
+# Invented standard wording (D-05): what the report prints beside an accepted or excepted result.
+_DEMO_CATEGORIES = tuple(
+    ReasonCategory(action=Action.ACCEPT, text=text)
+    for text in (
+        "MDL taken from the method validation",
+        "Blank contribution assessed as negligible",
+        "Recovery from a single spike accepted",
+    )
+) + tuple(
+    ReasonCategory(action=Action.RECORD_EXCEPTION, text=text)
+    for text in (
+        "Released without rerun",
+        "Insufficient sample for a rerun",
+        "Matrix interference confirmed",
+    )
+)
+
 DEMO_POLICY = Policy(
     name="demo",
     role_rules=_TIERED_ROLES,
+    reason_categories=_DEMO_CATEGORIES,
     identity_rules=tuple(IdentityRule(action=action, sources=_ANY_SOURCE) for action in Action),
     solo_review_minutes=15,
 )
@@ -88,6 +131,7 @@ DEMO_POLICY = Policy(
 PRODUCTION_EXAMPLE_POLICY = Policy(
     name="production-example",
     role_rules=_TIERED_ROLES,
+    reason_categories=_DEMO_CATEGORIES,
     identity_rules=tuple(
         IdentityRule(action=action, sources=_AUTHENTICATED if action in _SIGN_OFF_ACTIONS else _ANY_SOURCE)
         for action in Action

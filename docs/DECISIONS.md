@@ -595,3 +595,106 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      solo sign-off (it needs its real wait) and billing (invoicing's job).
   6. **Parked (Jamie):** teach slim-domain which analytes belong to which analysis, so the adapter
      can refuse e.g. `Cl-` on a metals analysis (item 3 accepts any known analyte until then).
+
+## Build — M6 part 2: wiring into the host (2026-10-20)
+
+- **D-70 Host-side choices for wiring slim-data into LabPortal (slim-lims)**, approved by Jamie before
+  building (items 1–4); items 5–8 are build choices for the slice 1 walkthrough.
+  1. **Staff roles: a `lab_role` on portal users** (analyst / reviewer / supervisor, stored as `Role`'s
+     ints; staff only). `Actor.id` is the user's UUID (what four-eyes compares; stays right if initials
+     change), `display` their initials, AUTHENTICATED. The result file's `analyst` column is the staff
+     member's initials, now unique. Rejected: initials as `Actor.id` (four-eyes history breaks if
+     initials are reused or changed).
+  2. **LabPortal requires slim-data**, installed from `git+https://github.com/Firehawk41/slim-data-oss@main`
+     (not on PyPI; a bare name could resolve to an unrelated package). Results are core to the LIMS, so
+     the tests always run. Rejected: an optional local checkout with skipped tests.
+  3. **Three slices, one PR each:** (1) wiring, upload → preview / import → evaluate, batch page and
+     API; (2) review / accept / rerun / exception / release screens, `ResultsReleased` → TR status;
+     (3) report view + record issue, demo personas (D-50), the demo scenarios seeded in the portal.
+  4. **The demo metals ruleset is bound to "10 Elements" by catalog code at publish time.** slim-data's
+     own demo uses an invented analysis (`metals_icpms`, ID 1); in the portal, analysis IDs come from
+     the SLIM demo seed (real panel names, IDs in alphabetical order), so the seed resolves
+     `10_elements_icpms` → its ID by name and refuses to publish if the code is missing; the ruleset
+     body stays data. 10 Elements: the smallest real ICP-MS panel, closest to the demo's six elements.
+     Rejected: one copy per ICP-MS panel (near-identical rulesets); a catalog code inside the ruleset
+     file (cleanest, but changes slim-data's ruleset format: parked beside D-69 item 6).
+  5. Only a supervisor may give a lab role above analyst or change one (existing staff start as
+     analysts; the CLI sets any role, since it needs server access). Nobody changes their own role.
+  6. A file is imported and then **every prep batch it names is evaluated, in one transaction**; if
+     evaluation fails (e.g. no published ruleset for the batch's analysis), the whole upload rolls
+     back, so readings never sit in a batch nothing can decide.
+  7. A TR's samples take readings from received until invoiced (submitted, cancelled and invoiced TRs
+     are unknown samples to the adapter). Spec limits come from SLIM's `specifications` (kind
+     "specification", exact location), read by the host the way slim-domain's `get_specs` does.
+  8. New read `batches()`: the prep batches, newest first, for the host's list (takes `as_of`).
+  9. *Same-day revision (Jamie):* **the public demo runs on Postgres only**; SQLite stays for tests and
+     quick local runs. Revises DESIGN §2's "SQLite for tests and the demo": on SQLite the demo would
+     lose the append-only triggers, slim-domain's hash-chained `audit_log` (so `verify` has no chain to
+     check) and concurrent visitors.
+
+- **D-71 TR status follows what happened, not releases** (Jamie). In the portal, "partial report" and
+  "complete report" mean a report reached the customer; a release only clears results for reporting.
+  1. The first readings imported for a TR's sample move it received → in progress, in the import's
+     transaction.
+  2. Recording a report issue (`ReportIssued`) moves it to partial report, or complete report when every
+     analysis ordered on every sample has results, all released and on an issued report. The host checks
+     "ordered" against the TR, since slim-data doesn't know which analytes make up a panel (D-69 item 6).
+  3. A release changes results only. Automatic moves go forward only; staff keep the manual status form.
+  - Rejected: release drives the status (DESIGN §8.3 as signed off): the TR would read "partial report"
+    before any report existed. *Supersedes* DESIGN §8.3's mapping of `ResultsReleased`.
+
+- **D-72 Reason categories are a fixed list in the policy** (Jamie). D-11 prints a standard text per
+  category on the report, so the category can't be typed at the bench.
+  1. `Policy.reason_categories`: (action, text) pairs, for ACCEPT and RECORD_EXCEPTION only, each listed
+     once, in the order the screens offer them. An acceptance or exception must give one of its action's
+     texts (`UnknownCategory` otherwise); an action with none listed can't be given at all.
+  2. The event stores the text itself (no code), so a report rebuilt `as_of` prints exactly what it did,
+     even after a later policy changes the list; no schema change.
+  3. Demo and production-example policies carry the same invented wording (D-05): accept: "MDL taken from
+     the method validation", "Blank contribution assessed as negligible", "Recovery from a single spike
+     accepted"; exception: "Released without rerun", "Insufficient sample for a rerun", "Matrix
+     interference confirmed". Changing the list = publishing a new policy (content-hashed).
+  - Rejected: free text (wording drifts, the report prints whatever was typed); category codes resolved
+    to text at print time (a later policy would rewrite old reports, or needs a snapshot column).
+
+- **D-73 Report issues before the report engine is wired** (Jamie: option B). The Excel report engine
+  joins later (LabPortal item D, needs Jamie's go-ahead); issues shouldn't wait for it.
+  1. The host shows the report as a page built from `report_view` (released results, latest versions)
+     and "Issue report" records those versions with the sha256 of a canonical JSON form of what the
+     page shows (internal facts like solo sign-off left out). Nothing extra is stored: `report_view`
+     with `as_of` rebuilds it, and the hash proves the rebuild matches. Once the engine renders a file,
+     the hash becomes the file's; callers don't change.
+  2. Build choices: a report shows every released result (cumulative); issuing again with nothing
+     changed is refused; a report carrying a corrected result amends the latest issue automatically;
+     any staff member may issue (the release was the sign-off). The TR moves in the same transaction
+     (D-71): partial report, or complete report when every ordered analysis on every sample has
+     results and none wait; never backwards (an amended report on a complete TR leaves it complete).
+     An ordered analysis slim-data never gets readings for (e.g. pH) keeps the TR partial until staff
+     close it with the status form.
+  - Rejected: wait for the report engine (blocks slice 3); also store the rendered page (duplicates
+    what `as_of` rebuilds).
+
+- **D-74 Demo personas are real user rows** (Jamie: option A), the host side of D-50.
+  1. The host's users table gets `is_persona`; the demo seed creates the personas from a data file
+     (customer, analyst, reviewer, supervisor), each with a random password nobody knows. Everything
+     already built works unchanged (four-eyes on the user ID, analyst initials in result files, customers
+     seeing only their own TRs); `actor_for` records persona actions as ASSERTED.
+  2. Offered only when the host's `DEMO_PERSONAS` flag is on (explicit, not tied to the production
+     setting, since the public sandbox runs as production): a "Continue as..." page, a switcher in the
+     header and a banner. Personas can't sign in through the password login and can't manage users or
+     lab roles; the host has no policy or ruleset screens to restrict.
+  3. Billing persona: added with invoicing (D-43); no billing role exists yet.
+  - Rejected: session-only personas (every place that loads a user would need a second path).
+
+- **D-75 The demo scenarios are host-agnostic** (Jamie: option A). One copy of the scenario data,
+  run by slim-data's own tests and by the host's demo seed.
+  1. `run_scenarios(session, host, today)` takes a `DemoHost`: analysis code and ID, the reference lookup
+     and staff directory, the analyst (and how files name them), reviewer and supervisor, `new_tr(scenario,
+     samples, spec)` for a received TR, and `report_sha256` for what the host's issue would record. The
+     host publishes the ruleset and policy first. `seed` keeps the in-memory host (TR00101...).
+  2. LabPortal's host makes real TRs (checked in by the supervisor persona, 10 Elements, customer A's
+     "Chemical 01", or customer B's when a spec is needed: the OSS demo data's Zn spec), uses the demo
+     personas, records issues with D-73's canonical-report hash, then settles each TR's status by D-71.
+     Runs once (skipped when results exist).
+  - Rejected: a portal copy of the nine scenarios (duplicated data that drifts).
+
