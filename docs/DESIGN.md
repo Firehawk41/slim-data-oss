@@ -321,7 +321,8 @@ and readers versioned, never removed; recalculation only ever by explicit re-eva
 Full measurement-uncertainty budgets · unit conversion to the customer's units · instrument-native
 readers · result-entry UI · optional recovery correction (would have to be stated on the report) · a
 prep-book module (the register call is ready for it) · an analysis → analyte table in slim-domain
-(D-69).
+(D-69) · anchoring the audit chain's latest hash outside the database owner's reach, and a database
+role split (app login without table ownership): host-side, parked in LabPortal's spec §11.
 
 ## 14. Gaps closed during the rewrite
 
