@@ -32,9 +32,9 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | ✅ |
 | M5 | Workflow service: evaluate, review, release, exceptions, corrections, `report_issues`, amended reports | ✅ (incl. D-68 solo sign-off) |
 | M6 | Integration: part 1 (slim-data) adapter, report/batch views, demo scenarios, e2e test; part 2 LabPortal wiring in 3 slices (D-70) | ✅ (part 2 walkthrough done 2026-10-21) |
-| M7 | Finish: `verify` command, README, walkthrough | `verify` ✅ (D-76, D-77); README, walkthrough next |
+| M7 | Finish: `verify` command, README, walkthrough | ✅ (`verify` D-76/D-77, README, walkthrough 2026-10-21) |
 
-Each milestone ends green on CI and with a walkthrough for Jamie. M0–M6 part 1 are merged into `main`.
+Each milestone ends green on CI and with a walkthrough for Jamie. M0–M7 are merged into `main`.
 
 **M6 part 2 (D-70)** wires slim-data into LabPortal (the slim-lims host; `slim_lab_portal/results.py`,
 `results_routes.py`). Slice 1 ✅: migrations, `SlimReferenceLookup` + `StaffDirectory` over the portal,
@@ -46,7 +46,7 @@ complete report, D-71); personas ✅ (D-74); demo scenarios seeded in the portal
 
 **M7:** `service/verify.py` ✅: replays every stored version `as_of` its making, and runs the host's
 audit-chain check if passed one (D-76); LabPortal installs slim-domain's audit log and has `cli verify`
-(D-77). **Next:** README, then the final walkthrough.
+(D-77). README ✅, walkthrough ✅. **All milestones done.** Next: whatever Jamie picks (parked ideas, DESIGN §13).
 Read LabPortal's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
