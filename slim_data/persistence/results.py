@@ -18,6 +18,7 @@ from slim_data.domain.values import AnalyteRef, Quantity, SampleRef
 from slim_data.persistence._rows import ConcurrentChange, NotFound, actor_json, as_of_filter
 from slim_data.persistence.audit import set_change_context
 from slim_data.persistence.tables import (
+    prep_batches,
     report_issue_lines,
     report_issues,
     result_events,
@@ -122,6 +123,30 @@ def results_for_batch(session: Session, batch_id: int, as_of: datetime | None = 
     ).all()
     loaded = (_load(session, row.id, *_identity(row), as_of) for row in rows)
     return [result for result in loaded if result is not None]
+
+
+def every_version(session: Session) -> list[tuple[SampleRef, AnalyteRef, str, ResultVersion]]:
+    """Every stored version with its result's identity and the prep batch it was made from, for `verify`."""
+    rows = session.execute(
+        select(
+            results.c.tr_number,
+            results.c.position,
+            results.c.analysis_id,
+            results.c.analyte_code,
+            prep_batches.c.code.label("batch_code"),
+            result_versions,
+        )
+        .join(result_versions, result_versions.c.result_id == results.c.id)
+        .join(prep_batches, prep_batches.c.id == result_versions.c.batch_id)
+        .order_by(
+            results.c.tr_number,
+            results.c.position,
+            results.c.analysis_id,
+            results.c.analyte_code,
+            result_versions.c.version,
+        )
+    ).all()
+    return [(*_identity(row), row.batch_code, _version(row)) for row in rows]
 
 
 def record_issue(session: Session, issue: ReportIssue) -> ReportIssue:

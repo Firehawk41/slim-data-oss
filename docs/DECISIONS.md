@@ -698,3 +698,22 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      Runs once (skipped when results exist).
   - Rejected: a portal copy of the nine scenarios (duplicated data that drifts).
 
+
+## Build — M7 (2026-10-21)
+
+- **D-76 `verify` takes the audit-chain check from the host** (Jamie: option A). The chain is
+  slim-domain's `audit_log`, in the host's database; slim-data never imports slim-domain.
+  1. `verify(session, chain_check=None) -> VerifyReport`: replays every stored result version through
+     the ruleset version it names, on the batch's readings and exclusions `as_of` the version's
+     `created_at`, with the spec limits it snapshotted, and compares every engine-made field. Then it
+     runs `chain_check(connection)` (the IDs of entries that don't check out) if the host passed one.
+  2. No checker = "chain not checked", never "intact" (`chain_checked` is reported beside `ok`).
+     Read-only. Also a test: the nine demo scenarios must verify clean.
+  - Rejected: B, import slim-domain when installed (a hidden dependency; the architecture test needs an
+    exception); C, copy the hash function (two copies of an integrity check drift).
+
+- **D-77 The host installs slim-domain's audit log** (Jamie). Found while settling D-76: LabPortal
+  never called `infrastructure.audit.install`, so the Postgres demo had no chain (D-70 item 9 assumed
+  one). `cli migrate` and the demo seed install it on Postgres after both migrations (it covers every
+  public table: SLIM's, the portal's, slim-data's), and `cli verify` passes slim-domain's
+  `verify_chain` in. slim-domain becomes a required dependency of LabPortal (it was only the bridge's).
