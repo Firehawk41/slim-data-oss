@@ -735,3 +735,10 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      line by line on the assay. `DemoHost.analyses` maps each demo analysis to the host's code and ID;
      `publish_demo_rules` publishes them all. In LabPortal the anions are bound to "5 Anions" (the lab's
      4 Anions has no F).
+
+- **D-79 Reports print the MDL, not ±** (Jamie). The report shows result · recovery · MDL, the
+  columns the lab's report template already has. `ReportLineView` gains `mdl` and `ql`: the
+  effective MDL and the QL from the `reported_value` step's trace, rounded *up* to the result's
+  decimal places like the "<" figure (D-64), so a report never states a limit lower than the one
+  achieved. The ± (D-55) is still computed and kept in the trace; it just isn't printed. No MDL (a
+  titration): blank. Panels whose template labels the column QL (the ion panels) print the QL.
