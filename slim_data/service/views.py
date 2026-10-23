@@ -10,6 +10,7 @@ Every read takes `as_of` (D-21), so a report can be rebuilt exactly as it stood 
 """
 
 from datetime import datetime
+from decimal import ROUND_CEILING, Decimal
 
 from sqlalchemy.orm import Session
 
@@ -41,8 +42,10 @@ class ReportLineView(Frozen):
     text: str
     reported: Quantity | None
     qualifier: Qualifier
-    uncertainty: Dec | None  # ± (D-55); None prints N/A
+    uncertainty: Dec | None  # ± (D-55): kept for the record; reports print the MDL instead (D-79)
     recovery: Dec | None  # beside the result, never applied (D-38)
+    mdl: Dec | None = None  # effective MDL, rounded up to the result's places (D-79, D-64); None: no MDL
+    ql: Dec | None = None  # quantitation limit, rounded the same way
     notes: tuple[str, ...] = ()  # standard qualifiers: acceptance / exception categories (D-11)
     shown_flags: tuple[str, ...] = ()  # INFO flags the report shows, e.g. ABOVE_SPEC (D-60)
     released_with_exception: bool = False
@@ -90,6 +93,8 @@ def _released_line(result: Result) -> ReportLineView | None:
         qualifier=version.qualifier,
         uncertainty=version.uncertainty,
         recovery=version.recovery,
+        mdl=_limit(version, "effective_mdl"),
+        ql=_limit(version, "ql"),
         notes=notes,
         shown_flags=tuple(
             f.code for f in version.flags if f.severity == Severity.INFO and f.step.startswith("spec_")
@@ -99,6 +104,16 @@ def _released_line(result: Result) -> ReportLineView | None:
         amended=released[0].version < version.version,
         released_at=event.at,
     )
+
+
+def _limit(version: ResultVersion, key: str) -> Decimal | None:
+    """A detection limit from the reported_value step's trace, rounded *up* to the result's decimal
+    places, like the "<" figure (D-64): a report never states a limit lower than the one achieved."""
+    steps = version.trace.get("steps", ())
+    step = next((s for s in steps if s.get("step", "").startswith("reported_value")), None)
+    if step is None or step.get(key) is None:
+        return None
+    return Decimal(step[key]).quantize(Decimal(1).scaleb(-step["places"]), rounding=ROUND_CEILING)
 
 
 class FlagView(Frozen):

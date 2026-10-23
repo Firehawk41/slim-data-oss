@@ -39,6 +39,8 @@ def test_clean_pass_is_released_and_reported(session, demo):
         and line(view, 1, "Cu").uncertainty == Decimal("0.100")
     )
     assert line(view, 1, "Cu").recovery == Decimal("0.99") and line(view, 1, "Cu").notes == ()
+    # D-79: the report prints the MDL (and QL), rounded up to the result's places like "<" (D-64)
+    assert line(view, 1, "Cu").mdl == Decimal("0.050") and line(view, 1, "Cu").ql == Decimal("0.167")
     assert len(issues_for_tr(session, "TR00101")) == 1
 
 
@@ -88,6 +90,7 @@ def test_amended_report_carries_the_corrected_version(session, demo):
     view = report_view(session, "TR00108")
     corrected = line(view, 1, "Assay")  # assay (D-78): the second titration was done again
     assert corrected.version == 2 and corrected.amended and corrected.text == "69.55"
+    assert corrected.mdl is None and corrected.ql is None  # a titration has no MDL
     first, second = issues_for_tr(session, "TR00108")
     assert second.amends == first.id
     as_first_reported = report_view(session, "TR00108", as_of=first.created_at)
