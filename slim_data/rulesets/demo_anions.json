@@ -1,0 +1,162 @@
+{
+  "name": "demo-anions-ic",
+  "analysis_id": 1,
+  "prep_method": null,
+  "max_batch_size": 20,
+  "steps": [
+    {
+      "step": "cup_shape@1"
+    },
+    {
+      "step": "agreement@1",
+      "params": {
+        "switch_multiple": "5",
+        "rpd_limit": "0.20",
+        "absolute_multiple": "1"
+      }
+    },
+    {
+      "step": "cup_choice@1",
+      "params": {
+        "rungs": [
+          "spike_witness"
+        ],
+        "spike_precision": "0.05",
+        "scale_fault": {
+          "enabled": false
+        }
+      }
+    },
+    {
+      "step": "recovery@1",
+      "params": {
+        "not_evaluable_multiple": "4"
+      }
+    },
+    {
+      "step": "recovery_pooling@1",
+      "params": {
+        "window_low": "0.80",
+        "window_high": "1.20"
+      }
+    },
+    {
+      "step": "reported_value@1",
+      "params": {
+        "default_places": 3,
+        "places": [],
+        "ql_multiple": "3.33"
+      }
+    },
+    {
+      "step": "uncertainty@1"
+    },
+    {
+      "step": "method_blank@1",
+      "params": {
+        "multiple": "10"
+      }
+    },
+    {
+      "step": "spec_limits@1"
+    }
+  ],
+  "severities": [
+    {
+      "code": "CUP_COUNT_UNEXPECTED",
+      "severity": "RERUN"
+    },
+    {
+      "code": "UNIT_MISMATCH",
+      "severity": "RERUN"
+    },
+    {
+      "code": "MDL_MISSING",
+      "severity": "NEEDS_SUPERVISOR"
+    },
+    {
+      "code": "CUPS_DISAGREE",
+      "severity": "INFO"
+    },
+    {
+      "code": "CUP_CHOSEN_BY_EXCLUSION",
+      "severity": "INFO"
+    },
+    {
+      "code": "ALL_CUPS_EXCLUDED",
+      "severity": "RERUN"
+    },
+    {
+      "code": "SCALE_FAULT_CUP_CHOSEN",
+      "severity": "WARN"
+    },
+    {
+      "code": "SCALE_FAULT_UNRESOLVED",
+      "severity": "RERUN"
+    },
+    {
+      "code": "CUP_CHOSEN_BY_SPIKE",
+      "severity": "WARN"
+    },
+    {
+      "code": "CUP_CHOSEN_BY_PRIOR",
+      "severity": "WARN"
+    },
+    {
+      "code": "CUP_CHOICE_UNDECIDED",
+      "severity": "NEEDS_SUPERVISOR"
+    },
+    {
+      "code": "SPIKES_DISAGREE",
+      "severity": "WARN"
+    },
+    {
+      "code": "SPIKE_AMOUNT_MISSING",
+      "severity": "WARN"
+    },
+    {
+      "code": "SPIKE_NOT_EVALUABLE",
+      "severity": "NEEDS_SUPERVISOR"
+    },
+    {
+      "code": "RECOVERY_NOT_MEASURED",
+      "severity": "NEEDS_SUPERVISOR"
+    },
+    {
+      "code": "RECOVERY_USED_FOR_SELECTION",
+      "severity": "WARN"
+    },
+    {
+      "code": "RECOVERY_OUTSIDE_WINDOW",
+      "severity": "RERUN"
+    },
+    {
+      "code": "BLANK_MISSING",
+      "severity": "NEEDS_SUPERVISOR"
+    },
+    {
+      "code": "BLANK_DETECTED",
+      "severity": "WARN"
+    },
+    {
+      "code": "BLANK_SIGNIFICANT",
+      "severity": "RERUN"
+    },
+    {
+      "code": "ABOVE_SPEC",
+      "severity": "INFO"
+    },
+    {
+      "code": "BELOW_SPEC",
+      "severity": "INFO"
+    },
+    {
+      "code": "SPEC_UNDECIDED",
+      "severity": "INFO"
+    },
+    {
+      "code": "SPEC_UNIT_MISMATCH",
+      "severity": "INFO"
+    }
+  ]
+}

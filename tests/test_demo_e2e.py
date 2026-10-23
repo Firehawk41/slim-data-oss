@@ -70,12 +70,12 @@ def test_a_spike_that_chose_its_cup_reports_the_others_recovery(session, demo):
 
 
 def test_below_mdl_reads_less_than(session, demo):
-    reported = line(report_view(session, "TR00105"), 1, "Cu")
+    reported = line(report_view(session, "TR00105"), 1, "F")  # anions (D-78)
     assert reported.text == "< 0.050" and reported.qualifier == Qualifier.BELOW_MDL
 
 
 def test_rerun_released_by_exception_and_accepted_judgment_call(session, demo):
-    exception = line(report_view(session, "TR00106"), 1, "Cu")
+    exception = line(report_view(session, "TR00106"), 1, "SO4")
     assert exception.released_with_exception and exception.notes == ("Released without rerun",)
     accepted = line(report_view(session, "TR00107"), 1, "Cu")
     assert not accepted.released_with_exception and accepted.notes == (
@@ -86,19 +86,20 @@ def test_rerun_released_by_exception_and_accepted_judgment_call(session, demo):
 
 def test_amended_report_carries_the_corrected_version(session, demo):
     view = report_view(session, "TR00108")
-    corrected = line(view, 1, "Cu")
-    assert corrected.version == 2 and corrected.amended and corrected.text == "10.000"
+    corrected = line(view, 1, "Assay")  # assay (D-78): the second titration was done again
+    assert corrected.version == 2 and corrected.amended and corrected.text == "69.55"
     first, second = issues_for_tr(session, "TR00108")
     assert second.amends == first.id
     as_first_reported = report_view(session, "TR00108", as_of=first.created_at)
-    assert line(as_first_reported, 1, "Cu").version == 1 and line(as_first_reported, 1, "Cu").text == "10.750"
+    assert line(as_first_reported, 1, "Assay").version == 1
+    assert line(as_first_reported, 1, "Assay").text == "69.74"  # 69.735, rounded half to even
 
 
 def test_line_by_line_released_early_and_the_rerun_cup_counts(session, demo):
     view = report_view(session, "TR00109")
-    assert [str(li.sample) for li in view.lines] == ["TR00109-01"] and view.waiting == ("TR00109-02 Cu",)
-    codes, row = flags(batch_view(session, "PB-00109"), 2, "Cu")
-    assert row.text == "5.150" and row.status == ResultStatus.DRAFT
+    assert [str(li.sample) for li in view.lines] == ["TR00109-01"] and view.waiting == ("TR00109-02 Assay",)
+    codes, row = flags(batch_view(session, "PB-00109"), 2, "Assay")
+    assert row.text == "68.92" and row.status == ResultStatus.DRAFT  # 68.925: the redone titration counts
     assert not codes & {"CUPS_DISAGREE"}
 
 
@@ -116,15 +117,16 @@ def test_views_read_estimates_and_nothing_reportable_and_skip_rejected(session, 
     assert value_text(version(1, reported=qty("0.120"), qualifier=Qualifier.ESTIMATED)) == "0.120 (estimated)"
     scale = SampleRef(tr_number="TR00103", position=1)
     for code in ("Fe", "Cu", "Zn", "Ni", "Cr", "Mn"):
-        wf.reject(session, scale, AnalyteRef(analysis_id=1, code=code), ROB, "sample spilled")
+        wf.reject(session, scale, AnalyteRef(analysis_id=2, code=code), ROB, "sample spilled")
     rejected = report_view(session, "TR00103")
     assert rejected.waiting == () and not rejected.complete  # nothing to report, nothing waiting
     with pytest.raises(NotFound):
-        trace(session, scale, AnalyteRef(analysis_id=1, code="Fe"), version=9)
+        trace(session, scale, AnalyteRef(analysis_id=2, code="Fe"), version=9)
 
 
 def test_batches_lists_every_scenario_batch(session, demo):
     listed = batches(session)
     assert {b.code for b in listed} == {f"PB-{tr[2:]}" for tr in demo[0].values()}
-    assert all(b.analysis_id == 1 and b.prep_method == "microwave HNO3" for b in listed)
+    by_analysis = {(b.analysis_id, b.prep_method) for b in listed}
+    assert by_analysis == {(1, "microwave HNO3"), (2, "microwave HNO3"), (3, "dilution"), (4, "as received")}
     assert batches(session, as_of=datetime(2000, 1, 1, tzinfo=UTC)) == ()

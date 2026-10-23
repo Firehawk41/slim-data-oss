@@ -717,3 +717,21 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   one). `cli migrate` and the demo seed install it on Postgres after both migrations (it covers every
   public table: SLIM's, the portal's, slim-data's), and `cli verify` passes slim-domain's
   `verify_chain` in. slim-domain becomes a required dependency of LabPortal (it was only the bridge's).
+
+- **D-78 Four demo analyses, each with its ruleset** (Jamie). The nine scenarios stay on the same nine
+  TRs, spread over 10 Elements, 36 Elements, anions and an acid assay, so the demo shows more than one
+  technique. All values invented (D-05).
+  1. Rulesets are data: `demo_metals` (10 and 36 Elements share it, bound to each analysis at
+     publish), `demo_anions` (F, Cl, NO3, SO4 by IC: duplicate injections, spike, blank; no linear range,
+     no scale fault, no direction prior) and `demo_assay` (% w/w by duplicate titration: no spike,
+     blank or MDL steps; an unknown MDL is INFO).
+  2. **Assay passes only when the two titrations' RSD is under 1 %** (Jamie). For two values the
+     sample RSD is |a − b| / (√2 · mean), so RSD < 1 % is RPD < √2 % and `agreement@1` takes
+     `rpd_limit` 0.014142 (just under √2 %); a failure, an excluded titration or an undecided choice is
+     RERUN. No new step. A triplicate titration would need one (an `rsd` step): parked.
+  3. No spec limits for the assay (Jamie).
+  4. Mapping: clean pass and scale fault on 36 Elements; cups disagree, pooled spike and accepted on 10
+     Elements; below MDL (F) and rerun + exception (SO4) on anions; amended (a titration redone) and
+     line by line on the assay. `DemoHost.analyses` maps each demo analysis to the host's code and ID;
+     `publish_demo_rules` publishes them all. In LabPortal the anions are bound to "5 Anions" (the lab's
+     4 Anions has no F).

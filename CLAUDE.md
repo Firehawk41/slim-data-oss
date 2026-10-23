@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-77, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-78, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -46,7 +46,7 @@ complete report, D-71); personas ✅ (D-74); demo scenarios seeded in the portal
 
 **M7:** `service/verify.py` ✅: replays every stored version `as_of` its making, and runs the host's
 audit-chain check if passed one (D-76); LabPortal installs slim-domain's audit log and has `cli verify`
-(D-77). README ✅, walkthrough ✅. **All milestones done.** Next: whatever Jamie picks (parked ideas, DESIGN §13).
+(D-77). README ✅, walkthrough ✅. **All milestones done.** Since: D-78 (four demo analyses). Next: whatever Jamie picks (parked ideas, DESIGN §13).
 Read LabPortal's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
@@ -58,7 +58,7 @@ slim_data/
 ├── engine/          # pure (+ domain): numbers, model, step, ruleset, registry, runner
 │   └── steps/       # cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling,
 │                    #   reported_value, uncertainty, method_blank, spec_limits (all @1)
-├── rulesets/        # ruleset files (JSON): demo_metals.json
+├── rulesets/        # ruleset files (JSON): demo_metals, demo_anions, demo_assay (D-78)
 ├── pipeline/        # reader contract (reader.py) + generic_csv/1; pure
 ├── persistence/     # oss_guard, db (make_engine = the only create_engine), migrate, migrations/,
 │                    #   types, tables, append_only, audit; repositories: rulesets, observations, results
