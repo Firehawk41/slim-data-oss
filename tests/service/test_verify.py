@@ -32,7 +32,7 @@ def test_the_hosts_chain_check_is_run_and_its_broken_entries_reported(session, d
 
 
 def test_a_version_the_rules_did_not_make_is_found(session, demo):
-    cu = analyte("Cu")
+    cu = analyte("Cu", analysis_id=2)  # clean_pass is on 36 Elements (D-78)
     s1 = sample(1, "TR00101")
     current = load_result(session, s1, cu).current
     forged = current.model_copy(

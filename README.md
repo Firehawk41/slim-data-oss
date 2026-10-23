@@ -40,8 +40,11 @@ check) → `recovery` / `recovery_pooling` → `reported_value` → `uncertainty
 
 Steps raise flags; the ruleset gives each flag a severity; **the verdict is the worst flag**:
 REPORTABLE, NEEDS_SUPERVISOR or RERUN. Values are `Decimal` end to end (floats are refused),
-compared unrounded and rounded once at the end. The rules in
-[`demo_metals.json`](slim_data/rulesets/demo_metals.json) are invented demo values, never a real lab's.
+compared unrounded and rounded once at the end. The same steps, configured differently, cover other
+techniques: the demo has ICP-MS metals ([`demo_metals.json`](slim_data/rulesets/demo_metals.json)),
+anions by ion chromatography ([`demo_anions.json`](slim_data/rulesets/demo_anions.json)), and an acid
+assay by duplicate titration that passes only when the two titrations' RSD is under 1 %
+([`demo_assay.json`](slim_data/rulesets/demo_assay.json)). All values are invented, never a real lab's.
 
 ## Try it
 
@@ -78,9 +81,9 @@ TR00102-01 Zn 10.000 ('ABOVE_SPEC',)
 versions=20 mismatches=() chain_checked=False broken_entries=()
 ```
 
-The demo scenarios: a clean pass, cups that disagree, a scale fault, a spike pooled from other samples,
-a result below the MDL, a rerun released with an exception, an accepted NEEDS_SUPERVISOR result, an
-amended report, and a line-by-line import. On SQLite there is no change log, so `verify` reports the
+The demo scenarios, across 10 Elements, 36 Elements, anions and an acid assay: a clean pass, cups that
+disagree, a scale fault, a spike pooled from other samples, a result below the MDL, a rerun released
+with an exception, an accepted NEEDS_SUPERVISOR result, an amended report, and a line-by-line import. On SQLite there is no change log, so `verify` reports the
 chain as *not checked*. In LabPortal (Postgres) the same scenarios are seeded onto real requests, and
 `python -m slim_lab_portal.cli verify` checks both.
 
