@@ -3,9 +3,10 @@
 Every read takes `as_of` (D-21), so a report can be rebuilt exactly as it stood when it was issued.
 
 * `report_view(tr)`: per result, the latest **released** version only, with the text the report
-  prints, ±, recovery, the standard qualifier of an acceptance or exception (D-11), and the INFO
+  prints, ½Δ where it bears on a spec (D-80), recovery, the standard qualifier of an acceptance or exception (D-11), and the INFO
   flags the report shows (spec exceedances, D-60). Unreleased results are listed as waiting.
-* `batch_view(batch)`: every result of a prep batch as it stands, for review.
+* `batch_view(batch)`: every result of a prep batch as it stands, for review, with what the engine
+  saw and chose for it (its cups, D-81).
 * `batches()`: the prep batches, newest first, for the host's list of batches.
 """
 
@@ -42,7 +43,8 @@ class ReportLineView(Frozen):
     text: str
     reported: Quantity | None
     qualifier: Qualifier
-    uncertainty: Dec | None  # ± (D-55): kept for the record; reports print the MDL instead (D-79)
+    uncertainty: Dec | None  # ½Δ (D-55): always kept; the report prints it only as `half_delta`
+    half_delta: Dec | None = None  # ½Δ when it matters to a spec limit (D-80); else None, not printed
     recovery: Dec | None  # beside the result, never applied (D-38)
     mdl: Dec | None = None  # effective MDL, rounded up to the result's places (D-79, D-64); None: no MDL
     ql: Dec | None = None  # quantitation limit, rounded the same way
@@ -92,6 +94,7 @@ def _released_line(result: Result) -> ReportLineView | None:
         reported=version.reported,
         qualifier=version.qualifier,
         uncertainty=version.uncertainty,
+        half_delta=_half_delta_shown(version),
         recovery=version.recovery,
         mdl=_limit(version, "effective_mdl"),
         ql=_limit(version, "ql"),
@@ -106,20 +109,69 @@ def _released_line(result: Result) -> ReportLineView | None:
     )
 
 
+def _step(version: ResultVersion, name: str) -> dict | None:
+    """The trace entry of a step (any version of it), or None if it didn't run on this result."""
+    steps = version.trace.get("steps", ())
+    return next((s for s in steps if s.get("step", "").split("@")[0] == name), None)
+
+
 def _limit(version: ResultVersion, key: str) -> Decimal | None:
     """A detection limit from the reported_value step's trace, rounded *up* to the result's decimal
     places, like the "<" figure (D-64): a report never states a limit lower than the one achieved."""
-    steps = version.trace.get("steps", ())
-    step = next((s for s in steps if s.get("step", "").startswith("reported_value")), None)
+    step = _step(version, "reported_value")
     if step is None or step.get(key) is None:
         return None
     return Decimal(step[key]).quantize(Decimal(1).scaleb(-step["places"]), rounding=ROUND_CEILING)
+
+
+def _half_delta_shown(version: ResultVersion) -> Decimal | None:
+    """½Δ goes on the report only where it bears on a spec limit (D-80): the result is outside the
+    limit, or within ½Δ of it. Compared unrounded (D-54); printed rounded like the value."""
+    spec, half = _step(version, "spec_limits"), _step(version, "uncertainty")
+    if not (spec and spec.get("compared") and half and half.get("half_delta")):
+        return None
+    value, reach = Decimal(spec["value"]), Decimal(half["half_delta"])
+    high = spec.get("high") is not None and value > Decimal(spec["high"]) - reach
+    low = spec.get("low") is not None and value < Decimal(spec["low"]) + reach
+    return version.uncertainty if high or low else None
 
 
 class FlagView(Frozen):
     code: str
     severity: Severity
     message: str
+
+
+class CupsView(Frozen):
+    """What the engine saw and chose for one result, read from its trace (D-81)."""
+
+    cups: tuple[str, ...] = ()  # dilution-corrected, as the agreement step compared them
+    agree: bool | None = None
+    chosen: int | None = None  # the cup reported when they disagreed; None: their mean, or nothing
+    why: str = ""  # the cup_choice rung that decided (D-31): scale_fault, spike_witness, ...
+    recovery: Dec | None = None
+    recovery_basis: str = ""  # recovery_pooling's basis: own, batch_median, none (D-38)
+    blank: str | None = None
+    mdl: Dec | None = None
+    ql: Dec | None = None
+    half_delta: Dec | None = None  # staff always see it; the report only near a limit (D-80)
+
+
+def cups_view(version: ResultVersion) -> CupsView:
+    agreement, choice = _step(version, "agreement") or {}, _step(version, "cup_choice") or {}
+    pooling, blank = _step(version, "recovery_pooling") or {}, _step(version, "method_blank") or {}
+    return CupsView(
+        cups=tuple(agreement[k] for k in ("cup_1", "cup_2") if agreement.get(k) is not None),
+        agree=agreement.get("agree"),
+        chosen=version.trace.get("chosen_replicate"),
+        why=choice.get("rung", ""),
+        recovery=version.recovery,
+        recovery_basis=pooling.get("basis", ""),
+        blank=blank.get("blank"),
+        mdl=_limit(version, "effective_mdl"),
+        ql=_limit(version, "ql"),
+        half_delta=version.uncertainty,
+    )
 
 
 class BatchResultView(Frozen):
@@ -133,6 +185,7 @@ class BatchResultView(Frozen):
     rerun_requested: bool
     correction_started: bool
     analyst_ids: frozenset[str]
+    cups: CupsView = CupsView()
 
 
 class BatchView(Frozen):
@@ -161,6 +214,7 @@ def batch_view(session: Session, code: str, as_of: datetime | None = None) -> Ba
                 rerun_requested=result.rerun_requested,
                 correction_started=result.correction_started,
                 analyst_ids=current.analyst_ids,
+                cups=cups_view(current),
             )
         )
     return BatchView(

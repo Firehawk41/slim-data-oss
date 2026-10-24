@@ -133,3 +133,10 @@ def test_batches_lists_every_scenario_batch(session, demo):
     by_analysis = {(b.analysis_id, b.prep_method) for b in listed}
     assert by_analysis == {(1, "microwave HNO3"), (2, "microwave HNO3"), (3, "dilution"), (4, "as received")}
     assert batches(session, as_of=datetime(2000, 1, 1, tzinfo=UTC)) == ()
+
+
+def test_the_cups_show_which_cup_was_believed_and_why(session, demo):
+    """D-81: a scale fault chose cup 1 for the whole sample; the batch view says so."""
+    cups = batch_view(session, "PB-00103").results[0].cups
+    assert len(cups.cups) == 2 and not cups.agree and cups.chosen == 1 and cups.why == "scale_fault"
+    assert cups.half_delta is None  # one cup chosen: no ½Δ (D-55)
