@@ -811,3 +811,16 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      customer's quotes don't, even when a default would be cheaper.
   4. The search is exhaustive (a TR has a handful of groups and covers); above 10,000 combinations
      each group takes its own cheapest cover.
+
+- **D-85 The ecosystem roadmap: four departments, as labels** (Jamie, 2026-10-24). The plan lives in
+  slim-lims-oss `docs/ROADMAP.md`.
+  1. Modules are grouped into **Admin, Lab, Quality and IT**, for organisation and explanation only:
+     no repo, package or import follows them.
+  2. Module rules: each module a library with its own tables and version table; modules never import
+     each other (slim-domain aside); the host composes and draws the screens; a new module needs a decision.
+  3. Portfolio: the slim-lims sandbox is the crown jewel; slim-data, invoicing V1→V5 and slim-quality
+     are featured on their own.
+  4. Order: phase 0 housekeeping; then prep (Lab), quality trends (Quality), the landing page, samples
+     and report delivery, quality records, admin screens, and the VPS last.
+  - Rejected: departments as code (repo or package per department: churn, no runtime gain); six
+    departments (front office, sample management, reporting split out: harder to hold in one's head).
