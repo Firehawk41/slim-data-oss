@@ -778,3 +778,24 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   3. The LabPortal repo is archived, not deleted, so its pull requests stay readable (D-41's reason).
      Render's Blueprint is reconnected to slim-lims-oss; the private sync into it stops.
   - Rejected: D-41's rename swap (keeps the mirror alive for no reader); leaving it as LabPortal.
+
+- **D-83 Invoicing V5: a library in `SLIM-Invoicing-Program/V5-LIMS-Module`** (Jamie, 2026-10-24).
+  Carries out D-43. V1–V4 each answered the one before; V5 answers V4's limits: it read Excel forms
+  from disk and kept its own copies of customers, chemicals and analyses.
+  1. A subfolder like V1–V4 (Jamie), named without spaces so the host can install it with
+     `#subdirectory=V5-LIMS-Module`; its own CI job. Package `slim_invoicing`.
+  2. Ported from V4 unchanged in behaviour: quotes (customer quotes first, then defaults; most
+     analyses per line first; bulk price from the line's minimum), the pricing engine and the
+     accounting CSV. Dropped: the Excel parsers, the file loader, the copied reference data.
+  3. Input is a `BillableRequest` the host builds from its TR and slim-data's report issues; the
+     library never imports the host or slim-data. Its own tables (quotes, sales orders) with their
+     own Alembic version table; IDs are slim-domain's, with no foreign keys (portable schema).
+  4. **Only a complete report is invoiced** (Jamie). Bills each ordered analysis of a sample that a
+     report issue showed, once: reruns, failed attempts and amendments are never billed twice, and
+     an analysis never reported is never billed. One sales order per TR.
+  5. Slices: (1) the library; (2) the host: "Invoice" on the board's To invoice column creates the
+     sales order and moves the TR to invoiced in one transaction, an invoice page and the CSV
+     export; (3) demo quotes in the seed, paid.
+  - Parked: pricing additional elements (V4 didn't either); chemical-specific quote lines.
+  - Rejected: a new repo (breaks the V1–V5 story); reading slim-data from the library (couples two
+    libraries; the host already owns both).
