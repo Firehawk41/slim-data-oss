@@ -799,3 +799,15 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   - Parked: pricing additional elements (V4 didn't either); chemical-specific quote lines.
   - Rejected: a new repo (breaks the V1–V5 story); reading slim-data from the library (couples two
     libraries; the host already owns both).
+
+- **D-84 Invoicing prices the lowest total for the customer** (Jamie, 2026-10-24). Changes V4's
+  pricing rule in V5 (D-83 point 2).
+  1. The bulk price is decided on the merged quantity: groups priced on the same quote price become
+     one line, and that line's total meets the bulk minimum (6 × 36 Elements and 6 × 36 Elements +
+     pH are 12 × 36 Elements at the 10+ price). V4 decided it per group, before merging.
+  2. Of every way to cover the groups exactly with quote lines (a bundle or its parts), the engine
+     takes the lowest total; ties go to fewer lines. V4 always took the widest line first.
+  3. Kept from V4: the customer's own quotes come before the defaults, which price only what the
+     customer's quotes don't, even when a default would be cheaper.
+  4. The search is exhaustive (a TR has a handful of groups and covers); above 10,000 combinations
+     each group takes its own cheapest cover.

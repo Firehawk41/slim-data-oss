@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-83, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-84, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -46,7 +46,7 @@ complete report, D-71); personas ✅ (D-74); demo scenarios seeded in the portal
 
 **M7:** `service/verify.py` ✅: replays every stored version `as_of` its making, and runs the host's
 audit-chain check if passed one (D-76); LabPortal installs slim-domain's audit log and has `cli verify`
-(D-77). README ✅, walkthrough ✅. **All milestones done.** Since: D-78 (four demo analyses), D-79 (reports print the MDL, not ±), D-80 (½Δ only near a spec limit), D-81 (the batch view shows every cup), D-82 (the host is slim-lims-oss), D-83 (invoicing V5). Next: whatever Jamie picks (parked ideas, DESIGN §13).
+(D-77). README ✅, walkthrough ✅. **All milestones done.** Since: D-78 (four demo analyses), D-79 (reports print the MDL, not ±), D-80 (½Δ only near a spec limit), D-81 (the batch view shows every cup), D-82 (the host is slim-lims-oss), D-83 (invoicing V5), D-84 (lowest total for the customer). Next: whatever Jamie picks (parked ideas, DESIGN §13).
 Read slim-lims-oss's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
