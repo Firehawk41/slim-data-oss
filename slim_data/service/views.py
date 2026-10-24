@@ -3,8 +3,9 @@
 Every read takes `as_of` (D-21), so a report can be rebuilt exactly as it stood when it was issued.
 
 * `report_view(tr)`: per result, the latest **released** version only, with the text the report
-  prints, ½Δ where it bears on a spec (D-80), recovery, the standard qualifier of an acceptance or exception (D-11), and the INFO
-  flags the report shows (spec exceedances, D-60). Unreleased results are listed as waiting.
+  prints, ½Δ where it bears on a spec (D-80), recovery, the standard qualifier of an acceptance or
+  exception (D-11), and the INFO flags the report shows (spec exceedances, D-60). Unreleased results
+  are listed as waiting.
 * `batch_view(batch)`: every result of a prep batch as it stands, for review, with what the engine
   saw and chose for it (its cups, D-81).
 * `batches()`: the prep batches, newest first, for the host's list of batches.
