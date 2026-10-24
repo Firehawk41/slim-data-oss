@@ -53,6 +53,13 @@ def test_cups_disagree_prior_chooses_and_the_spec_exceedance_is_shown(session, d
         "steps"
     ]
     assert next(t for t in steps if t["step"] == "cup_choice@1")["rung"] == "direction_prior"
+    assert reported.half_delta is None  # one cup believed: no ½Δ (D-55)
+
+
+def test_a_result_within_half_delta_of_its_spec_prints_the_half_delta(session, demo):
+    """D-80: Fe 0.295 is under its 0.3 limit, but ½Δ 0.010 reaches it."""
+    fe = line(report_view(session, "TR00102"), 1, "Fe")
+    assert fe.text == "0.295" and fe.shown_flags == () and fe.half_delta == Decimal("0.010")
 
 
 def test_scale_fault_is_decided_for_the_sample_and_waits_for_review(session, demo):

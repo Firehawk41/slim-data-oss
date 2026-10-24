@@ -754,6 +754,8 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   3. A view rule, not ruleset data: it reads only what the spec_limits and uncertainty steps traced,
      and has no threshold of its own.
   4. The host's report explains MDL, QL and half delta wherever it prints them.
+  5. Demo: cups_disagree also reports Fe 0.295 against a 0.3 limit (in spec, but ½Δ 0.010 reaches
+     the limit), so the demo shows a half delta (Jamie).
   - Rejected: always print it (it reads as ±, which it isn't); never print it (D-79) loses it where
     a customer needs it to judge a pass.
 
