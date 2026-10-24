@@ -17,6 +17,7 @@ from slim_data.persistence.results import exceptions, issues_for_tr, load_result
 from slim_data.persistence.rulesets import publish_policy, publish_ruleset
 from slim_data.service import workflow as wf
 from slim_data.service.imports import import_run
+from slim_data.service.views import batch_view, report_view
 from tests.engine.helpers import DEMO
 from tests.factories import ANA, ROB, SUE, actor, analyte, sample
 from tests.persistence.conftest import make_batch
@@ -210,3 +211,36 @@ def test_a_chemist_alone_signs_off_their_own_results_after_the_delay_labelled_so
         ("TR00042-01", "RELEASED"),
     ]
     assert exceptions(session) == []  # solo sign-offs are not exceptions
+
+
+@pytest.mark.parametrize(
+    ("limits", "shown"),
+    [
+        ({}, None),  # no spec: ½Δ is never printed
+        ({"high": Decimal("10.5")}, None),  # 10.1 is further than ½Δ (0.1) from the limit
+        ({"high": Decimal("10.15")}, Decimal("0.100")),  # within ½Δ of the high limit
+        ({"high": Decimal("10.0")}, Decimal("0.100")),  # over it
+        ({"low": Decimal("10.15")}, Decimal("0.100")),  # under the low limit
+        ({"low": Decimal("9.95")}, None),
+    ],
+)
+def test_half_delta_is_printed_only_where_it_bears_on_a_spec_limit(session, lab, limits, shown):
+    """D-80: ½Δ goes on the report when the result is outside a limit or within ½Δ of it."""
+    if limits:
+        lab.lookup.limits[(S1, CU)] = Limits(unit="ppb", **limits)
+    lab()
+    wf.review_batch(session, "PB-0001", REV)
+    wf.release(session, S1, 1, REV)
+    line = next(li for li in report_view(session, "TR00042").lines if li.sample == S1)
+    assert line.uncertainty == Decimal("0.100") and line.half_delta == shown
+
+
+def test_the_batch_view_shows_every_cup_and_what_was_chosen(session, lab):
+    """D-81: the cups, the choice and the QC numbers, read from each result's trace."""
+    lab()
+    rows = {r.sample.position: r.cups for r in batch_view(session, "PB-0001").results}
+    assert rows[1].cups == ("10.00", "10.20") and rows[1].agree and rows[1].chosen is None
+    assert rows[1].half_delta == Decimal("0.100") and rows[1].recovery == Decimal("0.995")
+    assert rows[1].mdl == Decimal("0.050") and rows[1].blank == "0.010"
+    assert rows[1].recovery_basis == "batch_median"
+    assert rows[2].cups == ("5.100", "5.300")  # dilution-corrected (× 10)

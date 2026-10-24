@@ -742,3 +742,26 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   decimal places like the "<" figure (D-64), so a report never states a limit lower than the one
   achieved. The ± (D-55) is still computed and kept in the trace; it just isn't printed. No MDL (a
   titration): blank. Panels whose template labels the column QL (the ion panels) print the QL.
+
+- **D-80 The report prints ½Δ only where it bears on a spec limit** (Jamie). ½Δ, half the
+  difference between the two cups (D-55), is not a full uncertainty budget, and Jamie calls it by
+  that name: "½Δ" on the staff screens and "half delta" on the customer's report, with what it means
+  written next to it. ISO 17025 §7.8.3.1 (c) asks for it where it affects conformity with a spec
+  limit, so the report shows it when the result is outside the limit or within ½Δ of it.
+  1. `ReportLineView.half_delta`: the rounded ½Δ when that holds, else None. Compared on the
+     unrounded value and ½Δ from the trace (D-54). `uncertainty` stays the stored ½Δ, always.
+  2. No ½Δ: no spec, limits in another unit, one cup chosen or below MDL (D-55 has none).
+  3. A view rule, not ruleset data: it reads only what the spec_limits and uncertainty steps traced,
+     and has no threshold of its own.
+  4. The host's report explains MDL, QL and half delta wherever it prints them.
+  5. Demo: cups_disagree also reports Fe 0.295 against a 0.3 limit (in spec, but ½Δ 0.010 reaches
+     the limit), so the demo shows a half delta (Jamie).
+  - Rejected: always print it (it reads as ±, which it isn't); never print it (D-79) loses it where
+    a customer needs it to judge a pass.
+
+- **D-81 The batch view shows every cup** (Jamie). Staff reviewing a batch see what the engine saw and
+  chose for each result, beside the buttons that override it: `BatchResultView.cups` (`CupsView`)
+  with the dilution-corrected cups, whether they agreed, the cup believed and the rung that decided
+  (D-31), recovery and its basis (D-38), the blank, MDL, QL and ½Δ (always, for staff). Read from the
+  current version's trace, so it is exactly what decided; the full trace stays one call away
+  (`trace`). Not the quality layer: trends and control charts across batches stay parked.

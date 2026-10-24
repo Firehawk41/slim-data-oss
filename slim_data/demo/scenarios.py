@@ -3,7 +3,8 @@ first visitor already sees history. All values are invented (D-05); each scenari
 prep batch, so they don't affect each other.
 
     clean_pass        36 Elements: cups agree, spike recovered, blank clean: released, reported
-    cups_disagree     10 Elements: Zn cups disagree; the direction prior believes the lower cup; over spec
+    cups_disagree     10 Elements: Zn cups disagree; the direction prior believes the lower cup; over spec.
+                      Fe just under its spec, closer to it than ½Δ: the report prints the half delta (D-80)
     scale_fault       36 Elements: one cup scaled across six elements; the spikes pick the other cup
     pooled_spike      10 Elements: a sample's spike chose its cup, so it reports the others' recovery
     below_mdl         anions: F reported as "< MDL"
@@ -69,7 +70,8 @@ DEMO_ANALYSES: dict[str, DemoAnalysis] = {
 }
 ELEMENTS = ("Fe", "Cu", "Zn", "Ni", "Cr", "Mn", "F", "Cl")  # F and Cl are elements and anions
 IONS = ("NO3", "SO4", "Assay")  # analyte codes that aren't element symbols
-SPEC = {"Zn": 5.0}  # cups_disagree needs a customer + chemical with a Zn spec below its result
+# cups_disagree needs a customer + chemical with a Zn spec below its result and an Fe spec just above
+SPEC = {"Zn": 5.0, "Fe": 0.3}
 
 
 def persona(id: str, role: Role) -> Actor:
@@ -248,6 +250,9 @@ def _cups_disagree(s: _Scenario) -> None:
     s.cups(1, "Zn", "10.0", "14.0")  # Zn is contamination-prone: believe the lower cup
     s.spike(1, "Zn", "32.0")  # w = 12.0, midway between the cups: the spike can't decide
     s.blank("Zn")
+    s.cups(1, "Fe", "0.285", "0.305")  # 0.295 ± ½Δ 0.010 reaches the 0.3 limit: ½Δ is printed (D-80)
+    s.spike(1, "Fe", "20.3")
+    s.blank("Fe")
     s.upload("RUN-0102")
     s.review_release(1)
 

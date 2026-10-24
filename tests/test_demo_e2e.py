@@ -53,6 +53,13 @@ def test_cups_disagree_prior_chooses_and_the_spec_exceedance_is_shown(session, d
         "steps"
     ]
     assert next(t for t in steps if t["step"] == "cup_choice@1")["rung"] == "direction_prior"
+    assert reported.half_delta is None  # one cup believed: no ½Δ (D-55)
+
+
+def test_a_result_within_half_delta_of_its_spec_prints_the_half_delta(session, demo):
+    """D-80: Fe 0.295 is under its 0.3 limit, but ½Δ 0.010 reaches it."""
+    fe = line(report_view(session, "TR00102"), 1, "Fe")
+    assert fe.text == "0.295" and fe.shown_flags == () and fe.half_delta == Decimal("0.010")
 
 
 def test_scale_fault_is_decided_for_the_sample_and_waits_for_review(session, demo):
@@ -133,3 +140,10 @@ def test_batches_lists_every_scenario_batch(session, demo):
     by_analysis = {(b.analysis_id, b.prep_method) for b in listed}
     assert by_analysis == {(1, "microwave HNO3"), (2, "microwave HNO3"), (3, "dilution"), (4, "as received")}
     assert batches(session, as_of=datetime(2000, 1, 1, tzinfo=UTC)) == ()
+
+
+def test_the_cups_show_which_cup_was_believed_and_why(session, demo):
+    """D-81: a scale fault chose cup 1 for the whole sample; the batch view says so."""
+    cups = batch_view(session, "PB-00103").results[0].cups
+    assert len(cups.cups) == 2 and not cups.agree and cups.chosen == 1 and cups.why == "scale_fault"
+    assert cups.half_delta is None  # one cup chosen: no ½Δ (D-55)
