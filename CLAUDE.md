@@ -11,7 +11,7 @@ A public portfolio piece: the **analytical results** module of SLIM, a LIMS for 
 chemistry lab. Raw instrument readings → a versioned rules engine decides each result → people review,
 accept, release → the record keeps exactly what each report showed. Append-only (time travel to any
 past state), upgradable (versioned rulesets and steps, migrations). A **library**: the SLIM host app
-(slim-lims, built from LabPortal) calls it, owns the transaction and provides the screens.
+(slim-lims-oss, folded from LabPortal, D-82) calls it, owns the transaction and provides the screens.
 **OSS sandbox only:** demo data, never a real lab's databases (`persistence/oss_guard.py`).
 
 ## Documents (read before changing behaviour)
@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-81, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-82, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -36,7 +36,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 
 Each milestone ends green on CI and with a walkthrough for Jamie. M0–M7 are merged into `main`.
 
-**M6 part 2 (D-70)** wires slim-data into LabPortal (the slim-lims host; `slim_lab_portal/results.py`,
+**M6 part 2 (D-70)** wires slim-data into LabPortal (the slim-lims host; `slim_lims/results.py`,
 `results_routes.py`). Slice 1 ✅: migrations, `SlimReferenceLookup` + `StaffDirectory` over the portal,
 demo ruleset bound to 10 Elements, CSV upload → preview / import → evaluate, batch page + API, staff
 `lab_role`. Slice 2 ✅: review / accept / rerun / exception / reject / correct / release on the batch
@@ -46,8 +46,8 @@ complete report, D-71); personas ✅ (D-74); demo scenarios seeded in the portal
 
 **M7:** `service/verify.py` ✅: replays every stored version `as_of` its making, and runs the host's
 audit-chain check if passed one (D-76); LabPortal installs slim-domain's audit log and has `cli verify`
-(D-77). README ✅, walkthrough ✅. **All milestones done.** Since: D-78 (four demo analyses), D-79 (reports print the MDL, not ±), D-80 (½Δ only near a spec limit), D-81 (the batch view shows every cup). Next: whatever Jamie picks (parked ideas, DESIGN §13).
-Read LabPortal's CLAUDE.md first (OSS guard, CSRF, CSP rules).
+(D-77). README ✅, walkthrough ✅. **All milestones done.** Since: D-78 (four demo analyses), D-79 (reports print the MDL, not ±), D-80 (½Δ only near a spec limit), D-81 (the batch view shows every cup), D-82 (the host is slim-lims-oss). Next: whatever Jamie picks (parked ideas, DESIGN §13).
+Read slim-lims-oss's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
 

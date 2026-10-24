@@ -765,3 +765,16 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   (D-31), recovery and its basis (D-38), the blank, MDL, QL and ½Δ (always, for staff). Read from the
   current version's trace, so it is exactly what decided; the full trace stays one call away
   (`trace`). Not the quality layer: trends and control charts across batches stay parked.
+
+- **D-82 The host is folded into `slim-lims-oss`; the mirror is retired** (Jamie, 2026-10-24).
+  Supersedes D-41, and D-40's legacy router. slim-lims-oss was an anonymised mirror of the lab's
+  private slim-lims, kept so the portfolio followed its features; the host app now goes well beyond
+  that brief, so the mirror ends.
+  1. LabPortal's history is merged into slim-lims-oss (an unrelated-histories merge, so every commit
+     is kept) and its tree replaces the mirror's; the package `slim_lab_portal` becomes `slim_lims`.
+  2. The VBA report API (`/generate-report`, `/resolve/*`, Windows service scripts) is not ported: it
+     needs the lab share and Excel, which a web demo has neither of. It stays in git history and, in
+     production, in the private slim-lims, which is never changed from here.
+  3. The LabPortal repo is archived, not deleted, so its pull requests stay readable (D-41's reason).
+     Render's Blueprint is reconnected to slim-lims-oss; the private sync into it stops.
+  - Rejected: D-41's rename swap (keeps the mirror alive for no reader); leaving it as LabPortal.
