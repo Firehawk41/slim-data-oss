@@ -15,7 +15,7 @@ showed**. Nothing is ever updated or deleted, so any past state can be read back
 every stored result is what the rules made.
 
 It is a **library**: the host app (slim-lims, built from
-[LabPortal](https://github.com/Firehawk41/LabPortal)) calls it, owns the transaction and provides the
+[slim-lims-oss](https://github.com/Firehawk41/slim-lims-oss)) calls it, owns the transaction and provides the
 screens. Demo data only: it refuses to connect to anything but a demo database.
 
 ## What it guarantees
@@ -84,7 +84,7 @@ versions=20 mismatches=() chain_checked=False broken_entries=()
 The demo scenarios, across 10 Elements, 36 Elements, anions and an acid assay: a clean pass, cups that
 disagree, a scale fault, a spike pooled from other samples, a result below the MDL, a rerun released
 with an exception, an accepted NEEDS_SUPERVISOR result, an amended report, and a line-by-line import. On SQLite there is no change log, so `verify` reports the
-chain as *not checked*. In LabPortal (Postgres) the same scenarios are seeded onto real requests, and
+chain as *not checked*. In slim-lims-oss (Postgres) the same scenarios are seeded onto real requests, and
 `python -m slim_lab_portal.cli verify` checks both.
 
 ## Using it from a host
