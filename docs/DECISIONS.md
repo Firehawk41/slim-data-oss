@@ -843,7 +843,8 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      column `expected` on CHECK / CRM rows. slim-quality's reference-material register (phase 5) can
      supply it later; until then the file or slim-prep does.
   3. A new step `qc_check@1`: recovery = measured ÷ expected per role and element, judged against a
-     window in the ruleset (invented demo values: CHECK 90–110 %, CRM 85–115 %). A failure flags every
+     window in the ruleset (demo: ±25 % for both, 75–125 %, as Jamie set the same day; first
+     drafted as CHECK 90–110 %, CRM 85–115 %). A failure flags every
      result of that element in the batch (`CHECK_FAILED`, `CRM_FAILED`; the ruleset gives the
      severity: demo CHECK → RERUN, the run is suspect; CRM → NEEDS_SUPERVISOR, a matrix effect can
      explain it); `CHECK_MISSING` / `CRM_MISSING` only when the ruleset says the role is required. The

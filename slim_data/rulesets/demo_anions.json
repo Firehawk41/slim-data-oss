@@ -60,8 +60,8 @@
     {
       "step": "qc_check@1",
       "params": {
-        "check": {"low": "0.90", "high": "1.10", "required": false},
-        "crm": {"low": "0.85", "high": "1.15", "required": false}
+        "check": {"low": "0.75", "high": "1.25", "required": false},
+        "crm": {"low": "0.75", "high": "1.25", "required": false}
       }
     },
     {

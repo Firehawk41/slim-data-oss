@@ -150,7 +150,7 @@ branches (D-05).
 | 8 | Reported value | Mean of agreeing cups, else chosen cup, × dilution; "< effective MDL"; optional QL (3.33× MDL) → "estimated"; round once to per-analyte decimal places (demo 3), half-even | D-54 |
 | 9 | ± | Half-delta × dilution when cups agree, same decimal places; else N/A | D-55 |
 | 10 | Method blank | Batch blank > MDL: samples ≥ 10× blank → WARN, below → RERUN; never subtracted | D-58 |
-| 10a | QC check | Check standard / CRM recovery (measured ÷ expected) outside its window → every result of that element in the batch flagged (demo: CHECK 90–110 % → RERUN, CRM 85–115 % → NEEDS_SUPERVISOR); missing only when the ruleset requires it. Batch-wide until runs carry an order | D-87 |
+| 10a | QC check | Check standard / CRM recovery (measured ÷ expected) outside its window → every result of that element in the batch flagged (demo: both 75–125 %; CHECK → RERUN, CRM → NEEDS_SUPERVISOR); missing only when the ruleset requires it. Batch-wide until runs carry an order | D-87 |
 | 11 | Spec limits | Exceedance → INFO flag, shown on the report; never affects the verdict | D-60 |
 | 12 | Verdict | Every step emits flags (INFO / WARN / NEEDS_SUPERVISOR / RERUN, severity table in the ruleset); verdict = worst flag | D-56 |
 

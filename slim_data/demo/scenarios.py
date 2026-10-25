@@ -13,7 +13,7 @@ prep batch, so they don't affect each other.
     accepted          10 Elements: MDL missing (NEEDS_SUPERVISOR); a supervisor accepts it
     amended           assay: reported, then corrected (a titration redone) and reported as amended
     line_by_line      assay: exported twice while the run went on, with a titration rejected and redone
-    qc_failed         10 Elements: the check standard reads 86 % for Cu (CHECK_FAILED, RERUN); Zn fine
+    qc_failed         10 Elements: the check standard reads 70 % for Cu (CHECK_FAILED, RERUN); Zn fine
 
 Four demo analyses (D-78), each with its ruleset: 10 and 36 Elements share the ICP-MS metals rules;
 anions (F, Cl, NO3, SO4) by ion chromatography; and the assay of an acid in % w/w by duplicate
@@ -359,7 +359,7 @@ def _line_by_line(s: _Scenario) -> None:
 
 
 def _qc_failed(s: _Scenario) -> None:
-    for code, check in (("Cu", "8.6"), ("Zn", "9.9")):  # Cu's check standard: 86 %, outside 90–110 %
+    for code, check in (("Cu", "7.0"), ("Zn", "9.9")):  # Cu's check standard: 70 %, outside 75–125 %
         s.cups(1, code, "4.00", "4.10")
         s.spike(1, code, "24.1")
         s.blank(code)
