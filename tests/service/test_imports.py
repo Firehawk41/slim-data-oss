@@ -226,3 +226,54 @@ def test_adding_to_a_batch_never_changes_what_it_has(session):
         edit(ROWS[4], role="SPIKE", replicate="2", spike_added="6"),
     ]
     assert "differs from the amount on another row" in preview(session, csv(*two)).errors[0].message
+
+
+# --- check standards and CRMs (D-87) ------------------------------------------------------------------
+
+QC = (Path(__file__).parents[1] / "pipeline" / "fixtures" / "qc.csv").read_bytes()
+QC_HEADER, *QC_ROWS = QC.decode().splitlines()
+
+
+def qc_csv(*rows: str) -> bytes:
+    return ("\n".join([QC_HEADER, *rows]) + "\n").encode()
+
+
+def qc_edit(row: str, **cells) -> str:
+    values = row.split(",")
+    for column, value in cells.items():
+        values[QC_HEADER.split(",").index(column)] = value
+    return ",".join(values)
+
+
+def test_qc_rows_register_their_expected_values_with_the_batch_and_are_judged(session):
+    imported(session, QC, "qc.csv")
+    batch = get_batch(session, "PB-0050")
+    crm = batch.qc_expected(ReadingRole.CRM, analyte("Cu"))
+    assert (crm.expected, crm.material, crm.lot) == (qty("2.00"), "CRM-7", "C-24")
+    (cell,) = evaluate(evaluation_input(session, "PB-0050"), demo()).cells
+    trace = next(t for t in cell.trace if t["step"] == "qc_check@1")
+    assert trace["check"][0]["recovery"] == "0.98" and [r["within"] for r in trace["crm"]] == [True, True]
+
+
+def test_rows_of_one_qc_material_must_agree(session):
+    plan = preview(session, qc_csv(*QC_ROWS[:4], qc_edit(QC_ROWS[4], qc_lot="C-25")), "qc.csv")
+    assert [(e.line, e.column) for e in plan.errors] == [(6, "expected")]
+    assert "differs from another row (2.00 ppb CRM-7 C-24)" in plan.errors[0].message
+
+
+def test_a_later_file_adds_qc_to_a_batch_but_cannot_change_a_recorded_value(session):
+    imported(session, qc_csv(*QC_ROWS[:2]), "cups.csv")
+    later = [qc_edit(row, run_code="RUN-0051") for row in QC_ROWS[2:]]
+    plan = preview(session, qc_csv(*later), "qc.csv")
+    assert plan.ok and [len(a.qc) for a in plan.batch_additions] == [2]
+    imported(session, qc_csv(*later), "qc.csv")
+    assert len(get_batch(session, "PB-0050").qc) == 2
+    changed = qc_edit(later[0], run_code="RUN-0052", expected="10.5")
+    plan = preview(session, qc_csv(changed), "qc2.csv")
+    assert [e.message for e in plan.errors] == ["batch PB-0050 records 10.00 ppb CCV mix L-1"]
+
+
+def test_a_non_positive_expected_value_is_a_row_error(session):
+    plan = preview(session, qc_csv(*QC_ROWS[:2], qc_edit(QC_ROWS[2], expected="0")), "qc.csv")
+    assert [(e.line, e.column) for e in plan.errors] == [(4, "expected")]
+    assert "positive" in plan.errors[0].message

@@ -4,7 +4,7 @@ from decimal import Decimal
 from itertools import count
 
 from slim_data.domain.enums import ReadingRole
-from slim_data.domain.observations import PrepBatch, Reading, SpikeAddition
+from slim_data.domain.observations import PrepBatch, QcExpectation, Reading, SpikeAddition
 from slim_data.domain.values import Limits
 from slim_data.engine.model import EvaluationInput, SampleLimits
 from slim_data.engine.registry import default_registry
@@ -58,7 +58,11 @@ def spikes(pos, code, *values, **kw):
     return [reading(pos, code, ReadingRole.SPIKE, i, v, **kw) for i, v in enumerate(values, start=1)]
 
 
-def batch(positions=(1,), spike_amounts=(), prep_method="microwave HNO3"):
+def qc(role, code, value, replicate=1, **kw):
+    return reading(None, code, role, replicate, value, **kw)
+
+
+def batch(positions=(1,), spike_amounts=(), prep_method="microwave HNO3", expected=()):
     return PrepBatch(
         code="PB-0001",
         analysis_id=1,
@@ -67,14 +71,22 @@ def batch(positions=(1,), spike_amounts=(), prep_method="microwave HNO3"):
         spikes=tuple(
             SpikeAddition(sample=sample(p), analyte=analyte(c), added=qty(a)) for p, c, a in spike_amounts
         ),
+        qc=tuple(QcExpectation(role=r, analyte=analyte(c), expected=qty(v, u)) for r, c, v, u in expected),
     )
 
 
 def evaluation_input(
-    readings, positions=(1,), spike_amounts=(), excluded=(), prep_method="microwave HNO3", limits=()
+    readings,
+    positions=(1,),
+    spike_amounts=(),
+    excluded=(),
+    prep_method="microwave HNO3",
+    limits=(),
+    expected=(),
 ):
+    """`expected`: (role, analyte code, value, unit) for each check standard or CRM (D-87)."""
     return EvaluationInput(
-        batch=batch(positions, spike_amounts, prep_method),
+        batch=batch(positions, spike_amounts, prep_method, expected),
         readings=tuple(readings),
         excluded_reading_ids=frozenset(excluded),
         limits=tuple(

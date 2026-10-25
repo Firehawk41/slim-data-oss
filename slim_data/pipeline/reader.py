@@ -35,7 +35,7 @@ class RunHeader(Frozen):
 
 class ParsedRow(Frozen):
     line: int
-    sample: SampleRef | None  # None for a method blank (D-64)
+    sample: SampleRef | None  # None for a method blank, check standard or CRM (D-64, D-87)
     analysis_code: str
     analyte_code: str
     role: ReadingRole
@@ -47,6 +47,9 @@ class ParsedRow(Frozen):
     prep_batch: str
     prep_method: str | None
     spike_added: Decimal | None
+    expected: Decimal | None = None  # a CHECK or CRM row's expected value (D-87)
+    qc_material: str | None = None
+    qc_lot: str | None = None
     rejected: bool = False  # rejected in the run (e.g. by the technician), usually then rerun (D-66)
     note: str | None = None  # why, recorded as the exclusion's reason
 

@@ -2,7 +2,8 @@
 first visitor already sees history. All values are invented (D-05); each scenario has its own TR and
 prep batch, so they don't affect each other.
 
-    clean_pass        36 Elements: cups agree, spike recovered, blank clean: released, reported
+    clean_pass        36 Elements: cups agree, spike recovered, blank clean, check standard and CRM
+                      recovered (D-87): released, reported
     cups_disagree     10 Elements: Zn cups disagree; the direction prior believes the lower cup; over spec.
                       Fe just under its spec, closer to it than ½Δ: the report prints the half delta (D-80)
     scale_fault       36 Elements: one cup scaled across six elements; the spikes pick the other cup
@@ -12,6 +13,7 @@ prep batch, so they don't affect each other.
     accepted          10 Elements: MDL missing (NEEDS_SUPERVISOR); a supervisor accepts it
     amended           assay: reported, then corrected (a titration redone) and reported as amended
     line_by_line      assay: exported twice while the run went on, with a titration rejected and redone
+    qc_failed         10 Elements: the check standard reads 70 % for Cu (CHECK_FAILED, RERUN); Zn fine
 
 Four demo analyses (D-78), each with its ruleset: 10 and 36 Elements share the ICP-MS metals rules;
 anions (F, Cl, NO3, SO4) by ion chromatography; and the assay of an acid in % w/w by duplicate
@@ -163,8 +165,10 @@ class InMemoryHost:
 
 HEADER = (
     "lab_sample_id,analysis_code,analyte,role,replicate,value,unit,mdl,dilution_factor,run_code,"
-    "instrument,analyst,analyzed_at,prep_batch,prep_method,spike_added,rejected,note"
+    "instrument,analyst,analyzed_at,prep_batch,prep_method,spike_added,rejected,note,expected,qc_material,"
+    "qc_lot"
 )
+QC_MATERIALS = {"CHECK": ("CCV mix A", "L-0425"), "CRM": ("CRM-7 trace metals", "C-24")}  # invented
 
 
 @dataclass
@@ -187,10 +191,13 @@ class _Scenario:
     def analyte(self, code: str) -> AnalyteRef:
         return AnalyteRef(analysis_id=self.analysis_id, code=code)
 
-    def row(self, position, code, role, replicate, value, mdl=None, spike="", rejected="", note=""):
-        sample_id = "BLANK" if position is None else str(self.sample(position))
+    def row(self, position, code, role, replicate, value, mdl=None, spike="", rejected="", note="", qc=""):
+        sample_id = role if position is None else str(self.sample(position))
         mdl = DEMO_ANALYSES[self.analysis].mdl if mdl is None else mdl
-        self.rows.append((sample_id, code, role, replicate, value, mdl, spike, rejected, note))
+        material, lot = QC_MATERIALS.get(role, ("", "")) if qc else ("", "")
+        self.rows.append(
+            (sample_id, code, role, replicate, value, mdl, spike, rejected, note, qc, material, lot)
+        )
 
     def cups(self, position, code, c1, c2, mdl=None):
         self.row(position, code, "CUP", 1, c1, mdl)
@@ -202,13 +209,19 @@ class _Scenario:
     def blank(self, code, value="0.010"):
         self.row(None, code, "BLANK", 1, value)
 
+    def check(self, code, value, expected="10.0"):
+        self.row(None, code, "CHECK", 1, value, mdl="", qc=expected)
+
+    def crm(self, code, value, expected="2.00"):
+        self.row(None, code, "CRM", 1, value, mdl="", qc=expected)
+
     def upload(self, run: str):
         h, stamp, how = self.host, self.when.isoformat(), DEMO_ANALYSES[self.analysis]
         code = h.analyses[self.analysis][0]
         lines = [HEADER] + [
             f"{s},{code},{c},{role},{rep},{v},{how.unit},{mdl},1,{run},{how.instrument},{h.analyst_code},"
-            f"{stamp},{self.batch},{how.prep_method},{spike},{rej},{note}"
-            for s, c, role, rep, v, mdl, spike, rej, note in self.rows
+            f"{stamp},{self.batch},{how.prep_method},{spike},{rej},{note},{qc},{material},{lot}"
+            for s, c, role, rep, v, mdl, spike, rej, note, qc, material, lot in self.rows
         ]
         content = ("\n".join(lines) + "\n").encode()
         import_run(self.session, content, f"{run}.csv", h.analyst, h.lookup, h.staff)
@@ -241,6 +254,8 @@ def _clean_pass(s: _Scenario) -> None:
         s.cups(1, code, "10.00", "10.20")
         s.spike(1, code, "29.9")
         s.blank(code)
+        s.check(code, "10.2")
+        s.crm(code, "1.96")
     s.upload("RUN-0101")
     s.review_release(1)
     s.report((1, "Cu", 1), (1, "Zn", 1))
@@ -343,6 +358,15 @@ def _line_by_line(s: _Scenario) -> None:
     s.upload("RUN-0109")  # second export of the same run: sample 1 skipped, sample 2 added
 
 
+def _qc_failed(s: _Scenario) -> None:
+    for code, check in (("Cu", "7.0"), ("Zn", "9.9")):  # Cu's check standard: 70 %, outside 75–125 %
+        s.cups(1, code, "4.00", "4.10")
+        s.spike(1, code, "24.1")
+        s.blank(code)
+        s.check(code, check)
+    s.upload("RUN-0110")
+
+
 # name -> (demo analysis, samples, needs a spec, run)
 SCENARIOS: dict[str, tuple[str, int, bool, Callable]] = {
     "clean_pass": ("36_elements", 1, False, _clean_pass),
@@ -354,6 +378,7 @@ SCENARIOS: dict[str, tuple[str, int, bool, Callable]] = {
     "accepted": ("10_elements", 1, False, _accepted),
     "amended": ("assay", 1, False, _amended),
     "line_by_line": ("assay", 2, False, _line_by_line),
+    "qc_failed": ("10_elements", 1, False, _qc_failed),
 }
 
 

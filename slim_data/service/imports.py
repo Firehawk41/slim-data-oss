@@ -20,7 +20,15 @@ from sqlalchemy.orm import Session
 from slim_data.domain.actor import Actor
 from slim_data.domain.base import Frozen
 from slim_data.domain.enums import IdentitySource
-from slim_data.domain.observations import PrepBatch, Reading, ReadingExclusion, Run, SourceFile, SpikeAddition
+from slim_data.domain.observations import (
+    PrepBatch,
+    QcExpectation,
+    Reading,
+    ReadingExclusion,
+    Run,
+    SourceFile,
+    SpikeAddition,
+)
 from slim_data.domain.ports import ReferenceLookup, StaffDirectory
 from slim_data.domain.values import AnalyteRef, Quantity, SampleRef
 from slim_data.persistence._rows import NotFound
@@ -38,11 +46,12 @@ from slim_data.pipeline.reader import ParsedRow, ResultReader, RowError, reader_
 
 
 class BatchAddition(Frozen):
-    """Samples and spike amounts a file adds to a batch registered earlier (D-66)."""
+    """Samples, spike amounts and QC expected values a file adds to a batch registered earlier (D-66)."""
 
     code: str
     samples: tuple[SampleRef, ...] = ()
     spikes: tuple[SpikeAddition, ...] = ()
+    qc: tuple[QcExpectation, ...] = ()
 
 
 class ImportPlan(Frozen):
@@ -145,7 +154,7 @@ def import_run(
         for batch in plan.new_batches:
             register_batch(session, batch, importer)
         for addition in plan.batch_additions:
-            add_to_batch(session, addition.code, addition.samples, addition.spikes, importer)
+            add_to_batch(session, addition.code, addition.samples, addition.spikes, importer, addition.qc)
         if plan.readings:
             run, ids = record_run(session, plan.run, plan.readings)
             run_id = run.id
@@ -267,7 +276,7 @@ def _batches(session, resolved, run_code: str, errors: list[RowError], out: _Fit
 def _check_existing(batch: PrepBatch, items, errors: list[RowError], out: "_Fitted") -> None:
     """A registered batch keeps its analysis, prep method and recorded spike amounts; a file may add
     samples and spike amounts it doesn't have yet (a run exported while still going, D-66)."""
-    samples, spikes = [], {}
+    samples, spikes, qc = [], {}, {}
     for row, reading in items:
         if reading.analyte.analysis_id != batch.analysis_id:
             errors.append(_error(row, "analysis_code", f"batch {batch.code} is for another analysis"))
@@ -281,6 +290,15 @@ def _check_existing(batch: PrepBatch, items, errors: list[RowError], out: "_Fitt
             and reading.sample not in samples
         ):
             samples.append(reading.sample)
+        if row.expected is not None:
+            entry = _qc_entry(row, reading, errors)
+            stored_qc = batch.qc_expected(reading.role, reading.analyte)
+            if entry is None:
+                pass
+            elif stored_qc is not None and stored_qc != entry:
+                errors.append(_error(row, "expected", f"batch {batch.code} records {_qc_text(stored_qc)}"))
+            elif stored_qc is None:
+                _same_qc(qc, entry, row, errors)
         if row.spike_added is None:
             continue
         amount = Quantity(value=row.spike_added, unit=row.unit)
@@ -293,8 +311,10 @@ def _check_existing(batch: PrepBatch, items, errors: list[RowError], out: "_Fitt
                 _error(row, "spike_added", f"differs from the amount on another row ({spikes[key]})")
             )
     additions = tuple(SpikeAddition(sample=s, analyte=a, added=q) for (s, a), q in spikes.items())
-    if samples or additions:
-        out.batch_additions.append(BatchAddition(code=batch.code, samples=tuple(samples), spikes=additions))
+    if samples or additions or qc:
+        out.batch_additions.append(
+            BatchAddition(code=batch.code, samples=tuple(samples), spikes=additions, qc=tuple(qc.values()))
+        )
 
 
 def _new_batch(code: str, items, errors: list[RowError]) -> PrepBatch | None:
@@ -312,7 +332,12 @@ def _new_batch(code: str, items, errors: list[RowError]) -> PrepBatch | None:
         return None
     samples = list(dict.fromkeys(r.sample for _, r in items if r.sample is not None))
     amounts: dict = {}
+    qc: dict = {}
     for row, reading in items:
+        if row.expected is not None:
+            entry = _qc_entry(row, reading, errors)
+            if entry is not None:
+                _same_qc(qc, entry, row, errors)
         if row.spike_added is None:
             continue
         key = (reading.sample, reading.analyte)
@@ -328,10 +353,36 @@ def _new_batch(code: str, items, errors: list[RowError]) -> PrepBatch | None:
             prep_method=methods.pop(),
             samples=tuple(samples),
             spikes=tuple(SpikeAddition(sample=s, analyte=a, added=q) for (s, a), q in amounts.items()),
+            qc=tuple(qc.values()),
         )
     except ValidationError as error:
         errors.append(_error(first, "prep_batch", f"new batch {code}: {error.errors()[0]['msg']}"))
         return None
+
+
+def _qc_entry(row: ParsedRow, reading: Reading, errors: list[RowError]) -> QcExpectation | None:
+    try:
+        return QcExpectation(
+            role=reading.role,
+            analyte=reading.analyte,
+            expected=Quantity(value=row.expected, unit=row.unit),
+            material=row.qc_material,
+            lot=row.qc_lot,
+        )
+    except ValidationError as error:
+        errors.append(_error(row, "expected", error.errors()[0]["msg"]))
+        return None
+
+
+def _same_qc(seen: dict, entry: QcExpectation, row: ParsedRow, errors: list[RowError]) -> None:
+    """Every row of one check standard or CRM states the same expected value, material and lot."""
+    first = seen.setdefault((entry.role, entry.analyte), entry)
+    if first != entry:
+        errors.append(_error(row, "expected", f"differs from another row ({_qc_text(first)})"))
+
+
+def _qc_text(entry: QcExpectation) -> str:
+    return " ".join(str(p) for p in (entry.expected, entry.material, entry.lot) if p is not None)
 
 
 def _key(reading: Reading) -> tuple:

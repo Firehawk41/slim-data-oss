@@ -3,11 +3,12 @@
 import pytest
 
 from slim_data.domain.enums import ExclusionKind, ReadingRole
-from slim_data.domain.observations import ReadingExclusion
+from slim_data.domain.observations import QcExpectation, ReadingExclusion
 from slim_data.engine.runner import evaluate
 from slim_data.persistence._rows import NotFound
 from slim_data.persistence.observations import (
     AlreadyImported,
+    add_to_batch,
     evaluation_input,
     exclude_reading,
     get_batch,
@@ -16,13 +17,15 @@ from slim_data.persistence.observations import (
     register_batch,
 )
 from tests.engine.helpers import demo
-from tests.factories import ANA
+from tests.factories import ANA, analyte, qty
 from tests.persistence.conftest import instant, make_batch, make_reading, make_run, standard_readings
 
 
 def test_a_batch_round_trips_with_its_spikes(session):
     stored = register_batch(session, make_batch(), ANA)
     assert get_batch(session, "PB-0001") == stored and stored.id is not None
+    check = stored.qc_expected(ReadingRole.CHECK, analyte("Cu"))
+    assert (str(check.expected.value), check.material, check.lot) == ("10", "CCV mix", "L-1")
     with pytest.raises(ValueError, match="already exists"):
         register_batch(session, make_batch(), ANA)
     with pytest.raises(NotFound):
@@ -46,6 +49,32 @@ def test_the_same_file_is_refused_with_a_pointer_to_the_first_import(session, st
     with pytest.raises(AlreadyImported) as refused:
         record_run(session, make_run(), [(batch.code, make_reading(1, ReadingRole.CUP, 1, "1"))])
     assert refused.value.run_id == run.id
+
+
+def test_qc_readings_have_no_sample_and_need_an_expected_value_in_their_unit(session, stored):
+    _, batch, _ = stored
+    record_run(session, make_run("qc.csv"), [(batch.code, make_reading(None, ReadingRole.CHECK, 1, "9.8"))])
+    check = evaluation_input(session, batch.code).readings[-1]
+    assert check.role == ReadingRole.CHECK and check.sample is None
+    for reading in (
+        make_reading(None, ReadingRole.CRM, 1, "9.8"),
+        make_reading(None, ReadingRole.CHECK, 1, "9.8").model_copy(
+            update={"value": qty("9.8", "ppm"), "mdl": None}
+        ),
+    ):
+        with pytest.raises(ValueError, match="no expected value"):
+            record_run(session, make_run("bad.csv"), [(batch.code, reading)])
+
+
+def test_a_later_file_adds_qc_expected_values_but_never_changes_one(session, stored):
+    _, batch, _ = stored
+    crm = QcExpectation(role=ReadingRole.CRM, analyte=analyte("Cu"), expected=qty("2.5"), material="CRM-7")
+    assert (
+        add_to_batch(session, batch.code, [], [], ANA, [crm]).qc_expected(ReadingRole.CRM, analyte("Cu"))
+        == crm
+    )
+    with pytest.raises(ValueError, match="already has CRM Cu"):
+        add_to_batch(session, batch.code, [], [], ANA, [crm.model_copy(update={"expected": qty("3")})])
 
 
 @pytest.mark.parametrize(

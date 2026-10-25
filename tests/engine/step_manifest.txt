@@ -5,6 +5,7 @@ cup_choice@1
 cup_shape@1
 linear_range@1
 method_blank@1
+qc_check@1
 recovery@1
 recovery_pooling@1
 reported_value@1

@@ -113,6 +113,21 @@ prep_batch_spikes = Table(
     ),
 )
 
+prep_batch_qc = Table(
+    "prep_batch_qc",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("batch_id", ForeignKey("prep_batches.id"), nullable=False),
+    Column("role", Integer, nullable=False),  # ReadingRole.CHECK or CRM (D-87)
+    *_analyte(),
+    Column("expected", ExactDecimal(), nullable=False),
+    Column("unit", String(20), nullable=False),
+    Column("material", String(100)),
+    Column("lot", String(50)),
+    Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
+    UniqueConstraint("batch_id", "role", "analysis_id", "analyte_code", name="uq_prep_batch_qc_expected"),
+)
+
 runs = Table(
     "runs",
     metadata,
@@ -135,7 +150,7 @@ readings = Table(
     metadata,
     Column("id", Integer, primary_key=True),
     Column("run_id", ForeignKey("runs.id"), nullable=False),
-    Column("batch_id", ForeignKey("prep_batches.id"), nullable=False),  # a blank belongs here (D-64)
+    Column("batch_id", ForeignKey("prep_batches.id"), nullable=False),  # a blank or QC belongs here (D-64)
     *_sample(nullable=True),
     *_analyte(),
     Column("role", Integer, nullable=False),
@@ -147,9 +162,9 @@ readings = Table(
     Column("dilution", ExactDecimal(), nullable=False),
     Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
     CheckConstraint(
-        "(role = 3 AND tr_number IS NULL AND position IS NULL)"
-        " OR (role <> 3 AND tr_number IS NOT NULL AND position IS NOT NULL)",
-        name="blank_has_no_sample",
+        "(role IN (3, 4, 5) AND tr_number IS NULL AND position IS NULL)"
+        " OR (role NOT IN (3, 4, 5) AND tr_number IS NOT NULL AND position IS NOT NULL)",
+        name="batch_role_has_no_sample",  # BLANK, CHECK, CRM (D-64, D-87)
     ),
     Index("ix_readings_batch", "batch_id"),
 )

@@ -68,7 +68,7 @@ def test_file_errors(content, message):
         ("value", "twelve", "not a number"),
         ("value", "NaN", "not a number"),
         ("mdl", "x", "not a number"),
-        ("role", "STANDARD", "expected CUP, SPIKE or BLANK"),
+        ("role", "STANDARD", "expected CUP, SPIKE, BLANK, CHECK or CRM"),
         ("replicate", "0", "whole number from 1"),
         ("replicate", "1.5", "whole number from 1"),
         ("lab_sample_id", "TR42-1", "not a lab sample ID"),
@@ -93,7 +93,33 @@ def test_row_errors_name_the_line_and_column(column, value, message):
 def test_a_blank_row_needs_the_blank_id():
     blank = GOOD.splitlines()[-1]
     parsed = parse(with_cell("lab_sample_id", "TR00042-01", blank))
-    assert parsed.errors[0].message == "a blank's lab_sample_id is BLANK"
+    assert parsed.errors[0].message == "a BLANK row's lab_sample_id is BLANK"
+
+
+def test_check_standards_and_crms_have_no_sample_and_carry_their_expected_value():
+    parsed = GenericCsv().parse((FIXTURES / "qc.csv").read_bytes())
+    assert parsed.errors == () and len(parsed.rows) == 5
+    check, crm = parsed.rows[2], parsed.rows[3]
+    assert check.role == ReadingRole.CHECK and check.sample is None and check.expected == Decimal("10.00")
+    assert (crm.role, crm.qc_material, crm.qc_lot) == (ReadingRole.CRM, "CRM-7", "C-24")
+    assert parsed.rows[0].expected is None and parsed.rows[0].qc_material is None
+
+
+@pytest.mark.parametrize(
+    "line, column, value, message",
+    [
+        (3, "lab_sample_id", "CRM", "a CHECK row's lab_sample_id is CHECK"),
+        (3, "expected", "", "is empty"),
+        (1, "expected", "5", "only a CHECK or CRM row has one"),
+        (1, "qc_lot", "L-2", "only a CHECK or CRM row has one"),
+    ],
+)
+def test_qc_row_errors(line, column, value, message):
+    header, *rows = (FIXTURES / "qc.csv").read_text().splitlines()
+    cells = rows[line - 1].split(",")
+    cells[header.split(",").index(column)] = value
+    parsed = parse(f"{header}\n{','.join(cells)}\n")
+    assert (parsed.errors[0].column, parsed.errors[0].message) == (column, message)
 
 
 def test_one_file_is_one_run():

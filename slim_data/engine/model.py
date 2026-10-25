@@ -12,7 +12,7 @@ from typing import Any, Self
 from pydantic import Field, model_validator
 
 from slim_data.domain.base import Dec, Frozen
-from slim_data.domain.enums import Qualifier, ReadingRole, Verdict
+from slim_data.domain.enums import Qualifier, Verdict
 from slim_data.domain.observations import PrepBatch, Reading
 from slim_data.domain.results import Flag, verdict_from_flags
 from slim_data.domain.values import AnalyteRef, Limits, Quantity, SampleRef
@@ -44,10 +44,19 @@ class EvaluationInput(Frozen):
         if any(sample not in members for sample, _ in keys):
             raise ValueError("spec limits for a sample that is not in the batch")
         for reading in self.readings:
-            if reading.role != ReadingRole.BLANK and reading.sample not in members:
+            if not reading.role.of_batch and reading.sample not in members:
                 raise ValueError(f"reading for {reading.sample}, which is not in batch {self.batch.code}")
             if reading.analyte.analysis_id != self.batch.analysis_id:
                 raise ValueError(f"reading for {reading.analyte}, which is not this batch's analysis")
+            if reading.role.is_qc:
+                expected = self.batch.qc_expected(reading.role, reading.analyte)
+                if expected is None:
+                    raise ValueError(f"no expected value for the {reading.role.name} {reading.analyte.code}")
+                if expected.expected.unit != reading.value.unit:
+                    raise ValueError(
+                        f"{reading.role.name} {reading.analyte.code} is in {reading.value.unit}; "
+                        f"its expected value in {expected.expected.unit}"
+                    )
         known_ids = {r.id for r in self.readings if r.id is not None}
         unknown = self.excluded_reading_ids - known_ids
         if unknown:
@@ -116,6 +125,7 @@ class BatchState:
     batch: PrepBatch
     cells: dict[tuple[SampleRef, AnalyteRef], Cell]
     blanks: tuple[Reading, ...] = ()
+    qc: tuple[Reading, ...] = ()  # check standards and CRMs (D-87)
     limits: dict[tuple[SampleRef, AnalyteRef], Limits] = field(default_factory=dict)
     shared: dict[str, Any] = field(default_factory=dict)  # facts one step leaves for a later one
 

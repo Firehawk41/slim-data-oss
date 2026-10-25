@@ -824,3 +824,36 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      and report delivery, quality records, admin screens, and the VPS last.
   - Rejected: departments as code (repo or package per department: churn, no runtime gain); six
     departments (front office, sample management, reporting split out: harder to hold in one's head).
+
+- **D-86 Samples and prep are two modules** (Jamie, 2026-10-24; the roadmap's open question). `slim-prep`
+  (phase 1, repo `slim-prep-oss`) holds bench prep: prep batches, weights and volumes, spikes with
+  standard lot and expiry, balance and pipette, the run list; it hands the batch to slim-data's batch
+  API. `slim-samples` (phase 4) holds custody: receipt condition, labels, storage, retention, disposal.
+  The prep book's steps and columns come from Jamie's description, invented for OSS.
+  - Rejected: one "lab operations" module (saves a repo; blurs two sets of users and records).
+
+- **D-87 QC sample roles: check standard and CRM** (Jamie, 2026-10-25, as proposed). Phase 1's
+  first slice; prep feeds it later and quality trends read it.
+  1. Two new `ReadingRole` members: `CHECK = 4` (check standard / CCV, a solution of known
+     concentration, measured on the instrument) and `CRM = 5` (certified reference material, prepped
+     like a sample). Like BLANK (D-64) they have no sample: they belong to the prep batch; the CSV's
+     `lab_sample_id` reads `CHECK` or `CRM`.
+  2. The expected value is batch data, as spike amounts are: a new append-only table
+     `prep_batch_qc` (batch, role, analyte, expected value and unit, material and lot as text), CSV
+     column `expected` on CHECK / CRM rows. slim-quality's reference-material register (phase 5) can
+     supply it later; until then the file or slim-prep does.
+  3. A new step `qc_check@1`: recovery = measured ÷ expected per role and element, judged against a
+     window in the ruleset (demo: ±25 % for both, 75–125 %, as Jamie set the same day; first
+     drafted as CHECK 90–110 %, CRM 85–115 %). A failure flags every
+     result of that element in the batch (`CHECK_FAILED`, `CRM_FAILED`; the ruleset gives the
+     severity: demo CHECK → RERUN, the run is suspect; CRM → NEEDS_SUPERVISOR, a matrix effect can
+     explain it); `CHECK_MISSING` / `CRM_MISSING` only when the ruleset says the role is required. The
+     trace keeps measured, expected and recovery: that's what the control charts plot.
+  4. Batch-wide, not bracketed: readings have no run order yet. Bracketing (a CCV judges only the
+     samples run since the last good one) waits for slim-prep's run list.
+  5. Existing rulesets and results don't change (new step, new ruleset versions; nothing is edited, D-04); the demo rulesets get
+     new versions that add `qc_check`, and the demo scenarios add QC rows.
+  - Options weighed: a separate QC reading type (a second path through import, persistence and replay,
+    as D-64 rejected for blanks); expected values from a reference-material table in slim-data (that
+    register is Quality's, phase 5); expected values typed into the ruleset (they change per lot, not
+    per method).

@@ -32,6 +32,7 @@ def test_demo_ruleset_is_valid_and_has_no_cliff():
         "reported_value@1",
         "uncertainty@1",
         "method_blank@1",
+        "qc_check@1",
         "spec_limits@1",
     ]
     assert validated.warnings == ()

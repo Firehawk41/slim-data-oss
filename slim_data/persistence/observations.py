@@ -14,12 +14,21 @@ from sqlalchemy.orm import Session
 
 from slim_data.domain.actor import Actor
 from slim_data.domain.enums import ExclusionKind, ReadingRole
-from slim_data.domain.observations import PrepBatch, Reading, ReadingExclusion, Run, SourceFile, SpikeAddition
+from slim_data.domain.observations import (
+    PrepBatch,
+    QcExpectation,
+    Reading,
+    ReadingExclusion,
+    Run,
+    SourceFile,
+    SpikeAddition,
+)
 from slim_data.domain.values import AnalyteRef, Quantity, SampleRef
 from slim_data.engine.model import EvaluationInput
 from slim_data.persistence._rows import NotFound, actor_json, as_of_filter
 from slim_data.persistence.audit import set_change_context
 from slim_data.persistence.tables import (
+    prep_batch_qc,
     prep_batch_samples,
     prep_batch_spikes,
     prep_batches,
@@ -52,27 +61,39 @@ def register_batch(session: Session, batch: PrepBatch, actor: Actor) -> PrepBatc
             ).inserted_primary_key[0]
     except IntegrityError:
         raise ValueError(f"prep batch {batch.code} already exists") from None
-    _insert_members(session, batch_id, batch.samples, batch.spikes)
+    _insert_members(session, batch_id, batch.samples, batch.spikes, batch.qc)
     return batch.model_copy(update={"id": batch_id})
 
 
 def add_to_batch(
-    session: Session, code: str, samples: Sequence[SampleRef], spikes: Sequence[SpikeAddition], actor: Actor
+    session: Session,
+    code: str,
+    samples: Sequence[SampleRef],
+    spikes: Sequence[SpikeAddition],
+    actor: Actor,
+    qc: Sequence[QcExpectation] = (),
 ) -> PrepBatch:
-    """Adds samples and spike amounts to a registered batch: new rows, never changes (a file exported
-    while the run is still going registers the batch with only the samples it has so far, D-66)."""
+    """Adds samples, spike amounts and QC expected values to a registered batch: new rows, never
+    changes (a file exported while the run is still going registers the batch with only the samples
+    it has so far, D-66)."""
     batch = get_batch(session, code)
-    clash = [s for s in samples if s in batch.samples] + [
-        f"{s.sample} {s.analyte.code}" for s in spikes if batch.spike_added(s.sample, s.analyte) is not None
-    ]
+    clash = (
+        [s for s in samples if s in batch.samples]
+        + [
+            f"{s.sample} {s.analyte.code}"
+            for s in spikes
+            if batch.spike_added(s.sample, s.analyte) is not None
+        ]
+        + [f"{q.role.name} {q.analyte.code}" for q in qc if batch.qc_expected(q.role, q.analyte) is not None]
+    )
     if clash:
         raise ValueError(f"batch {code} already has {', '.join(map(str, clash))}")
     set_change_context(session, actor, f"add to prep batch {code}")
-    _insert_members(session, batch.id, samples, spikes)
+    _insert_members(session, batch.id, samples, spikes, qc)
     return get_batch(session, code)
 
 
-def _insert_members(session, batch_id, samples, spikes) -> None:
+def _insert_members(session, batch_id, samples, spikes, qc=()) -> None:
     if samples:
         session.execute(
             prep_batch_samples.insert(),
@@ -92,6 +113,23 @@ def _insert_members(session, batch_id, samples, spikes) -> None:
                     "unit": s.added.unit,
                 }
                 for s in spikes
+            ],
+        )
+    if qc:
+        session.execute(
+            prep_batch_qc.insert(),
+            [
+                {
+                    "batch_id": batch_id,
+                    "role": int(q.role),
+                    "analysis_id": q.analyte.analysis_id,
+                    "analyte_code": q.analyte.code,
+                    "expected": q.expected.value,
+                    "unit": q.expected.unit,
+                    "material": q.material,
+                    "lot": q.lot,
+                }
+                for q in qc
             ],
         )
 
@@ -114,6 +152,11 @@ def get_batch(session: Session, code: str, as_of: datetime | None = None) -> Pre
         .where(prep_batch_spikes.c.batch_id == row.id, as_of_filter(prep_batch_spikes.c.created_at, as_of))
         .order_by(prep_batch_spikes.c.id)
     ).all()
+    qc = session.execute(
+        select(prep_batch_qc)
+        .where(prep_batch_qc.c.batch_id == row.id, as_of_filter(prep_batch_qc.c.created_at, as_of))
+        .order_by(prep_batch_qc.c.id)
+    ).all()
     return PrepBatch(
         id=row.id,
         code=row.code,
@@ -127,6 +170,16 @@ def get_batch(session: Session, code: str, as_of: datetime | None = None) -> Pre
                 added=Quantity(value=s.added, unit=s.unit),
             )
             for s in spikes
+        ),
+        qc=tuple(
+            QcExpectation(
+                role=ReadingRole(q.role),
+                analyte=AnalyteRef(analysis_id=q.analysis_id, code=q.analyte_code),
+                expected=Quantity(value=q.expected, unit=q.unit),
+                material=q.material,
+                lot=q.lot,
+            )
+            for q in qc
         ),
     )
 
@@ -168,6 +221,13 @@ def record_run(
             raise ValueError(f"reading for {reading.analyte}, which is not batch {code}'s analysis")
         if reading.sample is not None and reading.sample not in batch.samples:
             raise ValueError(f"reading for {reading.sample}, which is not in batch {code}")
+        if reading.role.is_qc:
+            expected = batch.qc_expected(reading.role, reading.analyte)
+            if expected is None or expected.expected.unit != reading.value.unit:
+                raise ValueError(
+                    f"batch {code} has no expected value in {reading.value.unit} "
+                    f"for the {reading.role.name} {reading.analyte.code}"
+                )
     set_change_context(session, run.imported_by, f"import {run.source.name}")
     run_id = session.execute(
         runs.insert().values(

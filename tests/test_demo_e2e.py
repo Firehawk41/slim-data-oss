@@ -42,6 +42,17 @@ def test_clean_pass_is_released_and_reported(session, demo):
     # D-79: the report prints the MDL (and QL), rounded up to the result's places like "<" (D-64)
     assert line(view, 1, "Cu").mdl == Decimal("0.050") and line(view, 1, "Cu").ql == Decimal("0.167")
     assert len(issues_for_tr(session, "TR00101")) == 1
+    cu = trace(session, SampleRef(tr_number="TR00101", position=1), AnalyteRef(analysis_id=2, code="Cu"))
+    qc = next(t for t in cu["steps"] if t["step"] == "qc_check@1")  # D-87
+    assert qc["check"][0]["recovery"] == "1.02" and qc["crm"][0]["lot"] == "C-24"
+
+
+def test_a_failed_check_standard_asks_for_a_rerun_of_that_element_only(session, demo):
+    view = batch_view(session, f"PB-{demo[0]['qc_failed'][2:]}")
+    cu_codes, cu = flags(view, 1, "Cu")
+    zn_codes, zn = flags(view, 1, "Zn")
+    assert "CHECK_FAILED" in cu_codes and cu.verdict == Verdict.RERUN
+    assert "CHECK_FAILED" not in zn_codes and zn.verdict == Verdict.REPORTABLE
 
 
 def test_cups_disagree_prior_chooses_and_the_spec_exceedance_is_shown(session, demo):
