@@ -102,9 +102,10 @@ branches (D-05).
   Registered by its own call; for v1 the CSV import may register it in the same transaction.
 - **Run**: one instrument run = one imported file (D-25), with the file's sha256 and the reader name
   and version.
-- **Reading** (D-06): one row per measurement: sample, analyte, **role** (CUP, SPIKE, BLANK, …),
-  replicate, value (Decimal, keeps its digits), unit, MDL, dilution. No fixed cup columns. A BLANK
-  reading has no sample: it belongs to its prep batch (D-64).
+- **Reading** (D-06): one row per measurement: sample, analyte, **role** (CUP, SPIKE, BLANK, CHECK,
+  CRM), replicate, value (Decimal, keeps its digits), unit, MDL, dilution. No fixed cup columns. A
+  BLANK, CHECK or CRM reading has no sample: it belongs to its prep batch (D-64, D-87), which holds a
+  check standard's or CRM's expected value, material and lot.
 - **ReadingExclusion**: an analyst marks a reading bad, with a reason. An event, never an edit.
 
 ### 6.2 What is decided
@@ -149,6 +150,7 @@ branches (D-05).
 | 8 | Reported value | Mean of agreeing cups, else chosen cup, × dilution; "< effective MDL"; optional QL (3.33× MDL) → "estimated"; round once to per-analyte decimal places (demo 3), half-even | D-54 |
 | 9 | ± | Half-delta × dilution when cups agree, same decimal places; else N/A | D-55 |
 | 10 | Method blank | Batch blank > MDL: samples ≥ 10× blank → WARN, below → RERUN; never subtracted | D-58 |
+| 10a | QC check | Check standard / CRM recovery (measured ÷ expected) outside its window → every result of that element in the batch flagged (demo: CHECK 90–110 % → RERUN, CRM 85–115 % → NEEDS_SUPERVISOR); missing only when the ruleset requires it. Batch-wide until runs carry an order | D-87 |
 | 11 | Spec limits | Exceedance → INFO flag, shown on the report; never affects the verdict | D-60 |
 | 12 | Verdict | Every step emits flags (INFO / WARN / NEEDS_SUPERVISOR / RERUN, severity table in the ruleset); verdict = worst flag | D-56 |
 
@@ -217,13 +219,14 @@ Invoicing is triggered by staff on a complete-report TR (D-43).
 
 | Column | Example | Notes |
 |---|---|---|
-| `lab_sample_id` | `TR00042-03` | `SampleRef`; `BLANK` for a method blank (D-64) |
+| `lab_sample_id` | `TR00042-03` | `SampleRef`; `BLANK`, `CHECK` or `CRM` for a method blank, check standard or CRM (D-64, D-87) |
 | `analysis_code`, `analyte` | `metals_icpms`, `Fe` | → `AnalyteRef` |
 | `role`, `replicate` | `CUP`, `2` | D-06 |
 | `value`, `unit` | `12.40`, `ppb` | text → Decimal |
 | `mdl`, `dilution_factor` | `0.05`, `10` | dilution optional, default 1 |
 | `run_code`, `instrument`, `analyst`, `analyzed_at` | | run columns; ISO 8601 with offset; `analyst` is a staff ID, the uploader is recorded separately (D-66) |
 | `prep_batch`, `prep_method`, `spike_added` | | `prep_batch` required; the others register the batch when no prep call was made, or add to it (D-24, D-66) |
+| `expected`, `qc_material`, `qc_lot` | `10.00`, `CCV mix A`, `L-0425` | CHECK / CRM rows only, `expected` required there; registers the expected value with the batch, never changes it (D-87) |
 | `rejected`, `note` | `yes`, `drift check failed` | optional: rejected in the run, imported and excluded; a rerun is a newer attempt (D-66) |
 
 ## 10. Persistence, time travel, audit

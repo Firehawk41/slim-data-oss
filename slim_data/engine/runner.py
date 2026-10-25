@@ -42,13 +42,17 @@ def _current(data: EvaluationInput) -> tuple[list[tuple[Reading, bool]], list[in
 
 def _build_state(data: EvaluationInput) -> BatchState:
     cells: dict = {}
-    blanks = []
+    blanks, qc = [], []
     excluded_by_cell = defaultdict(set)
     chosen, superseded = _current(data)
     for reading, excluded in chosen:
         if reading.role == ReadingRole.BLANK:
             if not excluded:  # an excluded blank is dropped
                 blanks.append(reading)
+            continue
+        if reading.role.is_qc:
+            if not excluded:  # as a blank: an excluded check standard or CRM is dropped
+                qc.append(reading)
             continue
         key = (reading.sample, reading.analyte)
         cell = cells.setdefault(key, Cell(sample=reading.sample, analyte=reading.analyte))
@@ -70,7 +74,7 @@ def _build_state(data: EvaluationInput) -> BatchState:
             cell.superseded.append(reading_id)
     ordered = dict(sorted(cells.items(), key=lambda item: (str(item[0][0]), item[0][1].code)))
     limits = {(entry.sample, entry.analyte): entry.limits for entry in data.limits}
-    return BatchState(batch=data.batch, cells=ordered, blanks=tuple(blanks), limits=limits)
+    return BatchState(batch=data.batch, cells=ordered, blanks=tuple(blanks), qc=tuple(qc), limits=limits)
 
 
 def evaluate(data: EvaluationInput, ruleset: ValidatedRuleset) -> BatchEvaluation:

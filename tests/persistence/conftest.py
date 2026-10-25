@@ -7,7 +7,7 @@ from hashlib import sha256
 import pytest
 
 from slim_data.domain.enums import ReadingRole
-from slim_data.domain.observations import PrepBatch, Reading, Run, SourceFile, SpikeAddition
+from slim_data.domain.observations import PrepBatch, QcExpectation, Reading, Run, SourceFile, SpikeAddition
 from slim_data.persistence._rows import database_time
 from slim_data.persistence.observations import record_run, register_batch
 from slim_data.persistence.rulesets import publish_ruleset
@@ -33,6 +33,15 @@ def make_batch(code: str = "PB-0001") -> PrepBatch:
         prep_method="microwave HNO3",
         samples=(sample(1), sample(2)),
         spikes=(SpikeAddition(sample=sample(1), analyte=analyte("Cu"), added=qty("20")),),
+        qc=(
+            QcExpectation(
+                role=ReadingRole.CHECK,
+                analyte=analyte("Cu"),
+                expected=qty("10"),
+                material="CCV mix",
+                lot="L-1",
+            ),
+        ),
     )
 
 

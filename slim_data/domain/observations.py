@@ -29,6 +29,25 @@ class SpikeAddition(Frozen):
         return self
 
 
+class QcExpectation(Frozen):
+    """What a check standard or CRM should read for one analyte, and which material and lot it is
+    (D-87). Batch data, like a spike amount; a reference-material register can supply it later."""
+
+    role: ReadingRole
+    analyte: AnalyteRef
+    expected: Quantity
+    material: str | None = Field(default=None, max_length=100)
+    lot: str | None = Field(default=None, max_length=50)
+
+    @model_validator(mode="after")
+    def _valid(self) -> Self:
+        if not self.role.is_qc:
+            raise ValueError("only a CHECK or CRM has an expected value")
+        if self.expected.value <= 0:
+            raise ValueError("an expected value is positive")
+        return self
+
+
 class PrepBatch(Frozen):
     """Samples of one matrix prepped together: the unit of evaluation (D-07, D-24).
 
@@ -42,6 +61,7 @@ class PrepBatch(Frozen):
     prep_method: str = Field(min_length=1, max_length=100)
     samples: tuple[SampleRef, ...] = Field(min_length=1)
     spikes: tuple[SpikeAddition, ...] = ()
+    qc: tuple[QcExpectation, ...] = ()
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
@@ -58,7 +78,20 @@ class PrepBatch(Frozen):
             if key in seen:
                 raise ValueError(f"two spike amounts for {spike.sample}, {spike.analyte}")
             seen.add(key)
+        qc_keys = set()
+        for entry in self.qc:
+            if entry.analyte.analysis_id != self.analysis_id:
+                raise ValueError(f"expected value for {entry.analyte}, which is not this batch's analysis")
+            if (entry.role, entry.analyte) in qc_keys:
+                raise ValueError(f"two expected values for {entry.role.name} {entry.analyte}")
+            qc_keys.add((entry.role, entry.analyte))
         return self
+
+    def qc_expected(self, role: ReadingRole, analyte: AnalyteRef) -> QcExpectation | None:
+        for entry in self.qc:
+            if entry.role == role and entry.analyte == analyte:
+                return entry
+        return None
 
     def spike_added(self, sample: SampleRef, analyte: AnalyteRef) -> Quantity | None:
         for spike in self.spikes:
@@ -99,8 +132,8 @@ class Run(Frozen):
 class Reading(Frozen):
     """One raw measurement (D-06): one row per reading, tagged with a role and a replicate number.
 
-    A method blank is not a TR sample: it belongs to its prep batch, so a BLANK reading has no
-    sample, and every other reading must have one (D-64).
+    A method blank, check standard or CRM is not a TR sample: it belongs to its prep batch, so a
+    BLANK, CHECK or CRM reading has no sample, and every other reading must have one (D-64, D-87).
     """
 
     id: int | None = None
@@ -117,8 +150,8 @@ class Reading(Frozen):
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
-        if (self.role == ReadingRole.BLANK) != (self.sample is None):
-            raise ValueError("a BLANK reading has no sample; every other reading needs one")
+        if self.role.of_batch != (self.sample is None):
+            raise ValueError("a BLANK, CHECK or CRM reading has no sample; every other reading needs one")
         if self.mdl is not None:
             if self.mdl.unit != self.value.unit:
                 raise ValueError("MDL must be in the same unit as the value")

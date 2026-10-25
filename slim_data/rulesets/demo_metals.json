@@ -33,6 +33,10 @@
     {"step": "reported_value@1", "params": {"default_places": 3, "places": [], "ql_multiple": "3.33"}},
     {"step": "uncertainty@1"},
     {"step": "method_blank@1", "params": {"multiple": "10"}},
+    {"step": "qc_check@1", "params": {
+      "check": {"low": "0.90", "high": "1.10", "required": false},
+      "crm": {"low": "0.85", "high": "1.15", "required": false}
+    }},
     {"step": "spec_limits@1"}
   ],
   "severities": [
@@ -58,6 +62,10 @@
     {"code": "BLANK_MISSING", "severity": "NEEDS_SUPERVISOR"},
     {"code": "BLANK_DETECTED", "severity": "WARN"},
     {"code": "BLANK_SIGNIFICANT", "severity": "RERUN"},
+    {"code": "CHECK_FAILED", "severity": "RERUN"},
+    {"code": "CHECK_MISSING", "severity": "NEEDS_SUPERVISOR"},
+    {"code": "CRM_FAILED", "severity": "NEEDS_SUPERVISOR"},
+    {"code": "CRM_MISSING", "severity": "NEEDS_SUPERVISOR"},
     {"code": "ABOVE_SPEC", "severity": "INFO"},
     {"code": "BELOW_SPEC", "severity": "INFO"},
     {"code": "SPEC_UNDECIDED", "severity": "INFO"},

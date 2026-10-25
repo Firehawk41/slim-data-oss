@@ -70,7 +70,8 @@ def test_effective_mdl_is_mdl_times_dilution():
         (dict(dilution=Decimal("0.5")), "at least 1"),
         (dict(replicate=0), "greater than or equal to 1"),
         (dict(dilution=1.5), "float"),
-        (dict(role=ReadingRole.BLANK), "BLANK reading has no sample"),
+        (dict(role=ReadingRole.BLANK), "BLANK, CHECK or CRM reading has no sample"),
+        (dict(role=ReadingRole.CHECK), "BLANK, CHECK or CRM reading has no sample"),
         (dict(sample=None), "every other reading needs one"),
     ],
 )

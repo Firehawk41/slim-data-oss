@@ -18,6 +18,7 @@ from slim_data.domain.values import SampleRef
 from slim_data.pipeline.reader import ParsedFile, ParsedRow, RowError, RunHeader
 
 BLANK_ID = "BLANK"  # lab_sample_id of a method blank (D-64)
+BATCH_IDS = {ReadingRole.BLANK: BLANK_ID, ReadingRole.CHECK: "CHECK", ReadingRole.CRM: "CRM"}  # D-87
 RUN_COLUMNS = ("run_code", "instrument", "analyst", "analyzed_at")
 REQUIRED = (
     "lab_sample_id",
@@ -30,7 +31,17 @@ REQUIRED = (
     "prep_batch",
     *RUN_COLUMNS,
 )
-OPTIONAL = ("mdl", "dilution_factor", "prep_method", "spike_added", "rejected", "note")
+OPTIONAL = (
+    "mdl",
+    "dilution_factor",
+    "prep_method",
+    "spike_added",
+    "expected",
+    "qc_material",
+    "qc_lot",
+    "rejected",
+    "note",
+)
 _YES = {"yes", "y", "true", "1", "x", "rejected"}
 _NO = {"", "no", "n", "false", "0"}
 _WHOLE = re.compile(r"[0-9]+")
@@ -137,11 +148,11 @@ def _row(line: int, cells: dict) -> ParsedRow:
     try:
         role = ReadingRole[role_text]
     except KeyError:
-        raise _Bad("role", f"expected CUP, SPIKE or BLANK, not {role_text!r}") from None
+        raise _Bad("role", f"expected CUP, SPIKE, BLANK, CHECK or CRM, not {role_text!r}") from None
     sample_id = _required(cells, "lab_sample_id")
-    if role == ReadingRole.BLANK:
-        if sample_id.upper() != BLANK_ID:
-            raise _Bad("lab_sample_id", f"a blank's lab_sample_id is {BLANK_ID}")
+    if role.of_batch:
+        if sample_id.upper() != BATCH_IDS[role]:
+            raise _Bad("lab_sample_id", f"a {role.name} row's lab_sample_id is {BATCH_IDS[role]}")
         sample = None
     else:
         try:
@@ -155,6 +166,11 @@ def _row(line: int, cells: dict) -> ParsedRow:
     spike_added = _decimal(cells, "spike_added", required=False)
     if spike_added is not None and role != ReadingRole.SPIKE:
         raise _Bad("spike_added", "only a SPIKE row records the amount added")
+    expected = _decimal(cells, "expected", required=role.is_qc)
+    if not role.is_qc:
+        for column in ("expected", "qc_material", "qc_lot"):
+            if cells.get(column):
+                raise _Bad(column, "only a CHECK or CRM row has one")
     rejected_text = cells.get("rejected", "").lower()
     if rejected_text not in _YES | _NO:
         raise _Bad("rejected", f"expected yes or no, not {rejected_text!r}")
@@ -172,6 +188,9 @@ def _row(line: int, cells: dict) -> ParsedRow:
         prep_batch=_required(cells, "prep_batch"),
         prep_method=cells.get("prep_method") or None,
         spike_added=spike_added,
+        expected=expected,
+        qc_material=cells.get("qc_material") or None,
+        qc_lot=cells.get("qc_lot") or None,
         rejected=rejected_text in _YES,
         note=cells.get("note") or None,
     )

@@ -58,6 +58,13 @@
       }
     },
     {
+      "step": "qc_check@1",
+      "params": {
+        "check": {"low": "0.90", "high": "1.10", "required": false},
+        "crm": {"low": "0.85", "high": "1.15", "required": false}
+      }
+    },
+    {
       "step": "spec_limits@1"
     }
   ],
@@ -142,6 +149,10 @@
       "code": "BLANK_SIGNIFICANT",
       "severity": "RERUN"
     },
+    {"code": "CHECK_FAILED", "severity": "RERUN"},
+    {"code": "CHECK_MISSING", "severity": "NEEDS_SUPERVISOR"},
+    {"code": "CRM_FAILED", "severity": "NEEDS_SUPERVISOR"},
+    {"code": "CRM_MISSING", "severity": "NEEDS_SUPERVISOR"},
     {
       "code": "ABOVE_SPEC",
       "severity": "INFO"

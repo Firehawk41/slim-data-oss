@@ -9,6 +9,22 @@ class ReadingRole(IntEnum):
     CUP = 1  # a sample replicate
     SPIKE = 2  # a sample aliquot with a known amount added
     BLANK = 3  # the prep batch's method blank
+    CHECK = 4  # a check standard (CCV): a solution of known concentration (D-87)
+    CRM = 5  # a certified reference material, prepped like a sample (D-87)
+
+    @property
+    def of_batch(self) -> bool:
+        """Belongs to the prep batch, not to a sample: no SampleRef (D-64, D-87)."""
+        return self in BATCH_ROLES
+
+    @property
+    def is_qc(self) -> bool:
+        """Measured against an expected value (D-87)."""
+        return self in QC_ROLES
+
+
+QC_ROLES = frozenset({ReadingRole.CHECK, ReadingRole.CRM})
+BATCH_ROLES = frozenset({ReadingRole.BLANK}) | QC_ROLES
 
 
 class ExclusionKind(IntEnum):

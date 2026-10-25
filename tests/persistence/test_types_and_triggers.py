@@ -111,3 +111,24 @@ def test_setting_names_match_slim_domain():
     slim_audit = pytest.importorskip("infrastructure.audit")
     source = open(slim_audit.__file__).read()
     assert f"'{audit.CHANGED_BY}'" in source and f"'{audit.CHANGE_REASON}'" in source
+
+
+@pytest.mark.parametrize("role", [ReadingRole.BLANK, ReadingRole.CHECK, ReadingRole.CRM, ReadingRole.CUP])
+def test_the_database_keeps_batch_roles_off_samples(session, stored, role):
+    """BLANK, CHECK and CRM readings belong to the batch (D-64, D-87); the rest to a sample."""
+    _, batch, run = stored
+    row = dict(
+        run_id=run.id,
+        batch_id=batch.id,
+        analysis_id=1,
+        analyte_code="Cu",
+        role=int(role),
+        replicate=9,
+        value=Decimal("1"),
+        unit="ppb",
+        dilution=Decimal("1"),
+    )
+    wrong = row if role == ReadingRole.CUP else {**row, "tr_number": "TR00042", "position": 1}
+    with pytest.raises(DBAPIError, match="(?i)check|constraint"):
+        with session.begin_nested():
+            session.execute(insert(readings).values(wrong))
