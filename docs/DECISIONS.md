@@ -857,3 +857,54 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     as D-64 rejected for blanks); expected values from a reference-material table in slim-data (that
     register is Quality's, phase 5); expected values typed into the ruleset (they change per lot, not
     per method).
+
+- **D-88 Instrument data in: what to mine, optional fields, how it came in** (proposed 2026-10-26
+  with Jamie; *awaiting sign-off*). Phase 1's instrument readers. The test for every field: a step
+  judges it, a chart plots it, a person acts on it, or an auditor asks for it. Storing more is cheap;
+  the cost is upkeep (parser surface, the §7.11 validation pack, screens nobody reads, rules that
+  grow because the data is there).
+  1. A reader `qtegra/1` for Thermo Qtegra's SpreadsheetML export (per LabBook). It takes:
+     concentrations; each reading's replicate RSD; the internal-standard recovery (%) per reading;
+     calibration per analyte and run (R² or r, LOD, BEC); the sample list (run order, start time,
+     user). It leaves out raw intensities, survey, instrument status, regression coefficients and
+     the noticeboard. Qtegra's own QC pass/fail is not taken: its QC rows come in as CHECK readings
+     and `qc_check@1` judges them (one judge, D-87). Sweeps are not imported: the analyst drops an
+     outlier sweep in Qtegra, where they can see it, and the export's mean and RSD follow.
+  2. The original file is kept beside its run (today only its hash is, `runs.source_sha256`), so a
+     field left out now is never lost: a later reader version can mine it.
+  3. Two optional fields on `Reading`: `rsd` and `istd_recovery`. Blank means no evidence, not a
+     fault: the steps that use them stay silent. A ruleset may mark either as required (as D-87
+     does for CHECK / CRM); then a blank raises `RSD_MISSING` / `ISTD_MISSING`. Existing readings
+     simply have none (D-04).
+  4. **Suggestions, not verdicts.** A new step `precision@1`: `RSD_HIGH` above a ruleset limit,
+     applied only above a multiple of the MDL (near the MDL counts are low and a high RSD is
+     normal: zones, as `agreement` has, D-28); `ISTD_LOW` / `ISTD_HIGH` outside a window. Demo
+     severities INFO / WARN: shown with their reason and numbers in the trace, never blocking
+     (D-56). A lab that wants a hard rule raises the severity in its ruleset. Calibration below its
+     limit is a rule, not a suggestion: `CAL_FAILED`, demo RERUN, on every result of that analyte
+     in the run.
+  5. `cup_choice@2`: one new rung, *instrument precision*, after analyst exclusion and scale fault.
+     When the cups disagree and one cup's reading is unstable (RSD high) or suppressed (internal
+     standard low) and the other's is not, the stable cup is believed. Without the fields, the rung
+     is inconclusive and the ladder goes on as in `cup_choice@1`. The analyst's exclusion stays first:
+     no suggestion overrides a person (D-31).
+  6. **Paste is a reader too.** `paste/1` reads a table copied from Excel (tab-separated), with the
+     same columns and checks as `generic_csv/1`, so a lab with any instrument, or none wired, can
+     work as it did in Excel. Qtegra is never enforced.
+  7. **How it came in is recorded and is policy.** Every run already names its reader and who
+     imported it; the run also gets its source kind (instrument file / CSV / paste). The policy
+     lists the kinds the lab accepts and which need a second person's check before evaluation
+     (pasted numbers can carry transcription errors; an instrument file is stronger evidence). Demo:
+     all three accepted; paste needs a check.
+  8. Run order (from the sample list) is stored but not judged yet: bracketing (D-87 point 4) and a
+     carryover suggestion (a low result straight after a very high one) come later.
+  9. Demo data is invented in Qtegra's layout (headers, Mean / RSD / SD rows); never a real
+     LabBook (D-05).
+  - Options weighed: raw intensities for every analyte (nobody acts on them; micromanaging);
+    Qtegra's QC verdict alongside `qc_check` (two judges disagree); importing each sweep and judging
+    outliers in slim-data (takes the call from the analyst, who sees the sweeps in Qtegra); RSD as a
+    hard rule (trace-level results would all flag, and analysts learn to ignore flags); Qtegra
+    only (ties a LIMS to one vendor); paste with no provenance (an auditor can't tell typed numbers
+    from an instrument's).
+  - Later, slim-quality counts how often each suggestion is overridden: that's how a guideline is
+    tuned, without policing anyone.
