@@ -909,3 +909,45 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     from an instrument's).
   - Later, slim-quality counts how often each suggestion is overridden: that's how a guideline is
     tuned, without policing anyone.
+
+- **D-89 How `qtegra/1` reads a Qtegra export** (proposed 2026-10-26; *awaiting Jamie's sign-off*).
+  Worked out from Jamie's full SpreadsheetML export of one LabBook (a real run: read for its layout
+  only, never committed; the fixtures are invented in the same shape, D-05). One sheet: four header
+  rows (block, sweep, isotope with mode, unit), then one row per measurement in run order.
+  1. **The scheme to save in Qtegra ("SLIM"):** Sample list (user name, start / stop time, the iCAP
+     node: label, comment, Sample Type, Dilution Factor, QC Action, Standard), Concentrations
+     (`ExtCal.Average`, `ExtCal.RSD`), Quality Control (`ExtCal.QC.ReferenceAmount`), Calibration
+     (`ExtCal.CorrelationCoefficient`, `ExtCal.CoefficientOfDetermination`, `ExtCal.LOD`,
+     `ExtCal.BEC`). The reader finds blocks by header name, never by column number, and ignores
+     every other block, so a fuller export reads the same.
+  2. **Values:** `ExtCal.Average` and `ExtCal.RSD`. They respect the sweeps the analyst or Qtegra
+     left out (shown blue in the file), where `MeasuredConcentration.Average` doesn't. Sweeps and
+     Qtegra's cell colours are not read: slim-data judges for itself (D-88).
+  3. **Internal standard:** a column whose `ExtCal.Average` unit is % (e.g. 103Rh). Its value is the
+     recovery, stored on every reading of that row; with several, the lowest. Never a reading itself.
+  4. **Rows by Sample Type:** BLK (calibration blank) is skipped; STD gives the calibration only; QC
+     with QC Action CCV is a CHECK reading per element, expected = `QC.ReferenceAmount`, material =
+     `Standard`; UNKNOWN is identified by its **Comment**: `TR00012-1 A` (sample, cup A = replicate 1,
+     B = 2), `BLANK` (the batch's method blank). An UNKNOWN with no comment (e.g. a blank
+     verification) and a row with no values (an aborted measurement) are skipped and listed at
+     preview. The bench labels stay as they are. CRM and spike rows wait: their expected value and
+     spike amount aren't in Qtegra (prep data, slim-prep).
+  5. **Analytes:** `65Cu (CP-Off-None)` → Cu. Two isotopes of one element in a file is a file error
+     until a lab needs a choice.
+  6. **Calibration** (r, R², LOD, BEC per analyte, once per run) is stored with the run, for
+     `CAL_FAILED` (D-88) and the quality charts.
+  7. **MDL = the run's `ExtCal.LOD`** for that analyte: from that day's calibration blank, the same
+     for every sample in the run. Not `ExtCal.MQL`, which Qtegra works out per sample. A lab that
+     wants its validated MDL as a floor gets a ruleset option later.
+  8. **Analyst = whoever imports** (the file's user name is the instrument PC's shared login); the
+     preview lets them name someone else. Instrument = the iCAP node's name (`iCAPevoRQ`). Prep batch
+     and analysis are chosen on the import screen (reader options), since Qtegra doesn't know them.
+     `analyzed_at` = the first start time.
+  9. **Dilution:** stored as Qtegra's Dilution Factor, and the value is divided by it, because
+     slim-data keeps the instrument reading before dilution (`linear_range` compares that, D-59).
+     This assumes Qtegra multiplies its concentrations by the factor; *Jamie to confirm* (the
+     export had 1 on every row).
+  - Options weighed: the label for the sample ID (bench labels change; Comment is free); matching
+    labels by hand at preview (transcription again); `MeasuredConcentration.Average` (ignores
+    excluded sweeps); Qtegra's MQL or a method MDL (per-sample, or no table for it yet); Qtegra's QC
+    recovery % (two judges, D-87); columns by position (breaks when the scheme changes).
