@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from slim_data.domain.actor import Actor
 from slim_data.domain.enums import ExclusionKind, ReadingRole, SourceKind
 from slim_data.domain.observations import (
+    Calibration,
     PrepBatch,
     QcExpectation,
     Reading,
@@ -34,6 +35,7 @@ from slim_data.persistence.tables import (
     prep_batches,
     reading_exclusions,
     readings,
+    run_calibrations,
     run_files,
     runs,
 )
@@ -205,11 +207,15 @@ def run_for_file(session: Session, sha256: str) -> int | None:
 
 
 def record_run(
-    session: Session, run: Run, batch_readings: Sequence[tuple[str, Reading]], content: bytes | None = None
+    session: Session,
+    run: Run,
+    batch_readings: Sequence[tuple[str, Reading]],
+    content: bytes | None = None,
+    calibrations: Sequence[Calibration] = (),
 ) -> tuple[Run, tuple[int, ...]]:
-    """Stores one run and its readings, each tagged with its prep batch's code, and the file itself
-    when given (D-88); returns the run and the readings' ids, in order. Refuses a file that was
-    imported before, and readings that don't fit their batch."""
+    """Stores one run and its readings, each tagged with its prep batch's code, the file itself when
+    given (D-88) and the run's calibration (D-89); returns the run and the readings' ids, in order.
+    Refuses a file that was imported before, and readings that don't fit their batch."""
     previous = run_for_file(session, run.source.sha256)
     if previous is not None:
         raise AlreadyImported(previous)
@@ -247,6 +253,19 @@ def record_run(
     ).inserted_primary_key[0]
     if content is not None:
         session.execute(run_files.insert().values(run_id=run_id, content=content))
+    for c in calibrations:
+        session.execute(
+            run_calibrations.insert().values(
+                run_id=run_id,
+                analysis_id=c.analyte.analysis_id,
+                analyte_code=c.analyte.code,
+                unit=c.unit,
+                correlation=c.correlation,
+                determination=c.determination,
+                lod=c.lod,
+                bec=c.bec,
+            )
+        )
     rows = [
         {
             "run_id": run_id,
@@ -288,6 +307,24 @@ def get_run(session: Session, run_id: int) -> Run:
             reader=row.reader,
             kind=SourceKind(row.source_kind),
         ),
+    )
+
+
+def calibrations(session: Session, run_id: int) -> tuple[Calibration, ...]:
+    """A run's calibration per analyte, as the instrument reported it (D-89)."""
+    rows = session.execute(
+        select(run_calibrations).where(run_calibrations.c.run_id == run_id).order_by(run_calibrations.c.id)
+    )
+    return tuple(
+        Calibration(
+            analyte=AnalyteRef(analysis_id=row.analysis_id, code=row.analyte_code),
+            unit=row.unit,
+            correlation=row.correlation,
+            determination=row.determination,
+            lod=row.lod,
+            bec=row.bec,
+        )
+        for row in rows
     )
 
 

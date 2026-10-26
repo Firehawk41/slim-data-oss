@@ -332,3 +332,65 @@ def test_a_kind_the_policy_does_not_accept_is_refused_and_nothing_written(sessio
     with pytest.raises(ImportRefused):
         imported(session)
     assert count(session, runs) == 0
+
+
+# --- qtegra/1 (D-89) ----------------------------------------------------------------------------------
+
+
+def qtegra(**options):
+    from zoneinfo import ZoneInfo
+
+    from slim_data.pipeline.qtegra import Qtegra
+
+    defaults = dict(
+        prep_batch="PB-0009",
+        analysis_code="metals_icpms",
+        analyst_id="ana",
+        timezone=ZoneInfo("America/Chicago"),
+        prep_method="microwave HNO3",
+    )
+    return Qtegra(**(defaults | options))
+
+
+def test_a_qtegra_export_imports_with_its_calibration_and_lists_what_it_left_out(session):
+    from slim_data.persistence.observations import calibrations
+    from tests.pipeline.qtegra_export import export
+
+    content = export()
+    plan = preview_import(session, content, "labbook.xml", ROB, FakeLookup(), FakeStaff(), qtegra())
+    assert plan.ok, plan.errors
+    assert [e.message for e in plan.ignored] == [
+        "Li is not an analyte of metals_icpms",
+        "no sample ID in the comment",
+        "no values (an aborted measurement?)",
+    ]
+    receipt = import_run(session, content, "labbook.xml", ROB, FakeLookup(), FakeStaff(), qtegra())
+    run = get_run(session, receipt.run_id)
+    assert run.source.kind == SourceKind.INSTRUMENT and run.source.reader == "qtegra/1"
+    assert run.instrument == "iCAPevoRQ" and run.analyst.id == "ana" and run.imported_by == ROB
+    assert run_file(session, receipt.run_id) == content
+    assert {(c.analyte.code, c.correlation) for c in calibrations(session, receipt.run_id)} == {
+        ("Cu", Decimal("0.9998")),
+        ("Zn", Decimal("0.9998")),
+    }
+    stored = evaluation_input(session, "PB-0009").readings
+    assert {r.role for r in stored} == {ReadingRole.CUP, ReadingRole.BLANK, ReadingRole.CHECK}
+    diluted = next(r for r in stored if r.sample == sample(2) and r.analyte.code == "Cu")
+    assert diluted.value == qty("5.1") and diluted.dilution == 10 and diluted.mdl == qty("0.020")
+    assert get_batch(session, "PB-0009").qc_expected(ReadingRole.CHECK, analyte("Cu")).expected == qty("5")
+
+
+def test_a_hand_made_file_still_errs_on_an_unknown_analyte(session):
+    plan = preview(session, csv(edit(ROWS[0], analyte="Li")))
+    assert any("Li is not an analyte" in e.message for e in plan.errors) and plan.ignored == ()
+
+
+def test_a_policy_for_instrument_files_only_takes_qtegra_and_refuses_csv(session):
+    from tests.pipeline.qtegra_export import export
+
+    strict = DEMO_POLICY.model_copy(
+        update={"name": "instrument-only", "source_kinds": frozenset({SourceKind.INSTRUMENT})}
+    )
+    publish_policy(session, strict, ROB)
+    assert preview_import(session, export(), "lb.xml", ROB, FakeLookup(), FakeStaff(), qtegra()).ok
+    assert not preview(session).ok

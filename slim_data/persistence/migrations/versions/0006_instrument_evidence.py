@@ -1,5 +1,6 @@
-"""Instrument data in (D-88): each run's source kind, the file itself (`run_files`), and the
-instrument's evidence on each reading (replicate RSD, internal standard recovery), when it has any.
+"""Instrument data in (D-88, D-89): each run's source kind, the file itself (`run_files`), its
+calibration per analyte (`run_calibrations`), and the instrument's evidence on each reading
+(replicate RSD, internal standard recovery), when it has any.
 
 Runs imported before this one came from generic_csv/1, so their source kind is CSV; their files
 weren't kept, so they have no `run_files` row.
@@ -34,10 +35,27 @@ def upgrade() -> None:
         sa.ForeignKeyConstraint(["run_id"], ["runs.id"], name=op.f("fk_run_files_run_id_runs")),
         sa.PrimaryKeyConstraint("run_id", name=op.f("pk_run_files")),
     )
-    append_only.install(op.get_bind(), ("run_files",))
+    op.create_table(
+        "run_calibrations",
+        sa.Column("id", sa.Integer(), nullable=False),
+        sa.Column("run_id", sa.Integer(), nullable=False),
+        sa.Column("analysis_id", sa.Integer(), nullable=False),
+        sa.Column("analyte_code", sa.String(length=20), nullable=False),
+        sa.Column("unit", sa.String(length=20), nullable=False),
+        sa.Column("correlation", types.ExactDecimal(), nullable=True),
+        sa.Column("determination", types.ExactDecimal(), nullable=True),
+        sa.Column("lod", types.ExactDecimal(), nullable=True),
+        sa.Column("bec", types.ExactDecimal(), nullable=True),
+        sa.Column("created_at", types.UtcDateTime(), server_default=types.db_now(), nullable=False),
+        sa.ForeignKeyConstraint(["run_id"], ["runs.id"], name=op.f("fk_run_calibrations_run_id_runs")),
+        sa.PrimaryKeyConstraint("id", name=op.f("pk_run_calibrations")),
+        sa.UniqueConstraint("run_id", "analysis_id", "analyte_code", name="uq_run_calibrations_analyte"),
+    )
+    append_only.install(op.get_bind(), ("run_files", "run_calibrations"))
 
 
 def downgrade() -> None:
+    op.drop_table("run_calibrations")
     op.drop_table("run_files")
     # Plain DROP COLUMN (SQLite 3.35+), not a batch rebuild: rebuilding `runs` would drop a table that
     # stored readings point at, and its append-only triggers with it.

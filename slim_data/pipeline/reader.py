@@ -56,10 +56,24 @@ class ParsedRow(Frozen):
     istd_recovery: Decimal | None = None  # internal standard recovery, % (D-88)
 
 
+class ParsedCalibration(Frozen):
+    """The run's calibration of one analyte, as the instrument reported it (D-89)."""
+
+    analyte_code: str
+    unit: str
+    correlation: Decimal | None = None  # r
+    determination: Decimal | None = None  # R²
+    lod: Decimal | None = None
+    bec: Decimal | None = None
+
+
 class ParsedFile(Frozen):
     run: RunHeader | None
     rows: tuple[ParsedRow, ...] = ()
     errors: tuple[RowError, ...] = Field(default=())
+    calibrations: tuple[ParsedCalibration, ...] = ()
+    # Rows the reader left out on purpose (e.g. an aborted measurement), shown at preview (D-89).
+    ignored: tuple[RowError, ...] = ()
 
 
 class ResultReader(Protocol):

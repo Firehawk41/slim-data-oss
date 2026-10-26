@@ -147,6 +147,21 @@ runs = Table(
     Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
 )
 
+run_calibrations = Table(
+    "run_calibrations",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("run_id", ForeignKey("runs.id"), nullable=False),
+    *_analyte(),
+    Column("unit", String(20), nullable=False),
+    Column("correlation", ExactDecimal()),  # r
+    Column("determination", ExactDecimal()),  # R²
+    Column("lod", ExactDecimal()),
+    Column("bec", ExactDecimal()),
+    Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
+    UniqueConstraint("run_id", "analysis_id", "analyte_code", name="uq_run_calibrations_analyte"),
+)
+
 run_files = Table(
     "run_files",
     metadata,

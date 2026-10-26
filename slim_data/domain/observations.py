@@ -130,6 +130,18 @@ class Run(Frozen):
         return frozenset({self.analyst.id, self.imported_by.id})
 
 
+class Calibration(Frozen):
+    """A run's calibration of one analyte, as the instrument reported it (D-89): what `CAL_FAILED`
+    judges and the quality charts plot. Any figure the file didn't have is None."""
+
+    analyte: AnalyteRef
+    unit: str = Field(min_length=1, max_length=20)  # of the LOD and BEC
+    correlation: Dec | None = None  # r
+    determination: Dec | None = None  # R²
+    lod: Dec | None = None
+    bec: Dec | None = None
+
+
 class Reading(Frozen):
     """One raw measurement (D-06): one row per reading, tagged with a role and a replicate number.
 

@@ -910,7 +910,7 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   - Later, slim-quality counts how often each suggestion is overridden: that's how a guideline is
     tuned, without policing anyone.
 
-- **D-89 How `qtegra/1` reads a Qtegra export** (proposed 2026-10-26; *awaiting Jamie's sign-off*).
+- **D-89 How `qtegra/1` reads a Qtegra export** (Jamie, 2026-10-26, as proposed).
   Worked out from Jamie's full SpreadsheetML export of one LabBook (a real run: read for its layout
   only, never committed; the fixtures are invented in the same shape, D-05). One sheet: four header
   rows (block, sweep, isotope with mode, unit), then one row per measurement in run order.
@@ -945,8 +945,8 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      `analyzed_at` = the first start time.
   9. **Dilution:** stored as Qtegra's Dilution Factor, and the value is divided by it, because
      slim-data keeps the instrument reading before dilution (`linear_range` compares that, D-59).
-     This assumes Qtegra multiplies its concentrations by the factor; *Jamie to confirm* (the
-     export had 1 on every row).
+     Qtegra multiplies its concentrations by the factor (Jamie confirmed; the export had 1 on
+     every row, other analyses won't).
   - Options weighed: the label for the sample ID (bench labels change; Comment is free); matching
     labels by hand at preview (transcription again); `MeasuredConcentration.Average` (ignores
     excluded sweeps); Qtegra's MQL or a method MDL (per-sample, or no table for it yet); Qtegra's QC

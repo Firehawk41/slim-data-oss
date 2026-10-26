@@ -19,8 +19,9 @@ from sqlalchemy.orm import Session
 
 from slim_data.domain.actor import Actor
 from slim_data.domain.base import Frozen
-from slim_data.domain.enums import IdentitySource
+from slim_data.domain.enums import IdentitySource, SourceKind
 from slim_data.domain.observations import (
+    Calibration,
     PrepBatch,
     QcExpectation,
     Reading,
@@ -64,6 +65,8 @@ class ImportPlan(Frozen):
     rejected: tuple[tuple[int, str], ...] = ()  # (index into readings, reason): rejected in the run
     rejected_stored: tuple[tuple[int, str], ...] = ()  # (reading id, reason): rejected since last import
     skipped: int = 0  # rows imported before (a re-export of a growing file)
+    calibrations: tuple[Calibration, ...] = ()  # the run's, per analyte of the analysis (D-89)
+    ignored: tuple[RowError, ...] = ()  # left out on purpose, shown so nothing vanishes silently
     errors: tuple[RowError, ...] = ()
 
     @property
@@ -128,7 +131,12 @@ def preview_import(
                 analyzed_at=parsed.run.analyzed_at,
                 source=source,
             )
-    resolved = _resolve(parsed.rows, lookup, errors)
+    ignored = list(parsed.ignored)
+    # An instrument measures what its method has, which may be more than this analysis: those
+    # analytes are left out and listed, not errors (D-89). A hand-made file has no such excuse.
+    instrument = source.kind == SourceKind.INSTRUMENT
+    resolved = _resolve(parsed.rows, lookup, errors, ignored if instrument else None)
+    calibrations = _calibrations(parsed, lookup)
     run_code = parsed.run.run_code if parsed.run else ""
     fitted = _Fitted()
     _batches(session, resolved, run_code, errors, fitted)
@@ -141,6 +149,8 @@ def preview_import(
         rejected=tuple(fitted.rejected),
         rejected_stored=tuple(fitted.rejected_stored),
         skipped=fitted.skipped,
+        calibrations=calibrations,
+        ignored=tuple(sorted(set(ignored), key=lambda e: (e.line, e.column, e.message))),
         errors=tuple(sorted(errors, key=lambda e: (e.line, e.column, e.message))),
     )
 
@@ -164,7 +174,7 @@ def import_run(
         for addition in plan.batch_additions:
             add_to_batch(session, addition.code, addition.samples, addition.spikes, importer, addition.qc)
         if plan.readings:
-            run, ids = record_run(session, plan.run, plan.readings, content)
+            run, ids = record_run(session, plan.run, plan.readings, content, plan.calibrations)
             run_id = run.id
         # Rejected in the run: the technician's call, so recorded as the analyst's exclusion.
         for reading_id, reason in [(ids[i], why) for i, why in plan.rejected] + list(plan.rejected_stored):
@@ -183,8 +193,11 @@ def import_run(
 # --- meaning of the rows ----------------------------------------------------------------------------
 
 
-def _resolve(rows, lookup: ReferenceLookup, errors: list[RowError]) -> list[tuple[ParsedRow, Reading]]:
-    """Each row as a Reading, checked against the reference data; rows with errors are dropped."""
+def _resolve(
+    rows, lookup: ReferenceLookup, errors: list[RowError], ignored: list[RowError] | None = None
+) -> list[tuple[ParsedRow, Reading]]:
+    """Each row as a Reading, checked against the reference data; rows with errors are dropped.
+    With `ignored`, an analyte the analysis doesn't have is listed there instead of an error."""
     analysis_ids: dict[str, int | None] = {}
     resolved = []
     for row in rows:
@@ -211,6 +224,10 @@ def _resolve(rows, lookup: ReferenceLookup, errors: list[RowError]) -> list[tupl
             errors.append(_error(row, "", error.errors()[0]["msg"]))
             continue
         problems = []
+        if ignored is not None and not lookup.analyte_valid(analyte):
+            message = f"{row.analyte_code} is not an analyte of {row.analysis_code}"
+            ignored.append(RowError(line=0, column="analyte", message=message))
+            continue
         if not lookup.analyte_valid(analyte):
             problems.append(("analyte", f"{row.analyte_code} is not an analyte of {row.analysis_code}"))
         if row.sample is not None:
@@ -222,6 +239,22 @@ def _resolve(rows, lookup: ReferenceLookup, errors: list[RowError]) -> list[tupl
         if not problems:
             resolved.append((row, reading))
     return resolved
+
+
+def _calibrations(parsed, lookup: ReferenceLookup) -> tuple[Calibration, ...]:
+    """The file's calibration, for the analytes of the analysis its rows are for."""
+    codes = {row.analysis_code for row in parsed.rows}
+    if len(codes) != 1:
+        return ()
+    analysis_id = lookup.analysis_id(codes.pop())
+    if analysis_id is None:
+        return ()
+    found = []
+    for c in parsed.calibrations:
+        analyte = AnalyteRef(analysis_id=analysis_id, code=c.analyte_code)
+        if lookup.analyte_valid(analyte):
+            found.append(Calibration(analyte=analyte, **c.model_dump(exclude={"analyte_code"})))
+    return tuple(found)
 
 
 @dataclass
