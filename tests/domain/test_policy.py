@@ -3,7 +3,7 @@
 import pytest
 from pydantic import ValidationError
 
-from slim_data.domain.enums import Action, IdentitySource, Role, Verdict
+from slim_data.domain.enums import Action, IdentitySource, Role, SourceKind, Verdict
 from slim_data.domain.policy import (
     DEMO_POLICY,
     PRODUCTION_EXAMPLE_POLICY,
@@ -62,3 +62,11 @@ def test_only_acceptances_and_exceptions_take_categories_once_each():
     twice = (ReasonCategory(action=Action.ACCEPT, text="judgment"),) * 2
     with pytest.raises(ValidationError, match="listed twice"):
         Policy(name="dup", role_rules=(), identity_rules=(), reason_categories=twice)
+
+
+def test_source_kinds_default_to_all_and_a_lab_may_narrow_them():
+    assert DEMO_POLICY.source_kinds == frozenset(SourceKind)  # the demo trusts its analysts (D-88)
+    strict = Policy(name="strict", role_rules=(), identity_rules=(), source_kinds={SourceKind.INSTRUMENT})
+    assert strict.source_kinds == {SourceKind.INSTRUMENT}
+    with pytest.raises(ValidationError, match="at least 1"):
+        Policy(name="none", role_rules=(), identity_rules=(), source_kinds=frozenset())

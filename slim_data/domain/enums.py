@@ -27,6 +27,14 @@ QC_ROLES = frozenset({ReadingRole.CHECK, ReadingRole.CRM})
 BATCH_ROLES = frozenset({ReadingRole.BLANK}) | QC_ROLES
 
 
+class SourceKind(IntEnum):
+    """How a run's readings came in (D-88): the lab's policy says which it accepts."""
+
+    INSTRUMENT = 1  # the instrument software's own export, read by its reader (e.g. qtegra)
+    CSV = 2  # a file in slim-data's generic layout, made by hand or by a script
+    PASTE = 3  # a table pasted in, as from Excel
+
+
 class ExclusionKind(IntEnum):
     """An analyst takes a reading out, or puts it back (D-65). The newest one for a reading decides."""
 

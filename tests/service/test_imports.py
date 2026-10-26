@@ -1,11 +1,13 @@
 """Preview and all-or-nothing import (DESIGN.md §9, D-24, D-66)."""
 
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 from sqlalchemy import func, select
 
-from slim_data.domain.enums import IdentitySource, ReadingRole
+from slim_data.domain.enums import IdentitySource, ReadingRole, SourceKind
+from slim_data.domain.policy import DEMO_POLICY
 from slim_data.engine.runner import evaluate
 from slim_data.persistence.observations import (
     add_to_batch,
@@ -13,8 +15,12 @@ from slim_data.persistence.observations import (
     get_batch,
     get_run,
     register_batch,
+    run_file,
 )
+from slim_data.persistence.rulesets import publish_policy
 from slim_data.persistence.tables import prep_batches, readings, runs
+from slim_data.pipeline.generic_csv import GenericCsv
+from slim_data.pipeline.reader import ParsedFile
 from slim_data.service.imports import ImportRefused, import_run, preview_import
 from tests.engine.helpers import demo
 from tests.factories import ANA, ROB, analyte, qty, sample
@@ -277,3 +283,52 @@ def test_a_non_positive_expected_value_is_a_row_error(session):
     plan = preview(session, qc_csv(*QC_ROWS[:2], qc_edit(QC_ROWS[2], expected="0")), "qc.csv")
     assert [(e.line, e.column) for e in plan.errors] == [(4, "expected")]
     assert "positive" in plan.errors[0].message
+
+
+# --- how it came in, and the instrument's evidence (D-88) ---------------------------------------------
+
+
+class PastedWithEvidence(GenericCsv):
+    """Stands in for a reader that has RSD and internal standard recovery, as qtegra/1 will."""
+
+    name = "pasted_evidence"
+    source_kind = SourceKind.PASTE
+
+    def parse(self, content: bytes) -> ParsedFile:
+        parsed = super().parse(content)
+        rows = tuple(
+            row.model_copy(update={"rsd": Decimal("1.5") * row.replicate, "istd_recovery": Decimal("97.0")})
+            for row in parsed.rows
+        )
+        return parsed.model_copy(update={"rows": rows})
+
+
+def test_the_file_is_kept_and_its_kind_recorded(session):
+    receipt = imported(session)
+    assert run_file(session, receipt.run_id) == GOOD
+    assert get_run(session, receipt.run_id).source.kind == SourceKind.CSV
+
+
+def test_evidence_is_stored_with_each_reading_and_comes_back(session):
+    receipt = import_run(session, GOOD, "run42.txt", ROB, FakeLookup(), FakeStaff(), PastedWithEvidence())
+    run = get_run(session, receipt.run_id)
+    assert run.source.kind == SourceKind.PASTE and run.source.reader == "pasted_evidence/1"
+    cups = [r for r in evaluation_input(session, "PB-0001").readings if r.role == ReadingRole.CUP]
+    assert {(r.replicate, r.rsd, r.istd_recovery) for r in cups} == {
+        (1, Decimal("1.5"), Decimal("97.0")),
+        (2, Decimal("3.0"), Decimal("97.0")),
+    }
+
+
+def test_a_kind_the_policy_does_not_accept_is_refused_and_nothing_written(session):
+    strict = DEMO_POLICY.model_copy(
+        update={"name": "instrument-only", "source_kinds": frozenset({SourceKind.INSTRUMENT})}
+    )
+    publish_policy(session, strict, ROB)
+    plan = preview(session)
+    assert not plan.ok and [str(e) for e in plan.errors] == [
+        "file: the lab's policy doesn't accept csv imports"
+    ]
+    with pytest.raises(ImportRefused):
+        imported(session)
+    assert count(session, runs) == 0

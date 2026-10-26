@@ -73,11 +73,19 @@ def test_effective_mdl_is_mdl_times_dilution():
         (dict(role=ReadingRole.BLANK), "BLANK, CHECK or CRM reading has no sample"),
         (dict(role=ReadingRole.CHECK), "BLANK, CHECK or CRM reading has no sample"),
         (dict(sample=None), "every other reading needs one"),
+        (dict(rsd=Decimal("-0.1")), "RSD can't be negative"),
+        (dict(istd_recovery=Decimal("0")), "recovery must be positive"),
     ],
 )
 def test_reading_rejects_bad_values(overrides, message):
     with pytest.raises(ValidationError, match=message):
         reading(**overrides)
+
+
+def test_instrument_evidence_is_optional():
+    assert reading().rsd is None and reading().istd_recovery is None
+    evidence = reading(rsd=Decimal("0"), istd_recovery=Decimal("96.2"))
+    assert evidence.rsd == 0 and evidence.istd_recovery == Decimal("96.2")
 
 
 def test_run_and_exclusion():

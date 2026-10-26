@@ -10,7 +10,7 @@ from typing import ClassVar, Protocol
 from pydantic import Field
 
 from slim_data.domain.base import Frozen
-from slim_data.domain.enums import ReadingRole
+from slim_data.domain.enums import ReadingRole, SourceKind
 from slim_data.domain.values import SampleRef
 
 
@@ -52,6 +52,8 @@ class ParsedRow(Frozen):
     qc_lot: str | None = None
     rejected: bool = False  # rejected in the run (e.g. by the technician), usually then rerun (D-66)
     note: str | None = None  # why, recorded as the exclusion's reason
+    rsd: Decimal | None = None  # replicate RSD, % (D-88)
+    istd_recovery: Decimal | None = None  # internal standard recovery, % (D-88)
 
 
 class ParsedFile(Frozen):
@@ -63,6 +65,7 @@ class ParsedFile(Frozen):
 class ResultReader(Protocol):
     name: ClassVar[str]  # e.g. "generic_csv"
     version: ClassVar[int]  # a changed reader is a new version; old ones stay (DESIGN.md §12.3)
+    source_kind: ClassVar[SourceKind]  # what the lab's policy accepts or refuses (D-88)
 
     def parse(self, content: bytes) -> ParsedFile: ...
 

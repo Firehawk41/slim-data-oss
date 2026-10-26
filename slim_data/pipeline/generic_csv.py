@@ -13,7 +13,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import ClassVar
 
-from slim_data.domain.enums import ReadingRole
+from slim_data.domain.enums import ReadingRole, SourceKind
 from slim_data.domain.values import SampleRef
 from slim_data.pipeline.reader import ParsedFile, ParsedRow, RowError, RunHeader
 
@@ -56,6 +56,7 @@ class _Bad(ValueError):
 class GenericCsv:
     name: ClassVar[str] = "generic_csv"
     version: ClassVar[int] = 1
+    source_kind: ClassVar[SourceKind] = SourceKind.CSV
 
     def parse(self, content: bytes) -> ParsedFile:
         try:

@@ -41,6 +41,7 @@ from slim_data.persistence.observations import (
     run_for_file,
     stored_with_runs,
 )
+from slim_data.persistence.rulesets import current_policy
 from slim_data.pipeline.generic_csv import GenericCsv
 from slim_data.pipeline.reader import ParsedRow, ResultReader, RowError, reader_key
 
@@ -95,13 +96,20 @@ def preview_import(
 ) -> ImportPlan:
     reader = reader or GenericCsv()
     source = SourceFile(
-        name=filename[:255] or "upload", sha256=sha256(content).hexdigest(), reader=reader_key(reader)
+        name=filename[:255] or "upload",
+        sha256=sha256(content).hexdigest(),
+        reader=reader_key(reader),
+        kind=reader.source_kind,
     )
     previous = run_for_file(session, source.sha256)
     if previous is not None:
         return ImportPlan(
             source=source, run=None, errors=(RowError(line=0, message=f"already imported as run {previous}"),)
         )
+    published = current_policy(session)
+    if published is not None and source.kind not in published.policy.source_kinds:
+        message = f"the lab's policy doesn't accept {source.kind.name.lower()} imports"
+        return ImportPlan(source=source, run=None, errors=(RowError(line=0, message=message),))
     parsed = reader.parse(content)
     errors = list(parsed.errors)
     run = None
@@ -156,7 +164,7 @@ def import_run(
         for addition in plan.batch_additions:
             add_to_batch(session, addition.code, addition.samples, addition.spikes, importer, addition.qc)
         if plan.readings:
-            run, ids = record_run(session, plan.run, plan.readings)
+            run, ids = record_run(session, plan.run, plan.readings, content)
             run_id = run.id
         # Rejected in the run: the technician's call, so recorded as the analyst's exclusion.
         for reading_id, reason in [(ids[i], why) for i, why in plan.rejected] + list(plan.rejected_stored):
@@ -196,6 +204,8 @@ def _resolve(rows, lookup: ReferenceLookup, errors: list[RowError]) -> list[tupl
                 value=Quantity(value=row.value, unit=row.unit),
                 mdl=None if row.mdl is None else Quantity(value=row.mdl, unit=row.unit),
                 dilution=row.dilution,
+                rsd=row.rsd,
+                istd_recovery=row.istd_recovery,
             )
         except ValidationError as error:
             errors.append(_error(row, "", error.errors()[0]["msg"]))
@@ -392,7 +402,8 @@ def _key(reading: Reading) -> tuple:
 def _content(reading: Reading) -> tuple:
     """What a re-export must repeat exactly, digits included."""
     mdl = None if reading.mdl is None else str(reading.mdl.value)
-    return (str(reading.value.value), reading.value.unit, mdl, str(reading.dilution))
+    evidence = tuple(None if v is None else str(v) for v in (reading.rsd, reading.istd_recovery))
+    return (str(reading.value.value), reading.value.unit, mdl, str(reading.dilution), *evidence)
 
 
 def _error(row: ParsedRow, column: str, message: str) -> RowError:

@@ -11,7 +11,7 @@ from pydantic import AwareDatetime, Field, model_validator
 
 from slim_data.domain.actor import Actor
 from slim_data.domain.base import Dec, Frozen
-from slim_data.domain.enums import ExclusionKind, ReadingRole
+from slim_data.domain.enums import ExclusionKind, ReadingRole, SourceKind
 from slim_data.domain.values import AnalyteRef, Quantity, SampleRef
 
 
@@ -106,6 +106,7 @@ class SourceFile(Frozen):
     name: str = Field(min_length=1, max_length=255)
     sha256: str = Field(pattern=r"^[0-9a-f]{64}$")
     reader: str = Field(min_length=1, max_length=50)  # e.g. "generic_csv/1"
+    kind: SourceKind = SourceKind.CSV  # how the readings came in (D-88)
 
 
 class Run(Frozen):
@@ -147,6 +148,9 @@ class Reading(Frozen):
     value: Quantity
     mdl: Quantity | None = None
     dilution: Dec = Decimal(1)
+    # Instrument evidence, when the file has it (D-88); None = no evidence, never a fault.
+    rsd: Dec | None = None  # the replicate RSD, in %
+    istd_recovery: Dec | None = None  # the internal standard's recovery, in %
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
@@ -159,6 +163,10 @@ class Reading(Frozen):
                 raise ValueError("MDL must be positive")
         if self.dilution < 1:
             raise ValueError("dilution factor must be at least 1")
+        if self.rsd is not None and self.rsd < 0:
+            raise ValueError("RSD can't be negative")
+        if self.istd_recovery is not None and self.istd_recovery <= 0:
+            raise ValueError("internal standard recovery must be positive")
         return self
 
     @property

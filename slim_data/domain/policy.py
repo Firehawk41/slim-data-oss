@@ -5,6 +5,7 @@ A policy answers three questions for an action on a result with a given verdict:
   * which identity sources are accepted (a production lab would refuse ASSERTED for releases);
   * for an acceptance or an exception, which reason categories may be given: each is the standard
     text the report prints (D-11, D-72), so the wording is the lab's, never typed at the bench.
+It also says how readings may come in: instrument files, CSV, paste (D-88).
 Anything a policy doesn't grant is denied. Lab-real versus demo is a different policy, never a
 code branch (D-05).
 """
@@ -14,7 +15,7 @@ from typing import Self
 from pydantic import Field, model_validator
 
 from slim_data.domain.base import Frozen
-from slim_data.domain.enums import Action, IdentitySource, Role, Verdict
+from slim_data.domain.enums import Action, IdentitySource, Role, SourceKind, Verdict
 
 
 class RoleRule(Frozen):
@@ -52,6 +53,8 @@ class Policy(Frozen):
     # Minutes a chemist working alone must wait before a solo review or release of their own
     # results (D-68); None = solo sign-offs not allowed: strict four-eyes.
     solo_review_minutes: int | None = Field(default=None, ge=0)
+    # How readings may come in (D-88); an import from any other kind is refused.
+    source_kinds: frozenset[SourceKind] = Field(default=frozenset(SourceKind), min_length=1)
 
     @model_validator(mode="after")
     def _no_duplicates(self) -> Self:
@@ -125,7 +128,7 @@ DEMO_POLICY = Policy(
     reason_categories=_DEMO_CATEGORIES,
     identity_rules=tuple(IdentityRule(action=action, sources=_ANY_SOURCE) for action in Action),
     solo_review_minutes=15,
-)
+)  # every source kind, no second check: analysts are trusted, the raw data stays on the instrument (D-88)
 """The public demo: tiered roles; demo personas (ASSERTED) may do everything their role allows."""
 
 PRODUCTION_EXAMPLE_POLICY = Policy(

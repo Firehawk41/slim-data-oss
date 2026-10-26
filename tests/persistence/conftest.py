@@ -73,7 +73,7 @@ def stored(session):
     """A published demo ruleset, one batch and one run of readings."""
     ruleset = publish_ruleset(session, DEMO, ANA)
     batch = register_batch(session, make_batch(), ANA)
-    run, _ = record_run(session, make_run(), [(batch.code, r) for r in standard_readings()])
+    run, _ = record_run(session, make_run(), [(batch.code, r) for r in standard_readings()], b"the file")
     return ruleset, batch, run
 
 

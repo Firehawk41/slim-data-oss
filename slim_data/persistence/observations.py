@@ -13,7 +13,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from slim_data.domain.actor import Actor
-from slim_data.domain.enums import ExclusionKind, ReadingRole
+from slim_data.domain.enums import ExclusionKind, ReadingRole, SourceKind
 from slim_data.domain.observations import (
     PrepBatch,
     QcExpectation,
@@ -34,6 +34,7 @@ from slim_data.persistence.tables import (
     prep_batches,
     reading_exclusions,
     readings,
+    run_files,
     runs,
 )
 
@@ -204,11 +205,11 @@ def run_for_file(session: Session, sha256: str) -> int | None:
 
 
 def record_run(
-    session: Session, run: Run, batch_readings: Sequence[tuple[str, Reading]]
+    session: Session, run: Run, batch_readings: Sequence[tuple[str, Reading]], content: bytes | None = None
 ) -> tuple[Run, tuple[int, ...]]:
-    """Stores one run and its readings, each tagged with its prep batch's code; returns the run and
-    the readings' ids, in order. Refuses a file that was imported before, and readings that don't fit
-    their batch."""
+    """Stores one run and its readings, each tagged with its prep batch's code, and the file itself
+    when given (D-88); returns the run and the readings' ids, in order. Refuses a file that was
+    imported before, and readings that don't fit their batch."""
     previous = run_for_file(session, run.source.sha256)
     if previous is not None:
         raise AlreadyImported(previous)
@@ -237,12 +238,15 @@ def record_run(
             source_name=run.source.name,
             source_sha256=run.source.sha256,
             reader=run.source.reader,
+            source_kind=int(run.source.kind),
             analyst_id=run.analyst.id,
             analyst=actor_json(run.analyst),
             imported_by_id=run.imported_by.id,
             imported_by=actor_json(run.imported_by),
         )
     ).inserted_primary_key[0]
+    if content is not None:
+        session.execute(run_files.insert().values(run_id=run_id, content=content))
     rows = [
         {
             "run_id": run_id,
@@ -257,6 +261,8 @@ def record_run(
             "unit": r.value.unit,
             "mdl": r.mdl.value if r.mdl else None,
             "dilution": r.dilution,
+            "rsd": r.rsd,
+            "istd_recovery": r.istd_recovery,
             "attempt": r.attempt,
         }
         for code, r in batch_readings
@@ -276,8 +282,18 @@ def get_run(session: Session, run_id: int) -> Run:
         analyst=Actor.model_validate(row.analyst),
         imported_by=Actor.model_validate(row.imported_by or row.analyst),
         analyzed_at=row.analyzed_at,
-        source=SourceFile(name=row.source_name, sha256=row.source_sha256, reader=row.reader),
+        source=SourceFile(
+            name=row.source_name,
+            sha256=row.source_sha256,
+            reader=row.reader,
+            kind=SourceKind(row.source_kind),
+        ),
     )
+
+
+def run_file(session: Session, run_id: int) -> bytes | None:
+    """The file a run was imported from, as it was; None for runs imported before 0006 (D-88)."""
+    return session.scalar(select(run_files.c.content).where(run_files.c.run_id == run_id))
 
 
 def exclude_reading(session: Session, exclusion: ReadingExclusion) -> ReadingExclusion:
@@ -351,6 +367,8 @@ def _reading(row) -> Reading:
         value=Quantity(value=row.value, unit=row.unit),
         mdl=None if row.mdl is None else Quantity(value=row.mdl, unit=row.unit),
         dilution=row.dilution,
+        rsd=row.rsd,
+        istd_recovery=row.istd_recovery,
     )
 
 
