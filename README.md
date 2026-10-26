@@ -14,8 +14,8 @@ accept or release it under a four-eyes policy. The record keeps **exactly what e
 showed**. Nothing is ever updated or deleted, so any past state can be read back, and `verify` proves
 every stored result is what the rules made.
 
-It is a **library**: the host app (slim-lims, built from
-[slim-lims-oss](https://github.com/Firehawk41/slim-lims-oss)) calls it, owns the transaction and provides the
+It is a **library**: the host app ([slim-lims-oss](https://github.com/Firehawk41/slim-lims-oss), live demo at
+https://slim-lims-oss.onrender.com) calls it, owns the transaction and provides the
 screens. Demo data only: it refuses to connect to anything but a demo database.
 
 ## What it guarantees
@@ -36,7 +36,11 @@ A prep batch is evaluated in a fixed order of steps (each one data-driven by the
 `cup_shape` → `linear_range` → `agreement` (do the two cups agree?) → `cup_choice` (if not, which one
 to trust: spike witness, then the element's known direction of failure, then a whole-cup scale-fault
 check) → `recovery` / `recovery_pooling` → `reported_value` → `uncertainty` → `method_blank` →
-`spec_limits`.
+`qc_check` (check standards and CRMs against their expected values) → `spec_limits`.
+
+Besides sample cups and spikes, a batch carries a method blank, check standards and certified reference
+materials (CRMs). These belong to the batch, not to a sample; a failed check flags every result of that
+element in the batch.
 
 Steps raise flags; the ruleset gives each flag a severity; **the verdict is the worst flag**:
 REPORTABLE, NEEDS_SUPERVISOR or RERUN. Values are `Decimal` end to end (floats are refused),
@@ -68,7 +72,7 @@ with engine.begin() as connection:
     migrate.upgrade(connection)
 
 with Session(engine) as session:
-    trs, _ = seed(session, datetime.now(UTC))  # the nine demo scenarios, through the service
+    trs, _ = seed(session, datetime.now(UTC))  # the ten demo scenarios, through the service
     session.commit()
 
     for line in report_view(session, trs["cups_disagree"]).lines:
@@ -77,15 +81,17 @@ with Session(engine) as session:
 ```
 
 ```
+TR00102-01 Fe 0.295 ()
 TR00102-01 Zn 10.000 ('ABOVE_SPEC',)
-versions=20 mismatches=() chain_checked=False broken_entries=()
+versions=23 mismatches=() chain_checked=False broken_entries=()
 ```
 
 The demo scenarios, across 10 Elements, 36 Elements, anions and an acid assay: a clean pass, cups that
 disagree, a scale fault, a spike pooled from other samples, a result below the MDL, a rerun released
-with an exception, an accepted NEEDS_SUPERVISOR result, an amended report, and a line-by-line import. On SQLite there is no change log, so `verify` reports the
-chain as *not checked*. In slim-lims-oss (Postgres) the same scenarios are seeded onto real requests, and
-`python -m slim_lab_portal.cli verify` checks both.
+with an exception, an accepted NEEDS_SUPERVISOR result, an amended report, a line-by-line import, and a
+failed check standard that sends one element to rerun. On SQLite there is no change log, so `verify`
+reports the chain as *not checked*. In slim-lims-oss (Postgres) the same scenarios are seeded onto real requests, and
+`python -m slim_lims.cli verify` checks both.
 
 ## Using it from a host
 
@@ -141,12 +147,12 @@ golden CSV fixtures; every released step version is pinned in `tests/engine/step
 ## Design
 
 - [docs/DESIGN.md](docs/DESIGN.md): what gets built (signed off).
-- [docs/DECISIONS.md](docs/DECISIONS.md): every decision, D-01…D-77, with the options weighed and
+- [docs/DECISIONS.md](docs/DECISIONS.md): every decision, D-01…D-87, with the options weighed and
   why the others were rejected.
 
-Parked for later: instrument-native readers, full measurement-uncertainty budgets, unit conversion,
-a result-entry UI, the report engine rendering the actual report file (until then the issue's hash is
-of a canonical JSON form of the report, D-73).
+Next ([roadmap](https://github.com/Firehawk41/slim-lims-oss/blob/main/docs/ROADMAP.md)): bench prep
+(slim-prep) and instrument-native readers. Parked: full measurement-uncertainty budgets, unit
+conversion, a result-entry UI, bracketing check standards by run order.
 
 ## License
 
