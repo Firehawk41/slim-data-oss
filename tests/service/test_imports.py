@@ -394,3 +394,13 @@ def test_a_policy_for_instrument_files_only_takes_qtegra_and_refuses_csv(session
     publish_policy(session, strict, ROB)
     assert preview_import(session, export(), "lb.xml", ROB, FakeLookup(), FakeStaff(), qtegra()).ok
     assert not preview(session).ok
+
+
+def test_a_paste_imports_and_records_its_kind(session):
+    from slim_data.pipeline.paste import Paste
+
+    pasted = "\r\n".join(line.replace(",", "\t") for line in GOOD.decode().splitlines()).encode()
+    receipt = import_run(session, pasted, "pasted", ROB, FakeLookup(), FakeStaff(), Paste())
+    run = get_run(session, receipt.run_id)
+    assert run.source.kind == SourceKind.PASTE and run.source.reader == "paste/1"
+    assert receipt.readings == 6 and run_file(session, receipt.run_id) == pasted
