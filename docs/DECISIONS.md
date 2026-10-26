@@ -858,8 +858,8 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     register is Quality's, phase 5); expected values typed into the ruleset (they change per lot, not
     per method).
 
-- **D-88 Instrument data in: what to mine, optional fields, how it came in** (proposed 2026-10-26
-  with Jamie; *awaiting sign-off*). Phase 1's instrument readers. The test for every field: a step
+- **D-88 Instrument data in: what to mine, optional fields, how it came in** (Jamie, 2026-10-26, as
+  proposed but for point 7's demo). Phase 1's instrument readers. The test for every field: a step
   judges it, a chart plots it, a person acts on it, or an auditor asks for it. Storing more is cheap;
   the cost is upkeep (parser surface, the §7.11 validation pack, screens nobody reads, rules that
   grow because the data is there).
@@ -895,7 +895,8 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      imported it; the run also gets its source kind (instrument file / CSV / paste). The policy
      lists the kinds the lab accepts and which need a second person's check before evaluation
      (pasted numbers can carry transcription errors; an instrument file is stronger evidence). Demo:
-     all three accepted; paste needs a check.
+     all three accepted, none needs a check: the analysts are trusted, and the raw data stays on the
+     instrument computer for audits (Jamie; first drafted as paste needing a second check).
   8. Run order (from the sample list) is stored but not judged yet: bracketing (D-87 point 4) and a
      carryover suggestion (a low result straight after a very high one) come later.
   9. Demo data is invented in Qtegra's layout (headers, Mean / RSD / SD rows); never a real
