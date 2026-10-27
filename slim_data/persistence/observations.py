@@ -167,23 +167,32 @@ def get_batch(session: Session, code: str, as_of: datetime | None = None) -> Pre
         .where(prep_batch_samples.c.batch_id == row.id, as_of_filter(prep_batch_samples.c.created_at, as_of))
         .order_by(prep_batch_samples.c.id)
     ).all()
-    spikes = session.execute(
-        select(prep_batch_spikes)
-        .where(prep_batch_spikes.c.batch_id == row.id, as_of_filter(prep_batch_spikes.c.created_at, as_of))
-        .order_by(prep_batch_spikes.c.id)
-    ).all()
+    spikes = _latest(
+        session.execute(
+            select(prep_batch_spikes)
+            .where(
+                prep_batch_spikes.c.batch_id == row.id, as_of_filter(prep_batch_spikes.c.created_at, as_of)
+            )
+            .order_by(prep_batch_spikes.c.id)
+        ).all(),
+        lambda s: (s.tr_number, s.position, s.analysis_id, s.analyte_code),
+    )
     qc = session.execute(
         select(prep_batch_qc)
         .where(prep_batch_qc.c.batch_id == row.id, as_of_filter(prep_batch_qc.c.created_at, as_of))
         .order_by(prep_batch_qc.c.id)
     ).all()
-    dilutions = session.execute(
-        select(prep_batch_dilutions)
-        .where(
-            prep_batch_dilutions.c.batch_id == row.id, as_of_filter(prep_batch_dilutions.c.created_at, as_of)
-        )
-        .order_by(prep_batch_dilutions.c.id)
-    ).all()
+    dilutions = _latest(
+        session.execute(
+            select(prep_batch_dilutions)
+            .where(
+                prep_batch_dilutions.c.batch_id == row.id,
+                as_of_filter(prep_batch_dilutions.c.created_at, as_of),
+            )
+            .order_by(prep_batch_dilutions.c.id)
+        ).all(),
+        lambda d: (d.tr_number, d.position, d.role, d.replicate),
+    )
     return PrepBatch(
         id=row.id,
         code=row.code,
@@ -218,6 +227,72 @@ def get_batch(session: Session, code: str, as_of: datetime | None = None) -> Pre
             for d in dilutions
         ),
     )
+
+
+def _latest(rows, key) -> list:
+    """The newest version of each entry, in the order the entries were first recorded (D-96)."""
+    newest: dict = {}
+    for row in rows:
+        k = key(row)
+        if k not in newest or row.version > newest[k].version:
+            newest[k] = row
+    return list(newest.values())
+
+
+def correct_prep(
+    session: Session,
+    code: str,
+    actor: Actor,
+    reason: str,
+    dilutions: Sequence[CupDilution] = (),
+    spikes: Sequence[SpikeAddition] = (),
+) -> tuple[PrepBatch, int]:
+    """A prep correction after handoff (D-96): each changed cup dilution or spike amount becomes the next
+    version of that entry, with why and who. Entries must already be on the batch (new ones go through
+    `add_to_batch`). Returns the batch as it now stands and how many entries changed. The host
+    re-evaluates the batch afterwards; released results it changes go through a correction (D-69)."""
+    reason = reason.strip()
+    if not reason:
+        raise ValueError("a prep correction needs a reason")
+    batch = get_batch(session, code)
+    changes = []
+    for d in dilutions:
+        current = batch.prep_dilution(d.sample, d.role, d.replicate)
+        if current is None:
+            raise ValueError(f"batch {code} has no prep dilution for {d.sample} {d.role.name} {d.replicate}")
+        if current != d.dilution:
+            key = (
+                prep_batch_dilutions,
+                {"tr_number": d.sample.tr_number, "position": d.sample.position, "role": int(d.role),
+                 "replicate": d.replicate},
+            )  # fmt: skip
+            changes.append((*key, {"dilution": d.dilution}))
+    for s in spikes:
+        current = batch.spike_added(s.sample, s.analyte)
+        if current is None:
+            raise ValueError(f"batch {code} has no spike amount for {s.sample} {s.analyte.code}")
+        if current != s.added:
+            key = (
+                prep_batch_spikes,
+                {"tr_number": s.sample.tr_number, "position": s.sample.position,
+                 "analysis_id": s.analyte.analysis_id, "analyte_code": s.analyte.code},
+            )  # fmt: skip
+            changes.append((*key, {"added": s.added.value, "unit": s.added.unit}))
+    if changes:
+        set_change_context(session, actor, reason)
+    for table, key, values in changes:
+        latest = session.scalar(
+            select(table.c.version)
+            .where(table.c.batch_id == batch.id, *(table.c[c] == v for c, v in key.items()))
+            .order_by(table.c.version.desc())
+            .limit(1)
+        )
+        session.execute(
+            table.insert().values(
+                batch_id=batch.id, **key, **values, version=latest + 1, reason=reason, created_by_id=actor.id
+            )
+        )
+    return get_batch(session, code), len(changes)
 
 
 def list_batches(session: Session, as_of: datetime | None = None) -> list:
@@ -413,11 +488,23 @@ def evaluation_input(session: Session, code: str, as_of: datetime | None = None)
     found = batch_readings(session, batch.id, as_of)
     if not found:
         raise NotFound(f"prep batch {code} has no readings yet")
+    found = tuple(with_prep_dilution(batch, r) for r in found)
     excluded = _excluded(session, readings.c.batch_id == batch.id, as_of)
     runs_used = {r.run_id for r in found}
     found_calibrations = _calibrations(session, run_calibrations.c.run_id.in_(runs_used)) if runs_used else ()
     return EvaluationInput(
         batch=batch, readings=found, excluded_reading_ids=excluded, calibrations=found_calibrations
+    )
+
+
+def with_prep_dilution(batch: PrepBatch, reading: Reading) -> Reading:
+    """The prep book's dilution as it stood (D-96): a correction after import reaches the readings
+    without editing them. Readings keep the dilution they were imported with."""
+    if reading.sample is None:
+        return reading
+    prep = batch.prep_dilution(reading.sample, reading.role, reading.replicate)
+    return (
+        reading if prep is None or prep == reading.dilution else reading.model_copy(update={"dilution": prep})
     )
 
 

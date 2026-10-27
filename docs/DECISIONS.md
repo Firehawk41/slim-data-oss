@@ -1030,3 +1030,17 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      re-evaluates; released results go through the correction flow (amended report, D-69).
   - Rejected: a warning only on disagreement (a mix-up would reach a report); slim-data asking
     slim-prep through a port at import (two modules in one import; the batch row already has a home).
+
+- **D-96 A prep correction after handoff** (Jamie, 2026-10-27, as proposed: D-95 point 4).
+  1. Cup dilutions and spike amounts are versioned (migration 0008 for spikes; 0007 for dilutions, amended
+     the same day before release): `correct_prep` appends the next version of each changed entry with a
+     reason and who. `get_batch` reads the newest version as of any moment.
+  2. The prep dilution is applied when the batch is read for evaluation, not written into the readings:
+     `evaluation_input` gives each prepped cup's reading the prep book's dilution as it stood. Readings
+     stay as imported (D-04), and `verify` replays every version as of its making.
+  3. The host then re-evaluates: drafts get a new version; released results it changes are reported as
+     `released_affected` and go through the correction flow (D-69, amended report).
+  4. Re-exports compare the stored readings as the prep book now says, so a correction doesn't make a
+     re-export look different.
+  - Rejected: re-importing the run (duplicate readings, and the file isn't what changed); editing the
+    stored readings (append-only).

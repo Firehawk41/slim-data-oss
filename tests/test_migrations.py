@@ -25,11 +25,11 @@ def _version(connection) -> str | None:
 def test_upgrade_downgrade_upgrade(engine):
     with engine.begin() as connection:
         migrate.upgrade(connection)
-        assert _version(connection) == "0007"
+        assert _version(connection) == "0008"
         migrate.downgrade(connection)
         assert _version(connection) is None
         migrate.upgrade(connection)
-        assert _version(connection) == "0007"
+        assert _version(connection) == "0008"
         migrate.downgrade(connection)
 
 
@@ -104,7 +104,7 @@ def test_downgrading_past_0005_keeps_stored_qc_readings_valid(engine):
             session.flush()
             migrate.downgrade(connection, "0004")
             migrate.upgrade(connection)
-            assert _version(connection) == "0007"
+            assert _version(connection) == "0008"
             session.rollback()
             session.close()
         finally:

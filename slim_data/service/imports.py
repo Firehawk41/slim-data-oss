@@ -41,6 +41,7 @@ from slim_data.persistence.observations import (
     register_batch,
     run_for_file,
     stored_with_runs,
+    with_prep_dilution,
 )
 from slim_data.persistence.rulesets import current_policy
 from slim_data.pipeline.generic_csv import GenericCsv
@@ -281,8 +282,9 @@ def _batches(session, resolved, run_code: str, errors: list[RowError], out: _Fit
         except NotFound:
             existing = None
         stored = defaultdict(list)  # cup -> [(reading, run_code, excluded)], oldest first
-        for entry in stored_with_runs(session, existing.id) if existing else ():
-            stored[_key(entry[0])].append(entry)
+        for reading, *rest in stored_with_runs(session, existing.id) if existing else ():
+            # compared with the file as the prep book now says, as the file's own rows are (D-96)
+            stored[_key(reading)].append((with_prep_dilution(existing, reading), *rest))
         seen_in_file = defaultdict(int)
         new_items = []
         for row, reading in items:
