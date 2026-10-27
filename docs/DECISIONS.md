@@ -857,3 +857,113 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     as D-64 rejected for blanks); expected values from a reference-material table in slim-data (that
     register is Quality's, phase 5); expected values typed into the ruleset (they change per lot, not
     per method).
+
+- **D-88 Instrument data in: what to mine, optional fields, how it came in** (Jamie, 2026-10-26, as
+  proposed but for point 7's demo). Phase 1's instrument readers. The test for every field: a step
+  judges it, a chart plots it, a person acts on it, or an auditor asks for it. Storing more is cheap;
+  the cost is upkeep (parser surface, the §7.11 validation pack, screens nobody reads, rules that
+  grow because the data is there).
+  1. A reader `qtegra/1` for Thermo Qtegra's SpreadsheetML export (per LabBook). It takes:
+     concentrations; each reading's replicate RSD; the internal-standard recovery (%) per reading;
+     calibration per analyte and run (R² or r, LOD, BEC); the sample list (run order, start time,
+     user). It leaves out raw intensities, survey, instrument status, regression coefficients and
+     the noticeboard. Qtegra's own QC pass/fail is not taken: its QC rows come in as CHECK readings
+     and `qc_check@1` judges them (one judge, D-87). Sweeps are not imported: the analyst drops an
+     outlier sweep in Qtegra, where they can see it, and the export's mean and RSD follow.
+  2. The original file is kept beside its run (today only its hash is, `runs.source_sha256`), so a
+     field left out now is never lost: a later reader version can mine it.
+  3. Two optional fields on `Reading`: `rsd` and `istd_recovery`. Blank means no evidence, not a
+     fault: the steps that use them stay silent. A ruleset may mark either as required (as D-87
+     does for CHECK / CRM); then a blank raises `RSD_MISSING` / `ISTD_MISSING`. Existing readings
+     simply have none (D-04).
+  4. **Suggestions, not verdicts.** A new step `precision@1`: `RSD_HIGH` above a ruleset limit,
+     applied only above a multiple of the MDL (near the MDL counts are low and a high RSD is
+     normal: zones, as `agreement` has, D-28); `ISTD_LOW` / `ISTD_HIGH` outside a window. Demo
+     severities INFO / WARN: shown with their reason and numbers in the trace, never blocking
+     (D-56). A lab that wants a hard rule raises the severity in its ruleset. Calibration below its
+     limit is a rule, not a suggestion: `CAL_FAILED`, demo RERUN, on every result of that analyte
+     in the run.
+  5. `cup_choice@2`: one new rung, *instrument precision*, after analyst exclusion and scale fault.
+     When the cups disagree and one cup's reading is unstable (RSD high) or suppressed (internal
+     standard low) and the other's is not, the stable cup is believed. Without the fields, the rung
+     is inconclusive and the ladder goes on as in `cup_choice@1`. The analyst's exclusion stays first:
+     no suggestion overrides a person (D-31).
+  6. **Paste is a reader too.** `paste/1` reads a table copied from Excel (tab-separated), with the
+     same columns and checks as `generic_csv/1`, so a lab with any instrument, or none wired, can
+     work as it did in Excel. Qtegra is never enforced.
+  7. **How it came in is recorded and is policy.** Every run already names its reader and who
+     imported it; the run also gets its source kind (instrument file / CSV / paste). The policy
+     lists the kinds the lab accepts and which need a second person's check before evaluation
+     (pasted numbers can carry transcription errors; an instrument file is stronger evidence). Demo:
+     all three accepted, none needs a check: the analysts are trusted, and the raw data stays on the
+     instrument computer for audits (Jamie; first drafted as paste needing a second check).
+  8. Run order (from the sample list) is stored but not judged yet: bracketing (D-87 point 4) and a
+     carryover suggestion (a low result straight after a very high one) come later.
+  9. Demo data is invented in Qtegra's layout (headers, Mean / RSD / SD rows); never a real
+     LabBook (D-05).
+  - Options weighed: raw intensities for every analyte (nobody acts on them; micromanaging);
+    Qtegra's QC verdict alongside `qc_check` (two judges disagree); importing each sweep and judging
+    outliers in slim-data (takes the call from the analyst, who sees the sweeps in Qtegra); RSD as a
+    hard rule (trace-level results would all flag, and analysts learn to ignore flags); Qtegra
+    only (ties a LIMS to one vendor); paste with no provenance (an auditor can't tell typed numbers
+    from an instrument's).
+  - Later, slim-quality counts how often each suggestion is overridden: that's how a guideline is
+    tuned, without policing anyone.
+
+- **D-89 How `qtegra/1` reads a Qtegra export** (Jamie, 2026-10-26, as proposed).
+  Worked out from Jamie's full SpreadsheetML export of one LabBook (a real run: read for its layout
+  only, never committed; the fixtures are invented in the same shape, D-05). One sheet: four header
+  rows (block, sweep, isotope with mode, unit), then one row per measurement in run order.
+  1. **The scheme to save in Qtegra ("SLIM"):** Sample list (user name, start / stop time, the iCAP
+     node: label, comment, Sample Type, Dilution Factor, QC Action, Standard), Concentrations
+     (`ExtCal.Average`, `ExtCal.RSD`), Quality Control (`ExtCal.QC.ReferenceAmount`), Calibration
+     (`ExtCal.CorrelationCoefficient`, `ExtCal.CoefficientOfDetermination`, `ExtCal.LOD`,
+     `ExtCal.BEC`). The reader finds blocks by header name, never by column number, and ignores
+     every other block, so a fuller export reads the same.
+  2. **Values:** `ExtCal.Average` and `ExtCal.RSD`. They respect the sweeps the analyst or Qtegra
+     left out (shown blue in the file), where `MeasuredConcentration.Average` doesn't. Sweeps and
+     Qtegra's cell colours are not read: slim-data judges for itself (D-88).
+  3. **Internal standard:** a column whose `ExtCal.Average` unit is % (e.g. 103Rh). Its value is the
+     recovery, stored on every reading of that row; with several, the lowest. Never a reading itself.
+  4. **Rows by Sample Type:** BLK (calibration blank) is skipped; STD gives the calibration only; QC
+     with QC Action CCV is a CHECK reading per element, expected = `QC.ReferenceAmount`, material =
+     `Standard`; UNKNOWN is identified by its **Comment**: `TR00012-1 A` (sample, cup A = replicate 1,
+     B = 2), `BLANK` (the batch's method blank). An UNKNOWN with no comment (e.g. a blank
+     verification) and a row with no values (an aborted measurement) are skipped and listed at
+     preview. The bench labels stay as they are. CRM and spike rows wait: their expected value and
+     spike amount aren't in Qtegra (prep data, slim-prep).
+  5. **Analytes:** `65Cu (CP-Off-None)` → Cu. Two isotopes of one element in a file is a file error
+     until a lab needs a choice.
+  6. **Calibration** (r, R², LOD, BEC per analyte, once per run) is stored with the run, for
+     `CAL_FAILED` (D-88) and the quality charts.
+  7. **MDL = the run's `ExtCal.LOD`** for that analyte: from that day's calibration blank, the same
+     for every sample in the run. Not `ExtCal.MQL`, which Qtegra works out per sample. A lab that
+     wants its validated MDL as a floor gets a ruleset option later.
+  8. **Analyst = whoever imports** (the file's user name is the instrument PC's shared login); the
+     preview lets them name someone else. Instrument = the iCAP node's name (`iCAPevoRQ`). Prep batch
+     and analysis are chosen on the import screen (reader options), since Qtegra doesn't know them.
+     `analyzed_at` = the first start time.
+  9. **Dilution:** stored as Qtegra's Dilution Factor, and the value is divided by it, because
+     slim-data keeps the instrument reading before dilution (`linear_range` compares that, D-59).
+     Qtegra multiplies its concentrations by the factor (Jamie confirmed; the export had 1 on
+     every row, other analyses won't).
+  - Options weighed: the label for the sample ID (bench labels change; Comment is free); matching
+    labels by hand at preview (transcription again); `MeasuredConcentration.Average` (ignores
+    excluded sweeps); Qtegra's MQL or a method MDL (per-sample, or no table for it yet); Qtegra's QC
+    recovery % (two judges, D-87); columns by position (breaks when the scheme changes).
+
+- **D-90 The demo's precision and calibration limits** (Jamie, 2026-10-27). D-88 point 4's numbers,
+  as ruleset data; two steps rather than one, since a calibration belongs to a run and RSD and
+  internal standard to a reading.
+  1. `precision@1`, per cup: `RSD_HIGH` when the RSD is above 10 %, judged only when the cup's value
+     is at least 10 × its effective MDL (MDL × dilution factor, D-54); below that, or with no MDL,
+     not judged (the trace says so). `ISTD_LOW` / `ISTD_HIGH` outside 50–150 % internal standard
+     recovery. Demo severities WARN: suggestions, never blocking (D-88). `RSD_MISSING` /
+     `ISTD_MISSING` only when the ruleset marks the evidence required (demo: not).
+  2. `calibration@1`: `CAL_FAILED` when the run's R² is below 0.995 for the element, on every result
+     whose readings came from that run (demo RERUN). A run with no R² for the element isn't judged.
+     R², not r: the figure Jamie's lab reads.
+  3. To link a reading to its run's calibration, `Reading` gains its `run_id` (stored since M3), and
+     `Calibration` its run. The engine input carries the batch's runs' calibrations.
+  4. The demo metals ruleset gets a new version with both steps (D-04: published results keep the
+     version they were made with).

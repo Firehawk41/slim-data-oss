@@ -1,11 +1,13 @@
 """Preview and all-or-nothing import (DESIGN.md §9, D-24, D-66)."""
 
+from decimal import Decimal
 from pathlib import Path
 
 import pytest
 from sqlalchemy import func, select
 
-from slim_data.domain.enums import IdentitySource, ReadingRole
+from slim_data.domain.enums import IdentitySource, ReadingRole, SourceKind
+from slim_data.domain.policy import DEMO_POLICY
 from slim_data.engine.runner import evaluate
 from slim_data.persistence.observations import (
     add_to_batch,
@@ -13,8 +15,12 @@ from slim_data.persistence.observations import (
     get_batch,
     get_run,
     register_batch,
+    run_file,
 )
+from slim_data.persistence.rulesets import publish_policy
 from slim_data.persistence.tables import prep_batches, readings, runs
+from slim_data.pipeline.generic_csv import GenericCsv
+from slim_data.pipeline.reader import ParsedFile
 from slim_data.service.imports import ImportRefused, import_run, preview_import
 from tests.engine.helpers import demo
 from tests.factories import ANA, ROB, analyte, qty, sample
@@ -277,3 +283,139 @@ def test_a_non_positive_expected_value_is_a_row_error(session):
     plan = preview(session, qc_csv(*QC_ROWS[:2], qc_edit(QC_ROWS[2], expected="0")), "qc.csv")
     assert [(e.line, e.column) for e in plan.errors] == [(4, "expected")]
     assert "positive" in plan.errors[0].message
+
+
+# --- how it came in, and the instrument's evidence (D-88) ---------------------------------------------
+
+
+class PastedWithEvidence(GenericCsv):
+    """Stands in for a reader that has RSD and internal standard recovery, as qtegra/1 will."""
+
+    name = "pasted_evidence"
+    source_kind = SourceKind.PASTE
+
+    def parse(self, content: bytes) -> ParsedFile:
+        parsed = super().parse(content)
+        rows = tuple(
+            row.model_copy(update={"rsd": Decimal("1.5") * row.replicate, "istd_recovery": Decimal("97.0")})
+            for row in parsed.rows
+        )
+        return parsed.model_copy(update={"rows": rows})
+
+
+def test_the_file_is_kept_and_its_kind_recorded(session):
+    receipt = imported(session)
+    assert run_file(session, receipt.run_id) == GOOD
+    assert get_run(session, receipt.run_id).source.kind == SourceKind.CSV
+
+
+def test_evidence_is_stored_with_each_reading_and_comes_back(session):
+    receipt = import_run(session, GOOD, "run42.txt", ROB, FakeLookup(), FakeStaff(), PastedWithEvidence())
+    run = get_run(session, receipt.run_id)
+    assert run.source.kind == SourceKind.PASTE and run.source.reader == "pasted_evidence/1"
+    cups = [r for r in evaluation_input(session, "PB-0001").readings if r.role == ReadingRole.CUP]
+    assert {(r.replicate, r.rsd, r.istd_recovery) for r in cups} == {
+        (1, Decimal("1.5"), Decimal("97.0")),
+        (2, Decimal("3.0"), Decimal("97.0")),
+    }
+
+
+def test_a_kind_the_policy_does_not_accept_is_refused_and_nothing_written(session):
+    strict = DEMO_POLICY.model_copy(
+        update={"name": "instrument-only", "source_kinds": frozenset({SourceKind.INSTRUMENT})}
+    )
+    publish_policy(session, strict, ROB)
+    plan = preview(session)
+    assert not plan.ok and [str(e) for e in plan.errors] == [
+        "file: the lab's policy doesn't accept csv imports"
+    ]
+    with pytest.raises(ImportRefused):
+        imported(session)
+    assert count(session, runs) == 0
+
+
+# --- qtegra/1 (D-89) ----------------------------------------------------------------------------------
+
+
+def qtegra(**options):
+    from zoneinfo import ZoneInfo
+
+    from slim_data.pipeline.qtegra import Qtegra
+
+    defaults = dict(
+        prep_batch="PB-0009",
+        analysis_code="metals_icpms",
+        analyst_id="ana",
+        timezone=ZoneInfo("America/Chicago"),
+        prep_method="microwave HNO3",
+    )
+    return Qtegra(**(defaults | options))
+
+
+def test_a_qtegra_export_imports_with_its_calibration_and_lists_what_it_left_out(session):
+    from slim_data.demo.qtegra_export import export
+    from slim_data.persistence.observations import calibrations
+
+    content = export()
+    plan = preview_import(session, content, "labbook.xml", ROB, FakeLookup(), FakeStaff(), qtegra())
+    assert plan.ok, plan.errors
+    assert [e.message for e in plan.ignored] == [
+        "Li is not an analyte of metals_icpms",
+        "no sample ID in the comment",
+        "no values (an aborted measurement?)",
+    ]
+    receipt = import_run(session, content, "labbook.xml", ROB, FakeLookup(), FakeStaff(), qtegra())
+    run = get_run(session, receipt.run_id)
+    assert run.source.kind == SourceKind.INSTRUMENT and run.source.reader == "qtegra/1"
+    assert run.instrument == "iCAPevoRQ" and run.analyst.id == "ana" and run.imported_by == ROB
+    assert run_file(session, receipt.run_id) == content
+    assert {(c.analyte.code, c.correlation) for c in calibrations(session, receipt.run_id)} == {
+        ("Cu", Decimal("0.9998")),
+        ("Zn", Decimal("0.9998")),
+    }
+    stored = evaluation_input(session, "PB-0009").readings
+    assert {r.role for r in stored} == {ReadingRole.CUP, ReadingRole.BLANK, ReadingRole.CHECK}
+    diluted = next(r for r in stored if r.sample == sample(2) and r.analyte.code == "Cu")
+    assert diluted.value == qty("5.1") and diluted.dilution == 10 and diluted.mdl == qty("0.020")
+    assert get_batch(session, "PB-0009").qc_expected(ReadingRole.CHECK, analyte("Cu")).expected == qty("5")
+
+
+def test_a_hand_made_file_still_errs_on_an_unknown_analyte(session):
+    plan = preview(session, csv(edit(ROWS[0], analyte="Li")))
+    assert any("Li is not an analyte" in e.message for e in plan.errors) and plan.ignored == ()
+
+
+def test_a_policy_for_instrument_files_only_takes_qtegra_and_refuses_csv(session):
+    from slim_data.demo.qtegra_export import export
+
+    strict = DEMO_POLICY.model_copy(
+        update={"name": "instrument-only", "source_kinds": frozenset({SourceKind.INSTRUMENT})}
+    )
+    publish_policy(session, strict, ROB)
+    assert preview_import(session, export(), "lb.xml", ROB, FakeLookup(), FakeStaff(), qtegra()).ok
+    assert not preview(session).ok
+
+
+def test_a_paste_imports_and_records_its_kind(session):
+    from slim_data.pipeline.paste import Paste
+
+    pasted = "\r\n".join(line.replace(",", "\t") for line in GOOD.decode().splitlines()).encode()
+    receipt = import_run(session, pasted, "pasted", ROB, FakeLookup(), FakeStaff(), Paste())
+    run = get_run(session, receipt.run_id)
+    assert run.source.kind == SourceKind.PASTE and run.source.reader == "paste/1"
+    assert receipt.readings == 6 and run_file(session, receipt.run_id) == pasted
+
+
+def test_a_failed_calibration_in_the_export_reaches_the_results_from_that_run(session):
+    from slim_data.demo.qtegra_export import RUN, export, measurement
+    from tests.engine.helpers import demo
+
+    poor = {e: ("0.9990", "0.9900", "0.020", "0.004") for e in ("7Li", "63Cu", "66Zn")}  # R² 0.990
+    standards = tuple(
+        measurement("STD", m["label"], standard=m["standard"], values=m["values"], calibration=poor)
+        for m in RUN[1:4]
+    )
+    content = export((RUN[0], *standards, *RUN[4:]))
+    import_run(session, content, "labbook.xml", ROB, FakeLookup(), FakeStaff(), qtegra())
+    results = evaluate(evaluation_input(session, "PB-0009"), demo()).cells
+    assert results and all("CAL_FAILED" in [f.code for f in cell.flags] for cell in results)

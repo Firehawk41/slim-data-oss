@@ -74,7 +74,15 @@ def _build_state(data: EvaluationInput) -> BatchState:
             cell.superseded.append(reading_id)
     ordered = dict(sorted(cells.items(), key=lambda item: (str(item[0][0]), item[0][1].code)))
     limits = {(entry.sample, entry.analyte): entry.limits for entry in data.limits}
-    return BatchState(batch=data.batch, cells=ordered, blanks=tuple(blanks), qc=tuple(qc), limits=limits)
+    calibrations = {(c.run_id, c.analyte): c for c in data.calibrations if c.run_id is not None}
+    return BatchState(
+        batch=data.batch,
+        cells=ordered,
+        blanks=tuple(blanks),
+        qc=tuple(qc),
+        limits=limits,
+        calibrations=calibrations,
+    )
 
 
 def evaluate(data: EvaluationInput, ruleset: ValidatedRuleset) -> BatchEvaluation:

@@ -13,7 +13,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 from typing import ClassVar
 
-from slim_data.domain.enums import ReadingRole
+from slim_data.domain.enums import ReadingRole, SourceKind
 from slim_data.domain.values import SampleRef
 from slim_data.pipeline.reader import ParsedFile, ParsedRow, RowError, RunHeader
 
@@ -56,13 +56,15 @@ class _Bad(ValueError):
 class GenericCsv:
     name: ClassVar[str] = "generic_csv"
     version: ClassVar[int] = 1
+    source_kind: ClassVar[SourceKind] = SourceKind.CSV
+    delimiter: ClassVar[str] = ","
 
     def parse(self, content: bytes) -> ParsedFile:
         try:
             text = content.decode("utf-8-sig")
         except UnicodeDecodeError:
             return _file_error("not UTF-8 text")
-        reader = csv.DictReader(io.StringIO(text, newline=""))
+        reader = csv.DictReader(io.StringIO(text, newline=""), delimiter=self.delimiter)
         header = [name.strip() for name in reader.fieldnames or []]
         if not header:
             return _file_error("empty file: expected a header row")

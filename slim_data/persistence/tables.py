@@ -19,6 +19,7 @@ from sqlalchemy import (
     ForeignKeyConstraint,
     Index,
     Integer,
+    LargeBinary,
     PrimaryKeyConstraint,
     String,
     Table,
@@ -138,10 +139,34 @@ runs = Table(
     Column("source_name", String(255), nullable=False),
     Column("source_sha256", String(64), nullable=False, unique=True),  # one file, one import (§9)
     Column("reader", String(50), nullable=False),
+    Column("source_kind", Integer, nullable=False, server_default="2"),  # SourceKind; before 0006, CSV
     Column("analyst_id", String(100), nullable=False),  # who the file names (D-66)
     Column("analyst", JSON, nullable=False),
     Column("imported_by_id", String(100)),  # who uploaded it; NULL only before migration 0003
     Column("imported_by", JSON),
+    Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
+)
+
+run_calibrations = Table(
+    "run_calibrations",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("run_id", ForeignKey("runs.id"), nullable=False),
+    *_analyte(),
+    Column("unit", String(20), nullable=False),
+    Column("correlation", ExactDecimal()),  # r
+    Column("determination", ExactDecimal()),  # R²
+    Column("lod", ExactDecimal()),
+    Column("bec", ExactDecimal()),
+    Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
+    UniqueConstraint("run_id", "analysis_id", "analyte_code", name="uq_run_calibrations_analyte"),
+)
+
+run_files = Table(
+    "run_files",
+    metadata,
+    Column("run_id", ForeignKey("runs.id"), primary_key=True),
+    Column("content", LargeBinary, nullable=False),  # the file as imported: nothing left out is lost (D-88)
     Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
 )
 
@@ -160,6 +185,8 @@ readings = Table(
     Column("unit", String(20), nullable=False),
     Column("mdl", ExactDecimal()),
     Column("dilution", ExactDecimal(), nullable=False),
+    Column("rsd", ExactDecimal()),  # replicate RSD, %, when the file has it (D-88)
+    Column("istd_recovery", ExactDecimal()),  # internal standard recovery, %, when the file has it
     Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
     CheckConstraint(
         "(role IN (3, 4, 5) AND tr_number IS NULL AND position IS NULL)"

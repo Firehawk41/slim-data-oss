@@ -2,12 +2,21 @@
 
 import time
 from datetime import UTC, datetime
+from decimal import Decimal
 from hashlib import sha256
 
 import pytest
 
 from slim_data.domain.enums import ReadingRole
-from slim_data.domain.observations import PrepBatch, QcExpectation, Reading, Run, SourceFile, SpikeAddition
+from slim_data.domain.observations import (
+    Calibration,
+    PrepBatch,
+    QcExpectation,
+    Reading,
+    Run,
+    SourceFile,
+    SpikeAddition,
+)
 from slim_data.persistence._rows import database_time
 from slim_data.persistence.observations import record_run, register_batch
 from slim_data.persistence.rulesets import publish_ruleset
@@ -73,7 +82,9 @@ def stored(session):
     """A published demo ruleset, one batch and one run of readings."""
     ruleset = publish_ruleset(session, DEMO, ANA)
     batch = register_batch(session, make_batch(), ANA)
-    run, _ = record_run(session, make_run(), [(batch.code, r) for r in standard_readings()])
+    calibration = Calibration(analyte=analyte("Cu"), unit="ppb", correlation=Decimal("0.9995"))
+    readings = [(batch.code, r) for r in standard_readings()]
+    run, _ = record_run(session, make_run(), readings, b"the file", [calibration])
     return ruleset, batch, run
 
 
