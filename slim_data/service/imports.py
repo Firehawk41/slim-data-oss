@@ -286,6 +286,9 @@ def _batches(session, resolved, run_code: str, errors: list[RowError], out: _Fit
         seen_in_file = defaultdict(int)
         new_items = []
         for row, reading in items:
+            reading = _prep_dilution(existing, row, reading, errors)
+            if reading is None:
+                continue
             key = _key(reading)
             index = seen_in_file[key]
             seen_in_file[key] += 1
@@ -314,6 +317,22 @@ def _batches(session, resolved, run_code: str, errors: list[RowError], out: _Fit
             if row.rejected:
                 out.rejected.append((len(out.readings), row.note or f"rejected in run {run_code}"))
             out.readings.append((code, reading))
+
+
+def _prep_dilution(batch: PrepBatch | None, row: ParsedRow, reading: Reading, errors) -> Reading | None:
+    """A cup the prep book recorded takes its dilution from there (D-95). The file's factor may be
+    left at 1 (not given); any other value must agree, or the row is refused (a sequence mix-up)."""
+    if batch is None or reading.sample is None:
+        return reading
+    prep = batch.prep_dilution(reading.sample, reading.role, reading.replicate)
+    if prep is None or reading.dilution == prep:
+        return reading
+    if reading.dilution != 1:
+        errors.append(
+            _error(row, "dilution", f"the prep book recorded {prep} for this cup, not {reading.dilution}")
+        )
+        return None
+    return reading.model_copy(update={"dilution": prep})
 
 
 def _check_existing(batch: PrepBatch, items, errors: list[RowError], out: "_Fitted") -> None:

@@ -129,6 +129,21 @@ prep_batch_qc = Table(
     UniqueConstraint("batch_id", "role", "analysis_id", "analyte_code", name="uq_prep_batch_qc_expected"),
 )
 
+prep_batch_dilutions = Table(
+    "prep_batch_dilutions",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("batch_id", ForeignKey("prep_batches.id"), nullable=False),
+    *_sample(),
+    Column("role", Integer, nullable=False),  # ReadingRole.CUP or SPIKE (D-95)
+    Column("replicate", Integer, nullable=False),
+    Column("dilution", ExactDecimal(), nullable=False),
+    Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
+    UniqueConstraint(
+        "batch_id", "tr_number", "position", "role", "replicate", name="uq_prep_batch_dilutions_cup"
+    ),
+)
+
 runs = Table(
     "runs",
     metadata,

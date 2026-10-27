@@ -16,6 +16,7 @@ from slim_data.domain.actor import Actor
 from slim_data.domain.enums import ExclusionKind, ReadingRole, SourceKind
 from slim_data.domain.observations import (
     Calibration,
+    CupDilution,
     PrepBatch,
     QcExpectation,
     Reading,
@@ -29,6 +30,7 @@ from slim_data.engine.model import EvaluationInput
 from slim_data.persistence._rows import NotFound, actor_json, as_of_filter
 from slim_data.persistence.audit import set_change_context
 from slim_data.persistence.tables import (
+    prep_batch_dilutions,
     prep_batch_qc,
     prep_batch_samples,
     prep_batch_spikes,
@@ -65,6 +67,21 @@ def register_batch(session: Session, batch: PrepBatch, actor: Actor) -> PrepBatc
     except IntegrityError:
         raise ValueError(f"prep batch {batch.code} already exists") from None
     _insert_members(session, batch_id, batch.samples, batch.spikes, batch.qc)
+    if batch.dilutions:
+        session.execute(
+            prep_batch_dilutions.insert(),
+            [
+                {
+                    "batch_id": batch_id,
+                    "tr_number": d.sample.tr_number,
+                    "position": d.sample.position,
+                    "role": int(d.role),
+                    "replicate": d.replicate,
+                    "dilution": d.dilution,
+                }
+                for d in batch.dilutions
+            ],
+        )
     return batch.model_copy(update={"id": batch_id})
 
 
@@ -160,6 +177,13 @@ def get_batch(session: Session, code: str, as_of: datetime | None = None) -> Pre
         .where(prep_batch_qc.c.batch_id == row.id, as_of_filter(prep_batch_qc.c.created_at, as_of))
         .order_by(prep_batch_qc.c.id)
     ).all()
+    dilutions = session.execute(
+        select(prep_batch_dilutions)
+        .where(
+            prep_batch_dilutions.c.batch_id == row.id, as_of_filter(prep_batch_dilutions.c.created_at, as_of)
+        )
+        .order_by(prep_batch_dilutions.c.id)
+    ).all()
     return PrepBatch(
         id=row.id,
         code=row.code,
@@ -183,6 +207,15 @@ def get_batch(session: Session, code: str, as_of: datetime | None = None) -> Pre
                 lot=q.lot,
             )
             for q in qc
+        ),
+        dilutions=tuple(
+            CupDilution(
+                sample=SampleRef(tr_number=d.tr_number, position=d.position),
+                role=ReadingRole(d.role),
+                replicate=d.replicate,
+                dilution=d.dilution,
+            )
+            for d in dilutions
         ),
     )
 

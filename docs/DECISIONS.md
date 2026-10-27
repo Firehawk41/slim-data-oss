@@ -1015,3 +1015,18 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      (every demo result so far) nothing changes.
   - Rejected: the larger MDL as today (overstates the limit when one cup was diluted more and kept the
     other); averaging always (a cup set aside shouldn't lower the limit).
+
+- **D-95 slim-prep hands its batches over; the prep book's dilution wins** (Jamie, 2026-10-27, as
+  proposed; slim-prep P-11, P-12).
+  1. "Send to results" in slim-prep registers the batch here before the run: samples, prep method,
+     spike amounts (in the analysis's unit) and each cup's dilution. The instrument file then brings
+     only readings, as for a batch registered by an earlier file (D-66).
+  2. Cup dilutions are batch data, as spike amounts are: a new append-only table
+     `prep_batch_dilutions` (sample, CUP or SPIKE, replicate, dilution). On import a prepped cup takes
+     the prep book's dilution. The file's factor may be left at 1 (not given); any other value must
+     agree, or the row is refused (a sequence mix-up), and with it the import (all-or-nothing, D-24).
+  3. A batch no file came from slim-prep for works as before: the file's factor.
+  4. Later slice: a prep correction after handoff (new dilution or spike amount) → slim-data
+     re-evaluates; released results go through the correction flow (amended report, D-69).
+  - Rejected: a warning only on disagreement (a mix-up would reach a report); slim-data asking
+    slim-prep through a port at import (two modules in one import; the batch row already has a home).

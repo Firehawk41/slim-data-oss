@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import func, select
 
 from slim_data.domain.enums import IdentitySource, ReadingRole, SourceKind
+from slim_data.domain.observations import CupDilution
 from slim_data.domain.policy import DEMO_POLICY
 from slim_data.engine.runner import evaluate
 from slim_data.persistence.observations import (
@@ -132,6 +133,39 @@ def test_a_file_can_add_readings_to_a_registered_batch(session):
     receipt = imported(session, csv(*(edit(r, prep_method="") for r in ROWS)))
     assert receipt.batches_registered == () and receipt.readings == 6
     assert get_batch(session, "PB-0001").samples == (sample(1), sample(2))
+
+
+def _prepped():
+    """make_batch with the dilutions slim-prep recorded for sample 1's cups and its spike (D-95)."""
+    cups = [(ReadingRole.CUP, 1, "0.06"), (ReadingRole.CUP, 2, "0.065"), (ReadingRole.SPIKE, 1, "0.05")]
+    return make_batch().model_copy(
+        update={
+            "dilutions": tuple(
+                CupDilution(sample=sample(1), role=r, replicate=n, dilution=Decimal(d)) for r, n, d in cups
+            )
+        }
+    )
+
+
+def test_the_prep_books_dilution_replaces_a_file_factor_of_1(session):  # D-95
+    register_batch(session, _prepped(), ANA)
+    assert get_batch(session, "PB-0001").dilutions == _prepped().dilutions
+    imported(session, csv(*(edit(r, prep_method="") for r in ROWS)))
+    by_cup = {
+        (str(r.sample), r.role, r.replicate): r.dilution
+        for r in evaluation_input(session, "PB-0001").readings
+    }
+    assert by_cup[("TR00042-01", ReadingRole.CUP, 1)] == Decimal("0.06")
+    assert by_cup[("TR00042-01", ReadingRole.SPIKE, 1)] == Decimal("0.05")
+    assert by_cup[("TR00042-02", ReadingRole.CUP, 1)] == Decimal("10")  # not prepped in slim-prep: the file's
+
+
+def test_a_file_factor_that_disagrees_with_the_prep_book_is_refused(session):
+    register_batch(session, _prepped(), ANA)
+    plan = preview(session, csv(edit(ROWS[0], dilution_factor="0.06"), edit(ROWS[1], dilution_factor="10")))
+    assert [(e.column, e.message) for e in plan.errors] == [
+        ("dilution", "the prep book recorded 0.065 for this cup, not 10")
+    ]
 
 
 @pytest.mark.parametrize(
