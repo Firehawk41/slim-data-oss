@@ -11,8 +11,11 @@
       {"code": "Na", "unit": "ppb", "top_standard": "200", "linear_limit": "1000"}
     ]}},
     {"step": "agreement@1", "params": {"switch_multiple": "5", "rpd_limit": "0.20", "absolute_multiple": "1"}},
-    {"step": "cup_choice@1", "params": {
-      "rungs": ["spike_witness", "direction_prior"],
+    {"step": "cup_choice@2", "params": {
+      "rungs": ["instrument_precision", "spike_witness", "direction_prior"],
+      "instrument_precision": {
+        "rsd_limit": "10", "rsd_from_mdl_multiple": "10", "istd_low": "50", "istd_high": "150"
+      },
       "spike_precision": "0.05",
       "scale_fault": {"enabled": true, "min_elements": 5, "cluster_fraction": "0.75",
                       "ratio_tolerance": "0.05", "min_witnesses": 2},
@@ -56,6 +59,7 @@
     {"code": "SCALE_FAULT_UNRESOLVED", "severity": "RERUN"},
     {"code": "CUP_CHOSEN_BY_SPIKE", "severity": "WARN"},
     {"code": "CUP_CHOSEN_BY_PRIOR", "severity": "WARN"},
+    {"code": "CUP_CHOSEN_BY_PRECISION", "severity": "WARN"},
     {"code": "CUP_CHOICE_UNDECIDED", "severity": "NEEDS_SUPERVISOR"},
     {"code": "SPIKES_DISAGREE", "severity": "WARN"},
     {"code": "SPIKE_AMOUNT_MISSING", "severity": "WARN"},

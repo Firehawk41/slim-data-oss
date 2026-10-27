@@ -2,7 +2,7 @@
 
 from slim_data.engine.steps.agreement import Agreement
 from slim_data.engine.steps.calibration import CalibrationCheck
-from slim_data.engine.steps.cup_choice import CupChoice
+from slim_data.engine.steps.cup_choice import CupChoice, CupChoice2
 from slim_data.engine.steps.cup_shape import CupShape
 from slim_data.engine.steps.linear_range import LinearRangeCheck
 from slim_data.engine.steps.mdl_source import MdlSource
@@ -30,4 +30,5 @@ ALL_STEPS = (
     Precision,
     CalibrationCheck,
     MdlSource,
+    CupChoice2,
 )

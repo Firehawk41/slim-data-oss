@@ -983,3 +983,18 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      and `verify` would refuse them (D-76). Without the step, a ruleset works as before, which is
      "calibration"; so the demo rulesets don't list it, and a lab switches by adding it with its
      table. Steps may now declare they must run first; the ruleset is refused otherwise.
+
+- **D-92 `cup_choice@2`: the instrument-precision rung** (2026-10-27, building D-88 point 5 as signed
+  off). When the cups disagree, a new rung `instrument_precision` compares the two cups' own
+  instrument evidence:
+  1. A cup is *unstable* if its RSD is above the limit (judged only at or above the multiple ×
+     effective MDL, as `precision@1`) or its internal standard is outside the window; *stable* if at
+     least one of those was judged and passed; *unknown* with no evidence (a CSV).
+  2. Exactly one unstable and the other stable → believe the stable cup (`CUP_CHOSEN_BY_PRECISION`,
+     demo WARN). Anything else is inconclusive and the ladder goes on, so a file without the
+     evidence is decided exactly as by `cup_choice@1`.
+  3. The analyst's exclusion and a scale fault still decide first; the rung's place among the
+     per-element rungs is the ruleset's (demo: first, as D-88 says, before the spike witness).
+  4. Its figures are the rung's own params (demo: D-90's numbers), not read from `precision@1`:
+     released steps don't change, and a lab may suggest on one threshold and decide on another.
+  5. `cup_choice@1` stays for replay; the demo metals ruleset moves to @2.
