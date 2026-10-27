@@ -62,12 +62,17 @@ def test_effective_mdl_is_mdl_times_dilution():
     assert reading().dilution == 1
 
 
+def test_a_concentrating_prep_has_a_dilution_below_1():  # evaporation (D-93)
+    assert reading(mdl=qty("0.05"), dilution=Decimal("0.1")).effective_mdl == qty("0.005")
+
+
 @pytest.mark.parametrize(
     "overrides, message",
     [
         (dict(mdl=qty("0.05", "ppm")), "same unit"),
         (dict(mdl=qty("0")), "positive"),
-        (dict(dilution=Decimal("0.5")), "at least 1"),
+        (dict(dilution=Decimal("0")), "dilution factor must be positive"),
+        (dict(dilution=Decimal("-2")), "dilution factor must be positive"),
         (dict(replicate=0), "greater than or equal to 1"),
         (dict(dilution=1.5), "float"),
         (dict(role=ReadingRole.BLANK), "BLANK, CHECK or CRM reading has no sample"),

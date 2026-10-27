@@ -29,7 +29,7 @@ def test_demo_ruleset_is_valid_and_has_no_cliff():
         "cup_choice@2",
         "recovery@1",
         "recovery_pooling@1",
-        "reported_value@1",
+        "reported_value@2",
         "uncertainty@1",
         "method_blank@1",
         "qc_check@1",

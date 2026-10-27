@@ -175,8 +175,8 @@ class Reading(Frozen):
                 raise ValueError("MDL must be in the same unit as the value")
             if self.mdl.value <= 0:
                 raise ValueError("MDL must be positive")
-        if self.dilution < 1:
-            raise ValueError("dilution factor must be at least 1")
+        if self.dilution <= 0:  # below 1 when the prep concentrates the sample, e.g. evaporation (D-93)
+            raise ValueError("dilution factor must be positive")
         if self.rsd is not None and self.rsd < 0:
             raise ValueError("RSD can't be negative")
         if self.istd_recovery is not None and self.istd_recovery <= 0:

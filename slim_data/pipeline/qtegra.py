@@ -171,9 +171,10 @@ class Qtegra:
         if role.of_batch:
             counts[role] += 1
             replicate = counts[role]  # each blank and check standard of the run is judged
-        dilution = _number(cells, columns.fields.get("Dilution Factor"), "Dilution Factor") or Decimal(1)
-        if dilution < 1:
-            raise _Bad("Dilution Factor", f"must be at least 1, not {dilution}")
+        dilution = _number(cells, columns.fields.get("Dilution Factor"), "Dilution Factor")
+        dilution = Decimal(1) if dilution is None else dilution
+        if dilution <= 0:  # below 1 is fine: an evaporation concentrates (D-93)
+            raise _Bad("Dilution Factor", f"must be positive, not {dilution}")
         rsds = {e: _number(cells, c, "ExtCal.RSD") for e, c in columns.rsd.items()}
         recoveries = [r for r in (_number(cells, c, "ExtCal.Average") for c in columns.istd) if r is not None]
         istd = min(recoveries) if recoveries else None

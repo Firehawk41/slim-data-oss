@@ -1,4 +1,4 @@
-"""reported_value@1 (D-54): the number the report shows.
+"""reported_value@1 (D-54) and @2 (D-94): the number the report shows.
 
 The value is the mean of agreeing cups, else the chosen cup, already × dilution. Below the effective
 MDL it reads "< MDL"; between MDL and the optional quantitation limit (QL) it is "estimated". It is
@@ -7,6 +7,11 @@ unrounded value, and the unrounded value is kept beside the rounded one.
 
 The "<" figure is the effective MDL rounded *up*, so the report never states a limit lower than the
 one actually achieved (D-64).
+
+@1 compares against the larger effective MDL of the two cups. @2 compares against the MDL of the cups
+the result kept (D-94): the mean of both cups' effective MDLs when they agree (MDL × the average
+dilution), the chosen cup's own when one was chosen. Agreement and cup choice still used the larger,
+before anything was kept; the later steps (blank, spec limits) see the kept MDL.
 """
 
 from decimal import ROUND_CEILING, ROUND_HALF_EVEN, Decimal
@@ -16,7 +21,7 @@ from pydantic import Field, model_validator
 
 from slim_data.domain.base import Dec, Frozen
 from slim_data.domain.enums import Qualifier
-from slim_data.engine.model import BatchState
+from slim_data.engine.model import BatchState, Selection
 from slim_data.engine.numbers import text
 from slim_data.engine.step import Step
 
@@ -58,6 +63,7 @@ class ReportedValue(Step):
             value = cell.value()
             if value is None:
                 continue
+            kept = self._keep_mdl(cell)
             places = params.places_for(cell.analyte.code)
             ql = None if cell.mdl is None or params.ql_multiple is None else params.ql_multiple * cell.mdl
             if cell.mdl is not None and value < cell.mdl:
@@ -69,9 +75,27 @@ class ReportedValue(Step):
             self.trace(
                 cell,
                 raw=text(value),
+                **kept,
                 effective_mdl=text(cell.mdl),
                 ql=text(ql),
                 places=places,
                 qualifier=cell.qualifier.name,
                 reported=text(cell.reported),
             )
+
+    def _keep_mdl(self, cell) -> dict:
+        """@1 keeps the larger of the cups' effective MDLs, set by cup_shape. Returns trace fields."""
+        return {}
+
+
+class ReportedValue2(ReportedValue):
+    version = 2
+
+    def _keep_mdl(self, cell) -> dict:
+        if cell.mdl is None:  # a cup without an MDL: cup_shape flagged it
+            return {"mdl_from": None}
+        if cell.selection == Selection.AGREED:
+            cell.mdl = sum(r.effective_mdl.value for r in cell.cups.values()) / len(cell.cups)
+            return {"mdl_from": "both cups"}
+        cell.mdl = cell.cups[cell.chosen_replicate].effective_mdl.value
+        return {"mdl_from": f"cup {cell.chosen_replicate}"}

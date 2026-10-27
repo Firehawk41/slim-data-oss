@@ -33,7 +33,7 @@
     }},
     {"step": "recovery@1", "params": {"not_evaluable_multiple": "4"}},
     {"step": "recovery_pooling@1", "params": {"window_low": "0.75", "window_high": "1.25"}},
-    {"step": "reported_value@1", "params": {"default_places": 3, "places": [], "ql_multiple": "3.33"}},
+    {"step": "reported_value@2", "params": {"default_places": 3, "places": [], "ql_multiple": "3.33"}},
     {"step": "uncertainty@1"},
     {"step": "method_blank@1", "params": {"multiple": "10"}},
     {"step": "qc_check@1", "params": {

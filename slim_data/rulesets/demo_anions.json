@@ -41,7 +41,7 @@
       }
     },
     {
-      "step": "reported_value@1",
+      "step": "reported_value@2",
       "params": {
         "default_places": 3,
         "places": [],

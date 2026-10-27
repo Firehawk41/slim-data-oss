@@ -97,7 +97,7 @@ def test_any_error_means_nothing_is_written(session):
         (edit(ROWS[0], analyte="Xx"), "analyte", "Xx is not an analyte of metals_icpms"),
         (edit(ROWS[0], analyte="Cl-", analysis_code="anions_ic"), "analysis_code", "mixes analyses"),
         (edit(ROWS[0], mdl="0"), "", "MDL must be positive"),
-        (edit(ROWS[0], dilution_factor="0.5"), "", "at least 1"),
+        (edit(ROWS[0], dilution_factor="0"), "", "must be positive"),
         (edit(ROWS[0], prep_method="hot block", replicate="3"), "prep_method", "more than one prep_method"),
         (
             edit(ROWS[2], spike_added="25", replicate="2"),

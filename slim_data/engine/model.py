@@ -93,7 +93,7 @@ class Cell:
     superseded: list[int] = field(default_factory=list)  # ids of older or excluded attempts set aside
     usable: bool = True  # False once a shape problem means later steps should leave it alone
     unit: str | None = None
-    mdl: Decimal | None = None  # effective MDL of the cups (the larger, if they differ)
+    mdl: Decimal | None = None  # effective MDL of the cups (the larger; the kept cups' from reported_value@2)
     agree: bool | None = None
     selection: Selection = Selection.UNDECIDED
     chosen_replicate: int | None = None

@@ -998,3 +998,20 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   4. Its figures are the rung's own params (demo: D-90's numbers), not read from `precision@1`:
      released steps don't change, and a lab may suggest on one threshold and decide on another.
   5. `cup_choice@1` stays for replay; the demo metals ruleset moves to @2.
+
+- **D-93 A dilution factor below 1** (Jamie, 2026-10-27, for slim-prep). An evaporation concentrates the
+  sample (e.g. 10 g made up to 1 g: factor 0.1), so a reading's dilution factor only has to be positive.
+  Value and MDL scale by it as before (D-54). `qtegra/1` and `generic_csv/1` take it; 0 or less is refused.
+  - Rejected: a separate concentration factor (two names for one number).
+
+- **D-94 The MDL of the cups the result kept** (Jamie, 2026-10-27). The lab's MDL is IDL × the average
+  dilution of the sample's cups; Jamie: average only when both cups are kept. New step
+  `reported_value@2`: when the cups agree, the effective MDL is the mean of both cups' (MDL × average
+  dilution when the MDLs match); when one cup was chosen, that cup's own. The trace says which
+  (`mdl_from`). Later steps (method blank, spec limits) see the kept MDL.
+  1. Agreement and cup choice still use the larger effective MDL (`cup_shape@1`): nothing is kept yet,
+     and the larger is the cautious one. Changing them would need new versions of three steps.
+  2. `reported_value@1` stays for replay; the three demo rulesets move to @2. With equal dilutions
+     (every demo result so far) nothing changes.
+  - Rejected: the larger MDL as today (overstates the limit when one cup was diluted more and kept the
+    other); averaging always (a cup set aside shouldn't lower the limit).

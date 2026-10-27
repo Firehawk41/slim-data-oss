@@ -143,9 +143,9 @@ def test_a_scheme_without_what_the_reader_needs_says_what_to_tick(missing):
             "not a number",
         ),
         (
-            measurement("UNKNOWN", "x", comment="BLANK", dilution="0.5", values={"63Cu": "1"}),
+            measurement("UNKNOWN", "x", comment="BLANK", dilution="0", values={"63Cu": "1"}),
             "Dilution Factor",
-            "at least 1",
+            "must be positive",
         ),
         (
             measurement("QC", "CCV", qc_action="CCV", values={"63Cu": "5"}),

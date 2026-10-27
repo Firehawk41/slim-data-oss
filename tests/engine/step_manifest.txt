@@ -13,5 +13,6 @@ qc_check@1
 recovery@1
 recovery_pooling@1
 reported_value@1
+reported_value@2
 spec_limits@1
 uncertainty@1
