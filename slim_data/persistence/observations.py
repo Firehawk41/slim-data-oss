@@ -312,12 +312,15 @@ def get_run(session: Session, run_id: int) -> Run:
 
 def calibrations(session: Session, run_id: int) -> tuple[Calibration, ...]:
     """A run's calibration per analyte, as the instrument reported it (D-89)."""
-    rows = session.execute(
-        select(run_calibrations).where(run_calibrations.c.run_id == run_id).order_by(run_calibrations.c.id)
-    )
+    return _calibrations(session, run_calibrations.c.run_id == run_id)
+
+
+def _calibrations(session: Session, which) -> tuple[Calibration, ...]:
+    rows = session.execute(select(run_calibrations).where(which).order_by(run_calibrations.c.id))
     return tuple(
         Calibration(
             analyte=AnalyteRef(analysis_id=row.analysis_id, code=row.analyte_code),
+            run_id=row.run_id,
             unit=row.unit,
             correlation=row.correlation,
             determination=row.determination,
@@ -378,7 +381,11 @@ def evaluation_input(session: Session, code: str, as_of: datetime | None = None)
     if not found:
         raise NotFound(f"prep batch {code} has no readings yet")
     excluded = _excluded(session, readings.c.batch_id == batch.id, as_of)
-    return EvaluationInput(batch=batch, readings=found, excluded_reading_ids=excluded)
+    runs_used = {r.run_id for r in found}
+    found_calibrations = _calibrations(session, run_calibrations.c.run_id.in_(runs_used)) if runs_used else ()
+    return EvaluationInput(
+        batch=batch, readings=found, excluded_reading_ids=excluded, calibrations=found_calibrations
+    )
 
 
 def _excluded(session: Session, which, as_of: datetime | None) -> frozenset[int]:
@@ -396,6 +403,7 @@ def _excluded(session: Session, which, as_of: datetime | None) -> frozenset[int]
 def _reading(row) -> Reading:
     return Reading(
         id=row.id,
+        run_id=row.run_id,
         sample=None if row.tr_number is None else SampleRef(tr_number=row.tr_number, position=row.position),
         analyte=AnalyteRef(analysis_id=row.analysis_id, code=row.analyte_code),
         role=ReadingRole(row.role),

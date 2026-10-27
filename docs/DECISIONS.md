@@ -951,3 +951,19 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     labels by hand at preview (transcription again); `MeasuredConcentration.Average` (ignores
     excluded sweeps); Qtegra's MQL or a method MDL (per-sample, or no table for it yet); Qtegra's QC
     recovery % (two judges, D-87); columns by position (breaks when the scheme changes).
+
+- **D-90 The demo's precision and calibration limits** (Jamie, 2026-10-27). D-88 point 4's numbers,
+  as ruleset data; two steps rather than one, since a calibration belongs to a run and RSD and
+  internal standard to a reading.
+  1. `precision@1`, per cup: `RSD_HIGH` when the RSD is above 10 %, judged only when the cup's value
+     is at least 10 × its effective MDL (MDL × dilution factor, D-54); below that, or with no MDL,
+     not judged (the trace says so). `ISTD_LOW` / `ISTD_HIGH` outside 50–150 % internal standard
+     recovery. Demo severities WARN: suggestions, never blocking (D-88). `RSD_MISSING` /
+     `ISTD_MISSING` only when the ruleset marks the evidence required (demo: not).
+  2. `calibration@1`: `CAL_FAILED` when the run's R² is below 0.995 for the element, on every result
+     whose readings came from that run (demo RERUN). A run with no R² for the element isn't judged.
+     R², not r: the figure Jamie's lab reads.
+  3. To link a reading to its run's calibration, `Reading` gains its `run_id` (stored since M3), and
+     `Calibration` its run. The engine input carries the batch's runs' calibrations.
+  4. The demo metals ruleset gets a new version with both steps (D-04: published results keep the
+     version they were made with).

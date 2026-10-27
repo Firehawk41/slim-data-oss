@@ -125,11 +125,10 @@ def test_before_any_reading_there_is_nothing_to_evaluate(session):
 
 
 def test_stored_readings_evaluate_exactly_like_the_originals(session, stored):
-    _, batch, _ = stored
+    _, batch, run = stored
     loaded = evaluation_input(session, batch.code)
-    original = loaded.model_copy(
-        update={"readings": tuple(r.model_copy(update={"id": None}) for r in standard_readings())}
-    )
+    as_read = tuple(r.model_copy(update={"id": None, "run_id": run.id}) for r in standard_readings())
+    original = loaded.model_copy(update={"readings": as_read})
     fresh, from_db = evaluate(original, demo()), evaluate(loaded, demo())
     assert [c.model_dump(exclude={"trace"}) for c in fresh.cells] == [
         c.model_dump(exclude={"trace"}) for c in from_db.cells

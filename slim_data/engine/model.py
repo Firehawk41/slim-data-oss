@@ -13,7 +13,7 @@ from pydantic import Field, model_validator
 
 from slim_data.domain.base import Dec, Frozen
 from slim_data.domain.enums import Qualifier, Verdict
-from slim_data.domain.observations import PrepBatch, Reading
+from slim_data.domain.observations import Calibration, PrepBatch, Reading
 from slim_data.domain.results import Flag, verdict_from_flags
 from slim_data.domain.values import AnalyteRef, Limits, Quantity, SampleRef
 
@@ -34,6 +34,7 @@ class EvaluationInput(Frozen):
     readings: tuple[Reading, ...] = Field(min_length=1)
     excluded_reading_ids: frozenset[int] = frozenset()
     limits: tuple[SampleLimits, ...] = ()
+    calibrations: tuple[Calibration, ...] = ()  # of the runs the readings came from (D-90)
 
     @model_validator(mode="after")
     def _belongs_to_batch(self) -> Self:
@@ -127,6 +128,7 @@ class BatchState:
     blanks: tuple[Reading, ...] = ()
     qc: tuple[Reading, ...] = ()  # check standards and CRMs (D-87)
     limits: dict[tuple[SampleRef, AnalyteRef], Limits] = field(default_factory=dict)
+    calibrations: dict[tuple[int, AnalyteRef], Calibration] = field(default_factory=dict)  # (run, analyte)
     shared: dict[str, Any] = field(default_factory=dict)  # facts one step leaves for a later one
 
 

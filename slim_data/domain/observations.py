@@ -135,6 +135,7 @@ class Calibration(Frozen):
     judges and the quality charts plot. Any figure the file didn't have is None."""
 
     analyte: AnalyteRef
+    run_id: int | None = None  # set once stored: which run's readings it judges (D-90)
     unit: str = Field(min_length=1, max_length=20)  # of the LOD and BEC
     correlation: Dec | None = None  # r
     determination: Dec | None = None  # R²
@@ -150,6 +151,7 @@ class Reading(Frozen):
     """
 
     id: int | None = None
+    run_id: int | None = None  # set once stored: the run it came from, for its calibration (D-90)
     sample: SampleRef | None
     analyte: AnalyteRef
     role: ReadingRole

@@ -404,3 +404,18 @@ def test_a_paste_imports_and_records_its_kind(session):
     run = get_run(session, receipt.run_id)
     assert run.source.kind == SourceKind.PASTE and run.source.reader == "paste/1"
     assert receipt.readings == 6 and run_file(session, receipt.run_id) == pasted
+
+
+def test_a_failed_calibration_in_the_export_reaches_the_results_from_that_run(session):
+    from slim_data.demo.qtegra_export import RUN, export, measurement
+    from tests.engine.helpers import demo
+
+    poor = {e: ("0.9990", "0.9900", "0.020", "0.004") for e in ("7Li", "63Cu", "66Zn")}  # R² 0.990
+    standards = tuple(
+        measurement("STD", m["label"], standard=m["standard"], values=m["values"], calibration=poor)
+        for m in RUN[1:4]
+    )
+    content = export((RUN[0], *standards, *RUN[4:]))
+    import_run(session, content, "labbook.xml", ROB, FakeLookup(), FakeStaff(), qtegra())
+    results = evaluate(evaluation_input(session, "PB-0009"), demo()).cells
+    assert results and all("CAL_FAILED" in [f.code for f in cell.flags] for cell in results)
