@@ -460,3 +460,41 @@ def test_a_failed_calibration_in_the_export_reaches_the_results_from_that_run(se
     import_run(session, content, "labbook.xml", ROB, FakeLookup(), FakeStaff(), qtegra())
     results = evaluate(evaluation_input(session, "PB-0009"), demo()).cells
     assert results and all("CAL_FAILED" in [f.code for f in cell.flags] for cell in results)
+
+
+def test_evaluating_a_batch_judges_its_runs_calibration_and_verify_replays_old_and_new(session):
+    """D-98: evaluate_batch used to leave the run calibrations out, so calibration@1 never judged."""
+    from slim_data.demo.qtegra_export import RUN, export, measurement
+    from slim_data.engine.model import EvaluationInput
+    from slim_data.persistence.results import add_version, load_result
+    from slim_data.persistence.rulesets import publish_ruleset
+    from slim_data.service import workflow as wf
+    from slim_data.service.verify import verify
+    from tests.engine.helpers import DEMO
+    from tests.factories import SUE
+
+    poor = {e: ("0.9990", "0.9900", "0.020", "0.004") for e in ("7Li", "63Cu", "66Zn")}  # R² 0.990
+    standards = tuple(
+        measurement("STD", m["label"], standard=m["standard"], values=m["values"], calibration=poor)
+        for m in RUN[1:4]
+    )
+    import_run(
+        session,
+        export((RUN[0], *standards, *RUN[4:])),
+        "labbook.xml",
+        ROB,
+        FakeLookup(),
+        FakeStaff(),
+        qtegra(),
+    )
+    published = publish_ruleset(session, DEMO, SUE)
+    # As a version made before the fix was: without the calibrations, and no marker in its trace.
+    stored = evaluation_input(session, "PB-0009")
+    before = evaluate(EvaluationInput(**{**dict(stored), "calibrations": ()}), published.validated).cells[0]
+    old = wf._version(before, published, frozenset({"rob"}), SUE)
+    add_version(session, before.sample, before.analyte, old, get_batch(session, "PB-0009").id)
+    assert "CAL_FAILED" not in [f.code for f in old.flags] and "calibrations" not in old.trace
+    wf.evaluate_batch(session, "PB-0009", SUE, FakeLookup())
+    now = load_result(session, before.sample, before.analyte).current
+    assert now.version == 2 and "CAL_FAILED" in [f.code for f in now.flags] and now.trace["calibrations"]
+    assert verify(session).ok

@@ -1066,3 +1066,13 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      The demo scenarios put each check standard before and after their samples, as a real run does.
   - Rejected: bracketing from slim-prep's planned run list (the file is what was run; P-21); judging
     the average by default (one bad element can hide behind good ones).
+
+- **D-98 The run calibrations reach the evaluation** (Jamie, 2026-10-27; a bug found building D-97).
+  `evaluate_batch` rebuilt the engine's input without the run calibrations, so `calibration@1` (D-90)
+  never judged in the app (the engine tests passed them directly, so they didn't catch it). Fixed:
+  they go in. A version made with them says so in its trace (`"calibrations": true`); `verify` replays
+  each version as it was made, with them only when its trace says so, so versions from before the fix
+  still replay exactly. The next evaluation gives a draft from a run with a calibration a new version;
+  a released one it changes is reported (`released_affected`) for the correction flow.
+  - Rejected: replaying old versions with the calibrations (they would all "differ": the record must
+    say what was decided then, D-21).
