@@ -391,6 +391,7 @@ def record_run(
             "rsd": r.rsd,
             "istd_recovery": r.istd_recovery,
             "attempt": r.attempt,
+            "sequence": r.sequence,
         }
         for code, r in batch_readings
     ]
@@ -492,8 +493,13 @@ def evaluation_input(session: Session, code: str, as_of: datetime | None = None)
     excluded = _excluded(session, readings.c.batch_id == batch.id, as_of)
     runs_used = {r.run_id for r in found}
     found_calibrations = _calibrations(session, run_calibrations.c.run_id.in_(runs_used)) if runs_used else ()
+    codes = session.execute(select(runs.c.id, runs.c.run_code).where(runs.c.id.in_(runs_used))).all()
     return EvaluationInput(
-        batch=batch, readings=found, excluded_reading_ids=excluded, calibrations=found_calibrations
+        batch=batch,
+        readings=found,
+        excluded_reading_ids=excluded,
+        calibrations=found_calibrations,
+        run_codes=tuple(sorted((r.id, r.run_code) for r in codes)),
     )
 
 
@@ -534,6 +540,7 @@ def _reading(row) -> Reading:
         dilution=row.dilution,
         rsd=row.rsd,
         istd_recovery=row.istd_recovery,
+        sequence=row.sequence,
     )
 
 

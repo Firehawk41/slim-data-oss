@@ -105,6 +105,7 @@ def evaluate_batch(
         batch=stored.batch,
         readings=stored.readings,
         excluded_reading_ids=stored.excluded_reading_ids,
+        run_codes=stored.run_codes,
         limits=tuple(
             SampleLimits(sample=s, analyte=a, limits=lim) for s, a, lim in limits if lim is not None
         ),

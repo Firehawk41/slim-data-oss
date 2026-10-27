@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-96, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-97, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -46,7 +46,7 @@ complete report, D-71); personas ✅ (D-74); demo scenarios seeded in the portal
 
 **M7:** `service/verify.py` ✅: replays every stored version `as_of` its making, and runs the host's
 audit-chain check if passed one (D-76); LabPortal installs slim-domain's audit log and has `cli verify`
-(D-77). README ✅, walkthrough ✅. **All milestones done.** Since: D-78 (four demo analyses), D-79 (reports print the MDL, not ±), D-80 (½Δ only near a spec limit), D-81 (the batch view shows every cup), D-82 (the host is slim-lims-oss), D-83 (invoicing V5), D-84 (lowest total for the customer), D-85 (roadmap: Admin · Lab · Quality · IT, in slim-lims-oss docs/ROADMAP.md), D-86 (samples and prep: two modules), D-87 (roadmap phase 1, first slice: CHECK / CRM reading roles, `prep_batch_qc` expected values, `qc_check@1`, demo `qc_failed`). D-88 (instrument data in; step 1 ✅ data model: `SourceKind`, `Policy.source_kinds`, `Reading.rsd` / `istd_recovery`, `run_files`, migration 0006; step 2 ✅ `qtegra/1` + `run_calibrations`; step 3 ✅ `paste/1`; host import screen ✅ (slim-lims-oss); step 4 ✅ `precision@1` + `calibration@1` (D-90); step 5 ✅ `cup_choice@2` (D-92). D-88 done). D-89 (how `qtegra/1` reads Qtegra's export: Comment = sample ID, LOD = MDL, analyst = importer). D-90 (demo limits: RSD 10 % above 10 × MDL × DF, internal standard 50–150 %, R² ≥ 0.995). D-91 (MDL from the run's calibration by default; `mdl_source@1` switches to the lab's specified MDLs, falling back per element). D-92 (`cup_choice@2`). D-93 (dilution factor below 1: evaporation). D-94 (`reported_value@2`: the MDL of the kept cups). D-95 (slim-prep registers batches; `prep_batch_dilutions`, migration 0007; the prep book's dilution beats the file's). D-96 (`correct_prep`: versioned dilutions and spike amounts, applied at evaluation; migration 0008). Next in phase 1: slim-prep (`slim-prep-oss`: P0–P4 ✅, handoff P5 in progress), instrument readers.
+(D-77). README ✅, walkthrough ✅. **All milestones done.** Since: D-78 (four demo analyses), D-79 (reports print the MDL, not ±), D-80 (½Δ only near a spec limit), D-81 (the batch view shows every cup), D-82 (the host is slim-lims-oss), D-83 (invoicing V5), D-84 (lowest total for the customer), D-85 (roadmap: Admin · Lab · Quality · IT, in slim-lims-oss docs/ROADMAP.md), D-86 (samples and prep: two modules), D-87 (roadmap phase 1, first slice: CHECK / CRM reading roles, `prep_batch_qc` expected values, `qc_check@1`, demo `qc_failed`). D-88 (instrument data in; step 1 ✅ data model: `SourceKind`, `Policy.source_kinds`, `Reading.rsd` / `istd_recovery`, `run_files`, migration 0006; step 2 ✅ `qtegra/1` + `run_calibrations`; step 3 ✅ `paste/1`; host import screen ✅ (slim-lims-oss); step 4 ✅ `precision@1` + `calibration@1` (D-90); step 5 ✅ `cup_choice@2` (D-92). D-88 done). D-89 (how `qtegra/1` reads Qtegra's export: Comment = sample ID, LOD = MDL, analyst = importer). D-90 (demo limits: RSD 10 % above 10 × MDL × DF, internal standard 50–150 %, R² ≥ 0.995). D-91 (MDL from the run's calibration by default; `mdl_source@1` switches to the lab's specified MDLs, falling back per element). D-92 (`cup_choice@2`). D-93 (dilution factor below 1: evaporation). D-94 (`reported_value@2`: the MDL of the kept cups). D-95 (slim-prep registers batches; `prep_batch_dilutions`, migration 0007; the prep book's dilution beats the file's). D-96 (`correct_prep`: versioned dilutions and spike amounts, applied at evaluation; migration 0008). D-97 (`qc_check@2`: each element or the average, bracketing by run order (`readings.sequence`, migration 0009); `RoleRule.flag`: an analyst may overrule a failed check, with a reason). Next in phase 1: slim-prep (`slim-prep-oss`: P0–P5 ✅, screens P6 in progress), instrument readers.
 Read slim-lims-oss's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
@@ -57,7 +57,7 @@ slim_data/
 │                    #   observations, results, policy, workflow, ports (ReferenceLookup, StaffDirectory)
 ├── engine/          # pure (+ domain): numbers, model, step, ruleset, registry, runner
 │   └── steps/       # cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling,
-│                    #   reported_value, uncertainty, method_blank, qc_check, precision, calibration, mdl_source, spec_limits (@1); cup_choice@2, reported_value@2
+│                    #   reported_value, uncertainty, method_blank, qc_check, precision, calibration, mdl_source, spec_limits (@1); cup_choice@2, reported_value@2, qc_check@2
 ├── rulesets/        # ruleset files (JSON): demo_metals, demo_anions, demo_assay (D-78)
 ├── pipeline/        # reader contract (reader.py) + generic_csv/1 + paste/1 + qtegra/1 (D-89); pure
 ├── persistence/     # oss_guard, db (make_engine = the only create_engine), migrate, migrations/,

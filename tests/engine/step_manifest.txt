@@ -10,6 +10,7 @@ mdl_source@1
 method_blank@1
 precision@1
 qc_check@1
+qc_check@2
 recovery@1
 recovery_pooling@1
 reported_value@1

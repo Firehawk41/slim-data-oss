@@ -69,7 +69,9 @@ def _authorize(
 ) -> bool:
     """Raises if the action isn't allowed; returns whether it is a solo sign-off (D-68)."""
     verdict = result.current.verdict
-    min_role = policy.min_role(action, verdict)
+    flags = result.current.flags
+    worst = max((f.severity for f in flags), default=None)
+    min_role = policy.min_role(action, verdict, frozenset(f.code for f in flags if f.severity == worst))
     if min_role is None:
         raise NotPermitted(f"policy {policy.name!r} allows nobody to {action.name} a {verdict.name} result")
     if not actor.has_role_at_least(min_role):

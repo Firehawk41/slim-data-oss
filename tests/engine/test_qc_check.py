@@ -1,17 +1,33 @@
-"""qc_check@1 (D-87): check standards and CRMs judged against their expected values."""
+"""qc_check@1 (D-87): check standards and CRMs judged against their expected values. Pinned to @1: the
+demo rulesets moved to @2 (D-97)."""
 
 import pytest
 from pydantic import ValidationError
 
 from slim_data.domain.enums import ReadingRole, Verdict
 from slim_data.domain.observations import QcExpectation
+from slim_data.engine.registry import default_registry
+from slim_data.engine.ruleset import StepConfig, validate_ruleset
 from slim_data.engine.runner import evaluate
 from slim_data.engine.steps.qc_check import QcCheckParams
-from tests.engine.helpers import codes, cups, demo, evaluation_input, qc, step_trace
+from tests.engine.helpers import DEMO, codes, cups, evaluation_input, qc, step_trace
 from tests.factories import analyte, qty
 
 CHECK, CRM = ReadingRole.CHECK, ReadingRole.CRM
 WINDOWS = {"check": {"low": "0.90", "high": "1.10"}, "crm": {"low": "0.85", "high": "1.15"}}
+
+
+def demo(**changes):
+    """The demo ruleset with qc_check@1 (and its flag codes alone)."""
+    params = changes["qc_check"]
+    steps = tuple(
+        StepConfig(step="qc_check@1", params=params) if c.step.startswith("qc_check@") else c
+        for c in DEMO.steps
+    )
+    severities = tuple(s for s in DEMO.severities if s.code != "CHECK_NOT_BRACKETED")
+    return validate_ruleset(
+        DEMO.model_copy(update={"steps": steps, "severities": severities}), default_registry()
+    )
 
 
 def run(readings, expected=((CHECK, "Cu", "10", "ppb"), (CRM, "Cu", "2.0", "ppb")), excluded=(), **params):

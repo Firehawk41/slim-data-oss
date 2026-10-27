@@ -8,7 +8,7 @@ from slim_data.engine.steps.linear_range import LinearRangeCheck
 from slim_data.engine.steps.mdl_source import MdlSource
 from slim_data.engine.steps.method_blank import MethodBlank
 from slim_data.engine.steps.precision import Precision
-from slim_data.engine.steps.qc_check import QcCheck
+from slim_data.engine.steps.qc_check import QcCheck, QcCheck2
 from slim_data.engine.steps.recovery import Recovery
 from slim_data.engine.steps.recovery_pooling import RecoveryPooling
 from slim_data.engine.steps.reported_value import ReportedValue, ReportedValue2
@@ -32,4 +32,5 @@ ALL_STEPS = (
     MdlSource,
     CupChoice2,
     ReportedValue2,
+    QcCheck2,
 )

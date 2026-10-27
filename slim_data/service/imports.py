@@ -220,6 +220,7 @@ def _resolve(
                 dilution=row.dilution,
                 rsd=row.rsd,
                 istd_recovery=row.istd_recovery,
+                sequence=row.line,  # the file's order is the run's order (D-97)
             )
         except ValidationError as error:
             errors.append(_error(row, "", error.errors()[0]["msg"]))

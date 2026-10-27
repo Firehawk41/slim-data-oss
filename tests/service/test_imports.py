@@ -77,6 +77,13 @@ def test_import_registers_the_batch_and_stores_every_reading(session):
     assert data.readings[-1].role == ReadingRole.BLANK and data.readings[-1].sample is None
 
 
+def test_each_reading_keeps_its_line_as_the_run_order(session):  # D-97
+    receipt = imported(session)
+    data = evaluation_input(session, "PB-0001")
+    assert [r.sequence for r in data.readings] == [2, 3, 4, 5, 6, 7]
+    assert data.run_codes == ((receipt.run_id, "RUN-0042"),)
+
+
 def test_the_same_file_twice_is_refused_with_a_pointer(session):
     receipt = imported(session)
     with pytest.raises(ImportRefused, match=f"already imported as run {receipt.run_id}"):
@@ -291,7 +298,7 @@ def test_qc_rows_register_their_expected_values_with_the_batch_and_are_judged(se
     crm = batch.qc_expected(ReadingRole.CRM, analyte("Cu"))
     assert (crm.expected, crm.material, crm.lot) == (qty("2.00"), "CRM-7", "C-24")
     (cell,) = evaluate(evaluation_input(session, "PB-0050"), demo()).cells
-    trace = next(t for t in cell.trace if t["step"] == "qc_check@1")
+    trace = next(t for t in cell.trace if t["step"] == "qc_check@2")
     assert trace["check"][0]["recovery"] == "0.98" and [r["within"] for r in trace["crm"]] == [True, True]
 
 

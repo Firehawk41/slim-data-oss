@@ -195,6 +195,9 @@ class Reading(Frozen):
     # Instrument evidence, when the file has it (D-88); None = no evidence, never a fault.
     rsd: Dec | None = None  # the replicate RSD, in %
     istd_recovery: Dec | None = None  # the internal standard's recovery, in %
+    # Where it was run (D-97): its line in the run's file, so check standards can bracket it. None for
+    # readings imported before 0009: they are judged batch-wide, as before.
+    sequence: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:

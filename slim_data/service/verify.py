@@ -87,6 +87,7 @@ def _replay(
         batch=then.batch,
         readings=then.readings,
         excluded_reading_ids=then.excluded_reading_ids,
+        run_codes=then.run_codes,
         limits=() if limits is None else (SampleLimits(sample=sample, analyte=analyte, limits=limits),),
     )
     try:

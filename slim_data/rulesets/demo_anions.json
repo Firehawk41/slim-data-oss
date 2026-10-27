@@ -58,9 +58,9 @@
       }
     },
     {
-      "step": "qc_check@1",
+      "step": "qc_check@2",
       "params": {
-        "check": {"low": "0.75", "high": "1.25", "required": false},
+        "check": {"low": "0.75", "high": "1.25", "required": false, "judge": "each_element", "bracket": true},
         "crm": {"low": "0.75", "high": "1.25", "required": false}
       }
     },
@@ -152,6 +152,7 @@
     {"code": "CHECK_FAILED", "severity": "RERUN"},
     {"code": "CHECK_MISSING", "severity": "NEEDS_SUPERVISOR"},
     {"code": "CRM_FAILED", "severity": "NEEDS_SUPERVISOR"},
+    {"code": "CHECK_NOT_BRACKETED", "severity": "NEEDS_SUPERVISOR"},
     {"code": "CRM_MISSING", "severity": "NEEDS_SUPERVISOR"},
     {
       "code": "ABOVE_SPEC",

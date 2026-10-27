@@ -221,11 +221,19 @@ class _Scenario:
         lines = [HEADER] + [
             f"{s},{code},{c},{role},{rep},{v},{how.unit},{mdl},1,{run},{how.instrument},{h.analyst_code},"
             f"{stamp},{self.batch},{how.prep_method},{spike},{rej},{note},{qc},{material},{lot}"
-            for s, c, role, rep, v, mdl, spike, rej, note, qc, material, lot in self.rows
+            for s, c, role, rep, v, mdl, spike, rej, note, qc, material, lot in self._run_order()
         ]
         content = ("\n".join(lines) + "\n").encode()
         import_run(self.session, content, f"{run}.csv", h.analyst, h.lookup, h.staff)
         return wf.evaluate_batch(self.session, self.batch, h.analyst, h.lookup)
+
+    def _run_order(self) -> list:
+        """As a real run goes (D-97): each check standard before the samples and again after them, so it
+        brackets them; everything else in the order the scenario gave."""
+        checks = [r for r in self.rows if r[2] == "CHECK"]
+        rest = [r for r in self.rows if r[2] != "CHECK"]
+        closing = [(*r[:3], r[3] + 1, *r[4:]) for r in checks]
+        return [*checks, *rest, *closing]
 
     def review(self):
         wf.review_batch(self.session, self.batch, self.host.reviewer)

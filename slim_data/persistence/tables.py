@@ -225,6 +225,7 @@ readings = Table(
     Column("dilution", ExactDecimal(), nullable=False),
     Column("rsd", ExactDecimal()),  # replicate RSD, %, when the file has it (D-88)
     Column("istd_recovery", ExactDecimal()),  # internal standard recovery, %, when the file has it
+    Column("sequence", Integer),  # its line in the run's file: the run order (D-97)
     Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
     CheckConstraint(
         "(role IN (3, 4, 5) AND tr_number IS NULL AND position IS NULL)"

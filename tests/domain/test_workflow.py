@@ -242,3 +242,26 @@ def test_solo_never_covers_supervisor_decisions_and_is_only_recorded_when_needed
         workflow.review(ROBS_OWN, ROB, P)  # strict four-eyes unless solo is asked for
     with pytest.raises(ValidationError, match="only a review or a release"):
         ResultEvent(kind=EventKind.ACCEPTED, version=1, actor=SUE, reason_category="x", note="y", solo=True)
+
+
+# --- flag-specific rules (D-97) ------------------------------------------------------------------------
+
+CHECK_ONLY = version(1, flag(Severity.RERUN, "CHECK_FAILED"), flag(Severity.WARN), analysts=("ann",))
+CHECK_AND_MORE = version(1, flag(Severity.RERUN, "CHECK_FAILED"), flag(Severity.RERUN), analysts=("ann",))
+FAILED_CHECK = "Check standard failure assessed: element not affected"
+
+
+def test_an_analyst_may_overrule_a_failed_check_standard_with_a_reason():
+    event = workflow.record_exception(result(CHECK_ONLY), ANA, P, FAILED_CHECK, "Cu in bracket 2 read 98 %")
+    assert event.kind == EventKind.EXCEPTION and event.actor == ANA and event.note.startswith("Cu")
+
+
+def test_another_flag_as_bad_needs_the_general_rule():
+    with pytest.raises(NotPermitted, match="needs SUPERVISOR"):
+        workflow.record_exception(result(CHECK_AND_MORE), ANA, P, FAILED_CHECK, "x")
+
+
+def test_four_eyes_still_keeps_the_analyst_off_their_own_run():
+    own = version(1, flag(Severity.RERUN, "CHECK_FAILED"))  # entered by ana
+    with pytest.raises(FourEyesViolation):
+        workflow.record_exception(result(own), ANA, P, FAILED_CHECK, "x")

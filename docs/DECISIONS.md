@@ -1044,3 +1044,25 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      re-export look different.
   - Rejected: re-importing the run (duplicate readings, and the file isn't what changed); editing the
     stored readings (append-only).
+
+- **D-97 Check standards bracket the run; the rule is the lab's; an analyst may overrule** (Jamie,
+  2026-10-27; D-87 point 4).
+  1. Each reading keeps its line in the run's file as its run order (`readings.sequence`, migration
+     0009); a run re-exported while it grows is one run (by run code). Readings imported before keep
+     none and are judged batch-wide, as by `qc_check@1`.
+  2. `qc_check@2`, per role: the window, `judge` = `each_element` (default: each element on its own,
+     the sounder science, as Jamie holds) or `average` (one check passes or fails on the mean recovery
+     of its elements, and the verdict applies to all; some labs' rule), and `bracket`.
+  3. Bracketing (CHECK only): a sample's reading counts only if the check standards just before and
+     just after it in its run both passed. A failed check flags the samples on either side of it
+     (CHECK_FAILED, naming the check's line and run); a reading with no check before or after it is
+     CHECK_NOT_BRACKETED (demo NEEDS_SUPERVISOR). A CRM is prepped like a sample: batch-wide.
+  4. Overruling, auditable: a policy role rule may name a flag (`RoleRule.flag`): it applies when the
+     flags behind the verdict are all that code. Demo: an analyst may record an exception on a failed
+     check standard and accept a result that isn't bracketed, with a reason category and a note;
+     four-eyes still keeps the analyst who ran it off their own results. The policy is versioned,
+     published data: the quality section's to set.
+  5. `qc_check@1` stays for replay; the demo metals and anions rulesets move to @2 (bracketing on).
+     The demo scenarios put each check standard before and after their samples, as a real run does.
+  - Rejected: bracketing from slim-prep's planned run list (the file is what was run; P-21); judging
+    the average by default (one bad element can hide behind good ones).
