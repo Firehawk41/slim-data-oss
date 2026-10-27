@@ -353,8 +353,8 @@ def qtegra(**options):
 
 
 def test_a_qtegra_export_imports_with_its_calibration_and_lists_what_it_left_out(session):
+    from slim_data.demo.qtegra_export import export
     from slim_data.persistence.observations import calibrations
-    from tests.pipeline.qtegra_export import export
 
     content = export()
     plan = preview_import(session, content, "labbook.xml", ROB, FakeLookup(), FakeStaff(), qtegra())
@@ -386,7 +386,7 @@ def test_a_hand_made_file_still_errs_on_an_unknown_analyte(session):
 
 
 def test_a_policy_for_instrument_files_only_takes_qtegra_and_refuses_csv(session):
-    from tests.pipeline.qtegra_export import export
+    from slim_data.demo.qtegra_export import export
 
     strict = DEMO_POLICY.model_copy(
         update={"name": "instrument-only", "source_kinds": frozenset({SourceKind.INSTRUMENT})}

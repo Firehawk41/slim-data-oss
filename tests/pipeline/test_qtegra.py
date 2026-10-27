@@ -6,11 +6,11 @@ from zoneinfo import ZoneInfo
 
 import pytest
 
+from slim_data.demo.qtegra_export import RUN, export, measurement
 from slim_data.domain.enums import ReadingRole, SourceKind
 from slim_data.pipeline.qtegra import Qtegra
 from slim_data.pipeline.reader import reader_key
 from tests.factories import sample
-from tests.pipeline.qtegra_export import RUN, export, measurement
 
 CHICAGO = ZoneInfo("America/Chicago")
 READER = Qtegra(prep_batch="PB-0001", analysis_code="metals_icpms", analyst_id="ana", timezone=CHICAGO)
