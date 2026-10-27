@@ -89,6 +89,8 @@ def validate_ruleset(ruleset: Ruleset, registry) -> ValidatedRuleset:
     seen: set[str] = set()
     for config in ruleset.steps:
         step = registry.get(config.step)
+        if step.first and seen:
+            raise RulesetError(f"{config.step} must be the first step: the others read what it sets")
         missing = [name for name in step.requires if name not in seen]
         if missing:
             raise RulesetError(f"{config.step} needs {', '.join(missing)} to run before it")

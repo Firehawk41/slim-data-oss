@@ -5,6 +5,7 @@ calibration@1
 cup_choice@1
 cup_shape@1
 linear_range@1
+mdl_source@1
 method_blank@1
 precision@1
 qc_check@1
