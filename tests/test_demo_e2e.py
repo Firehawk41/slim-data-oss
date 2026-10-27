@@ -63,7 +63,7 @@ def test_cups_disagree_prior_chooses_and_the_spec_exceedance_is_shown(session, d
     steps = trace(session, SampleRef(tr_number="TR00102", position=1), AnalyteRef(analysis_id=1, code="Zn"))[
         "steps"
     ]
-    assert next(t for t in steps if t["step"] == "cup_choice@1")["rung"] == "direction_prior"
+    assert next(t for t in steps if t["step"].startswith("cup_choice@"))["rung"] == "direction_prior"
     assert reported.half_delta is None  # one cup believed: no ½Δ (D-55)
 
 

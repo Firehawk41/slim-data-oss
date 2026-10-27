@@ -6,8 +6,34 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from slim_data.engine.model import Selection
+from slim_data.engine.registry import default_registry
+from slim_data.engine.ruleset import StepConfig, validate_ruleset
 from slim_data.engine.runner import evaluate
-from tests.engine.helpers import DEMO, codes, cups, demo, evaluation_input, spikes, step_trace
+from tests.engine.helpers import DEMO, codes, cups, evaluation_input, spikes, step_trace
+
+
+def _as_v1(config: StepConfig) -> StepConfig:
+    """The demo's cup_choice step as @1: its ladder without the instrument-precision rung."""
+    params = {k: v for k, v in config.params.items() if k != "instrument_precision"}
+    params["rungs"] = [r for r in params["rungs"] if r != "instrument_precision"]
+    return StepConfig(step="cup_choice@1", params=params)
+
+
+V1 = DEMO.model_copy(
+    update={"steps": tuple(_as_v1(c) if c.step.startswith("cup_choice@") else c for c in DEMO.steps)}
+)
+
+
+def demo(**changes):
+    """The demo ruleset with cup_choice@1; `changes` replace whole step params by step name."""
+    steps = tuple(
+        c.model_copy(update={"params": changes[c.step.split("@")[0]]})
+        if c.step.split("@")[0] in changes
+        else c
+        for c in V1.steps
+    )
+    return validate_ruleset(V1.model_copy(update={"steps": steps}), default_registry())
+
 
 CUPS_OFF = ("10.0", "14.0")  # RPD 33%: they disagree
 
@@ -21,7 +47,7 @@ def one(readings, **kw):
 
 
 def cup_choice_params(**changes):
-    params = dict(next(s for s in DEMO.steps if s.step == "cup_choice@1").params)
+    params = dict(next(s for s in V1.steps if s.step == "cup_choice@1").params)
     params.update(changes)
     return demo(cup_choice=params)
 

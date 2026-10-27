@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-91, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-92, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
@@ -46,7 +46,7 @@ complete report, D-71); personas ✅ (D-74); demo scenarios seeded in the portal
 
 **M7:** `service/verify.py` ✅: replays every stored version `as_of` its making, and runs the host's
 audit-chain check if passed one (D-76); LabPortal installs slim-domain's audit log and has `cli verify`
-(D-77). README ✅, walkthrough ✅. **All milestones done.** Since: D-78 (four demo analyses), D-79 (reports print the MDL, not ±), D-80 (½Δ only near a spec limit), D-81 (the batch view shows every cup), D-82 (the host is slim-lims-oss), D-83 (invoicing V5), D-84 (lowest total for the customer), D-85 (roadmap: Admin · Lab · Quality · IT, in slim-lims-oss docs/ROADMAP.md), D-86 (samples and prep: two modules), D-87 (roadmap phase 1, first slice: CHECK / CRM reading roles, `prep_batch_qc` expected values, `qc_check@1`, demo `qc_failed`). D-88 (instrument data in; step 1 ✅ data model: `SourceKind`, `Policy.source_kinds`, `Reading.rsd` / `istd_recovery`, `run_files`, migration 0006; step 2 ✅ `qtegra/1` + `run_calibrations`; step 3 ✅ `paste/1`; host import screen ✅ (slim-lims-oss); step 4 ✅ `precision@1` + `calibration@1` (D-90); next: `cup_choice@2`). D-89 (how `qtegra/1` reads Qtegra's export: Comment = sample ID, LOD = MDL, analyst = importer). D-90 (demo limits: RSD 10 % above 10 × MDL × DF, internal standard 50–150 %, R² ≥ 0.995). D-91 (MDL from the run's calibration by default; `mdl_source@1` switches to the lab's specified MDLs, falling back per element). Next in phase 1: slim-prep (`slim-prep-oss`, waits for Jamie's prep book layout), instrument readers.
+(D-77). README ✅, walkthrough ✅. **All milestones done.** Since: D-78 (four demo analyses), D-79 (reports print the MDL, not ±), D-80 (½Δ only near a spec limit), D-81 (the batch view shows every cup), D-82 (the host is slim-lims-oss), D-83 (invoicing V5), D-84 (lowest total for the customer), D-85 (roadmap: Admin · Lab · Quality · IT, in slim-lims-oss docs/ROADMAP.md), D-86 (samples and prep: two modules), D-87 (roadmap phase 1, first slice: CHECK / CRM reading roles, `prep_batch_qc` expected values, `qc_check@1`, demo `qc_failed`). D-88 (instrument data in; step 1 ✅ data model: `SourceKind`, `Policy.source_kinds`, `Reading.rsd` / `istd_recovery`, `run_files`, migration 0006; step 2 ✅ `qtegra/1` + `run_calibrations`; step 3 ✅ `paste/1`; host import screen ✅ (slim-lims-oss); step 4 ✅ `precision@1` + `calibration@1` (D-90); step 5 ✅ `cup_choice@2` (D-92). D-88 done). D-89 (how `qtegra/1` reads Qtegra's export: Comment = sample ID, LOD = MDL, analyst = importer). D-90 (demo limits: RSD 10 % above 10 × MDL × DF, internal standard 50–150 %, R² ≥ 0.995). D-91 (MDL from the run's calibration by default; `mdl_source@1` switches to the lab's specified MDLs, falling back per element). Next in phase 1: slim-prep (`slim-prep-oss`, waits for Jamie's prep book layout), instrument readers.
 Read slim-lims-oss's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
@@ -57,7 +57,7 @@ slim_data/
 │                    #   observations, results, policy, workflow, ports (ReferenceLookup, StaffDirectory)
 ├── engine/          # pure (+ domain): numbers, model, step, ruleset, registry, runner
 │   └── steps/       # cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling,
-│                    #   reported_value, uncertainty, method_blank, qc_check, precision, calibration, mdl_source, spec_limits (all @1)
+│                    #   reported_value, uncertainty, method_blank, qc_check, precision, calibration, mdl_source, spec_limits (@1); cup_choice@2
 ├── rulesets/        # ruleset files (JSON): demo_metals, demo_anions, demo_assay (D-78)
 ├── pipeline/        # reader contract (reader.py) + generic_csv/1 + paste/1 + qtegra/1 (D-89); pure
 ├── persistence/     # oss_guard, db (make_engine = the only create_engine), migrate, migrations/,

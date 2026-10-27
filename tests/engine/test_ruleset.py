@@ -26,7 +26,7 @@ def test_demo_ruleset_is_valid_and_has_no_cliff():
         "cup_shape@1",
         "linear_range@1",
         "agreement@1",
-        "cup_choice@1",
+        "cup_choice@2",
         "recovery@1",
         "recovery_pooling@1",
         "reported_value@1",
