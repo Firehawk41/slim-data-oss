@@ -967,3 +967,19 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      `Calibration` its run. The engine input carries the batch's runs' calibrations.
   4. The demo metals ruleset gets a new version with both steps (D-04: published results keep the
      version they were made with).
+
+- **D-91 Where the MDL comes from: the run's calibration, or the lab's specified values** (Jamie,
+  2026-10-27). The lab's practice: an MDL is worked out with every calibration (fresh, the default);
+  a lab may instead set an MDL per element from a study. A dilution raises the MDL by its factor
+  either way (effective MDL = MDL × dilution, D-54).
+  1. A step, `mdl_source@1`, first in the ruleset: `mode` "calibration" (each reading keeps the MDL
+     its file gave: Qtegra's LOD for the run, D-89, or a CSV's column) or "specified" with a table
+     of MDLs per element and unit. Switching is a new ruleset version: the record shows when and to
+     what, and published results keep the MDL they were made with (D-04).
+  2. Under "specified", the step gives each reading the table's MDL before any other step reads it;
+     the reading as stored never changes. An element missing from the table, or in another unit,
+     falls back to the calibration MDL (Jamie); the trace says which source each result used.
+  3. A step, not a new ruleset field: a field would change the content hash of every stored ruleset,
+     and `verify` would refuse them (D-76). Without the step, a ruleset works as before, which is
+     "calibration"; so the demo rulesets don't list it, and a lab switches by adding it with its
+     table. Steps may now declare they must run first; the ruleset is refused otherwise.

@@ -24,6 +24,7 @@ class Step:
     flag_codes: ClassVar[frozenset[str]] = frozenset()  # every code it may emit; the ruleset maps each
     requires: ClassVar[tuple[str, ...]] = ()  # step names that must run earlier
     info_only: ClassVar[frozenset[str]] = frozenset()  # codes a ruleset may only rate INFO (e.g. D-60)
+    first: ClassVar[bool] = False  # must run before every other step (e.g. mdl_source, D-91)
 
     @classmethod
     def key(cls) -> str:
