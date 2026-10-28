@@ -1134,3 +1134,11 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   - Rejected: a reset on a timer (two visitors at once still share); a database per visitor (needs
     CREATEDB, not given on the free plan); cloning a template schema in SQL (sequences, triggers and the
     audit chain make it fragile; seeding is what the demo already trusts).
+
+- **D-103 Customer scoping fails closed** (Claude, agreed by Jamie, 2026-10-28; review A6). Listing TRs
+  took `customer_id=None` to mean "every customer"; a customer was kept to their own only because the
+  database requires their ID. Now every listing takes a `Scope` (no default), made by
+  `Scope.for_user`: a customer always gets their own customer, whatever they asked for; "every
+  customer" is staff's (and the slim-lims token's); a customer user without a customer raises (403),
+  never sees all. A test spies on each listing route a customer reaches.
+  - Rejected: keeping the check in each route (the next route forgets it).
