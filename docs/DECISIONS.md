@@ -1091,3 +1091,14 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
      (Jamie's rule).
   - Rejected: cancelling everything downstream (released results and issued reports are facts; a
     cancel can't unsay them).
+
+- **D-100 Managing users is a capability** (Claude, Jamie amended, 2026-10-28; review A1). Any staff member
+  could create users and deactivate anyone. Now:
+  1. *Manage users* is a capability (`slim_lims/capabilities.py`). By default a lab role brings it
+     (supervisor); the lab may grant it to a person too (an analyst who is the LIMS specialist), in
+     `user_capabilities`.
+  2. Only someone who holds it by their lab role grants or removes it. Nobody acts on someone with a
+     higher lab role, or gives a lab role above their own.
+  3. Demo personas never manage users (they are chosen, not logged in, D-74).
+  - Rejected: supervisors only, fixed (Jamie: the lab decides); a full role/permission editor (more
+    than the demo needs; capabilities are data and can grow).
