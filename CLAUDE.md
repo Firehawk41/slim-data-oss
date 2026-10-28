@@ -23,30 +23,18 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 
 ## Status
 
-| # | Milestone | State |
-|---|---|---|
-| M0 | Skeleton: packaging, layers, OSS guard, Alembic (own version table), architecture test, CI | ✅ |
-| M1 | Domain: values, observations, results, policies, workflow rules | ✅ |
-| M2 | Engine: cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling, reported_value, uncertainty, method_blank, spec_limits; verdict = worst flag (qc_check since, D-87) | ✅ |
-| M3 | Persistence: append-only tables + triggers, repositories, `as_of`, audit context, ruleset/policy publishing | ✅ |
-| M4 | Data in: reader plugins, `generic_csv/1`, preview, all-or-nothing, file-hash idempotency | ✅ |
-| M5 | Workflow service: evaluate, review, release, exceptions, corrections, `report_issues`, amended reports | ✅ (incl. D-68 solo sign-off) |
-| M6 | Integration: part 1 (slim-data) adapter, report/batch views, demo scenarios, e2e test; part 2 LabPortal wiring in 3 slices (D-70) | ✅ (part 2 walkthrough done 2026-10-21) |
-| M7 | Finish: `verify` command, README, walkthrough | ✅ (`verify` D-76/D-77, README, walkthrough 2026-10-21) |
+M0–M7 are done and merged (skeleton, domain, engine, persistence, data in, workflow, host wiring,
+`verify`); since then D-78…D-104 (latest decisions at the end of `docs/DECISIONS.md`). What exists now:
+- **Engine steps:** `cup_shape`, `linear_range`, `agreement`, `recovery`, `recovery_pooling`, `uncertainty`,
+  `method_blank`, `precision`, `calibration`, `mdl_source`, `spec_limits` (@1); `cup_choice`,
+  `reported_value`, `qc_check` (@1 and @2). Verdict = worst flag.
+- **Readers:** `generic_csv/1`, `paste/1`, `qtegra/1` (D-89; DOCTYPE refused by expat, D-101).
+- **Prep handoff:** slim-prep registers batches and sends corrections (D-95, D-96); the prep book's dilution
+  beats the file's; dilution may be below 1 (D-93).
+- **Host:** slim-lims-oss (D-82); host-side decisions (D-99…D-104) are logged here too.
 
-Each milestone ends green on CI and with a walkthrough for Jamie. M0–M7 are merged into `main`.
-
-**M6 part 2 (D-70)** wires slim-data into LabPortal (the slim-lims host; `slim_lims/results.py`,
-`results_routes.py`). Slice 1 ✅: migrations, `SlimReferenceLookup` + `StaffDirectory` over the portal,
-demo ruleset bound to 10 Elements, CSV upload → preview / import → evaluate, batch page + API, staff
-`lab_role`. Slice 2 ✅: review / accept / rerun / exception / reject / correct / release on the batch
-page and API; first readings → TR in progress (D-71). Slice 3: report page + issues ✅ (D-73: canonical-JSON hash until the report engine is wired; → partial /
-complete report, D-71); personas ✅ (D-74); demo scenarios seeded in the portal ✅ (D-75, host-agnostic
-`run_scenarios`). Walkthrough ✅.
-
-**M7:** `service/verify.py` ✅: replays every stored version `as_of` its making, and runs the host's
-audit-chain check if passed one (D-76); LabPortal installs slim-domain's audit log and has `cli verify`
-(D-77). README ✅, walkthrough ✅. **All milestones done.** Since: D-78 (four demo analyses), D-79 (reports print the MDL, not ±), D-80 (½Δ only near a spec limit), D-81 (the batch view shows every cup), D-82 (the host is slim-lims-oss), D-83 (invoicing V5), D-84 (lowest total for the customer), D-85 (roadmap: Admin · Lab · Quality · IT, in slim-lims-oss docs/ROADMAP.md), D-86 (samples and prep: two modules), D-87 (roadmap phase 1, first slice: CHECK / CRM reading roles, `prep_batch_qc` expected values, `qc_check@1`, demo `qc_failed`). D-88 (instrument data in; step 1 ✅ data model: `SourceKind`, `Policy.source_kinds`, `Reading.rsd` / `istd_recovery`, `run_files`, migration 0006; step 2 ✅ `qtegra/1` + `run_calibrations`; step 3 ✅ `paste/1`; host import screen ✅ (slim-lims-oss); step 4 ✅ `precision@1` + `calibration@1` (D-90); step 5 ✅ `cup_choice@2` (D-92). D-88 done). D-89 (how `qtegra/1` reads Qtegra's export: Comment = sample ID, LOD = MDL, analyst = importer). D-90 (demo limits: RSD 10 % above 10 × MDL × DF, internal standard 50–150 %, R² ≥ 0.995). D-91 (MDL from the run's calibration by default; `mdl_source@1` switches to the lab's specified MDLs, falling back per element). D-92 (`cup_choice@2`). D-93 (dilution factor below 1: evaporation). D-94 (`reported_value@2`: the MDL of the kept cups). D-95 (slim-prep registers batches; `prep_batch_dilutions`, migration 0007; the prep book's dilution beats the file's). D-96 (`correct_prep`: versioned dilutions and spike amounts, applied at evaluation; migration 0008). D-97 (`qc_check@2`: each element or the average, bracketing by run order (`readings.sequence`, migration 0009); `RoleRule.flag`: an analyst may overrule a failed check, with a reason). D-98 (bug: evaluate_batch dropped the run calibrations; fixed, marked in the trace, `verify` replays each version as made). Next in phase 1: slim-prep (`slim-prep-oss`: P0–P5 ✅, screens P6 in progress), instrument readers.
+Next: phase 1 of slim-lims-oss `docs/ROADMAP.md` (slim-prep review items B1–B10, instrument readers).
+Working defaults (batches, quiet runs, reviews with the checklist): slim-lims-oss CLAUDE.md.
 Read slim-lims-oss's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
 ## File map
