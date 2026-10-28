@@ -19,21 +19,21 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-104, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-105, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
 M0–M7 are done and merged (skeleton, domain, engine, persistence, data in, workflow, host wiring,
-`verify`); since then D-78…D-104 (latest decisions at the end of `docs/DECISIONS.md`). What exists now:
+`verify`); since then D-78…D-105 (latest decisions at the end of `docs/DECISIONS.md`). What exists now:
 - **Engine steps:** `cup_shape`, `linear_range`, `agreement`, `recovery`, `recovery_pooling`, `uncertainty`,
   `method_blank`, `precision`, `calibration`, `mdl_source`, `spec_limits` (@1); `cup_choice`,
   `reported_value`, `qc_check` (@1 and @2). Verdict = worst flag.
 - **Readers:** `generic_csv/1`, `paste/1`, `qtegra/1` (D-89; DOCTYPE refused by expat, D-101).
 - **Prep handoff:** slim-prep registers batches and sends corrections (D-95, D-96); the prep book's dilution
-  beats the file's; dilution may be below 1 (D-93).
+  beats the file's; dilution may be below 1 (D-93); a file adds no samples or spikes to such a batch (D-105).
 - **Host:** slim-lims-oss (D-82); host-side decisions (D-99…D-104) are logged here too.
 
-Next: phase 1 of slim-lims-oss `docs/ROADMAP.md` (slim-prep review items B1–B10, instrument readers).
+Next: phase 1 of slim-lims-oss `docs/ROADMAP.md` (instrument readers).
 Working defaults (batches, quiet runs, reviews with the checklist): slim-lims-oss CLAUDE.md.
 Read slim-lims-oss's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 

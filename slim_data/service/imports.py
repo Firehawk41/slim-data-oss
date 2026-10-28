@@ -340,7 +340,9 @@ def _prep_dilution(batch: PrepBatch | None, row: ParsedRow, reading: Reading, er
 
 def _check_existing(batch: PrepBatch, items, errors: list[RowError], out: "_Fitted") -> None:
     """A registered batch keeps its analysis, prep method and recorded spike amounts; a file may add
-    samples and spike amounts it doesn't have yet (a run exported while still going, D-66)."""
+    samples and spike amounts it doesn't have yet (a run exported while still going, D-66), unless the
+    prep book registered the batch: then its samples and spikes are the prep book's alone (D-105)."""
+    prepped = bool(batch.dilutions)
     samples, spikes, qc = [], {}, {}
     for row, reading in items:
         if reading.analyte.analysis_id != batch.analysis_id:
@@ -349,12 +351,17 @@ def _check_existing(batch: PrepBatch, items, errors: list[RowError], out: "_Fitt
             errors.append(
                 _error(row, "prep_method", f"batch {batch.code} was prepped by {batch.prep_method!r}")
             )
-        if (
-            reading.sample is not None
-            and reading.sample not in batch.samples
-            and reading.sample not in samples
-        ):
-            samples.append(reading.sample)
+        if reading.sample is not None and reading.sample not in batch.samples:
+            if prepped:
+                errors.append(
+                    _error(
+                        row,
+                        "lab_sample_id",
+                        f"batch {batch.code} came from the prep book: not one of its samples",
+                    )
+                )
+            elif reading.sample not in samples:
+                samples.append(reading.sample)
         if row.expected is not None:
             entry = _qc_entry(row, reading, errors)
             stored_qc = batch.qc_expected(reading.role, reading.analyte)
@@ -371,6 +378,14 @@ def _check_existing(batch: PrepBatch, items, errors: list[RowError], out: "_Fitt
         key = (reading.sample, reading.analyte)
         if stored is not None and stored != amount:
             errors.append(_error(row, "spike_added", f"batch {batch.code} records {stored} for this spike"))
+        elif stored is None and prepped:
+            errors.append(
+                _error(
+                    row,
+                    "spike_added",
+                    f"batch {batch.code} came from the prep book: it records no such spike",
+                )
+            )
         elif stored is None and spikes.setdefault(key, amount) != amount:
             errors.append(
                 _error(row, "spike_added", f"differs from the amount on another row ({spikes[key]})")
