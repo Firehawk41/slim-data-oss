@@ -1076,3 +1076,18 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   a released one it changes is reported (`released_affected`) for the correction flow.
   - Rejected: replaying old versions with the calibrations (they would all "differ": the record must
     say what was decided then, D-21).
+
+- **D-99 A TR's status follows the facts** (Jamie, 2026-10-28; architecture review A2). Hand-set statuses
+  were a carry-over from before the modules were wired.
+  1. *Partial / complete report* come only from issuing a report, *invoiced* only from sending the
+     invoice (`fact=True` from those actions). A person can't set them by hand (409, saying how they
+     come); the request page no longer offers them. The LIMS token (spec §12) issues reports itself, so
+     it may still set the report statuses.
+  2. Cancelling asks the modules first: refused once a report was issued or a result released. Otherwise
+     it goes through, and the modules take no new work for the TR: no readings (`TrSampleTables`), no
+     decisions or releases on its results, no prep batch sent.
+  3. *In progress* stays a hand move as well as automatic (first readings, D-71): analyses without a
+     module still need it. Re-check which statuses are still hand-set each time a module is wired
+     (Jamie's rule).
+  - Rejected: cancelling everything downstream (released results and issued reports are facts; a
+    cancel can't unsay them).
