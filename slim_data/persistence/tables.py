@@ -49,6 +49,15 @@ def _sample(nullable: bool = False) -> list[Column]:
     ]
 
 
+def _correctable() -> list[Column]:
+    """A prep correction after handoff is the next version, with why and who (D-96)."""
+    return [
+        Column("version", Integer, nullable=False, server_default="1"),
+        Column("reason", Text),
+        Column("created_by_id", String(100)),
+    ]
+
+
 def _analyte() -> list[Column]:
     return [
         Column("analysis_id", Integer, nullable=False),
@@ -108,9 +117,16 @@ prep_batch_spikes = Table(
     *_analyte(),
     Column("added", ExactDecimal(), nullable=False),
     Column("unit", String(20), nullable=False),
+    *_correctable(),
     Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
     UniqueConstraint(
-        "batch_id", "tr_number", "position", "analysis_id", "analyte_code", name="uq_prep_batch_spikes_spike"
+        "batch_id",
+        "tr_number",
+        "position",
+        "analysis_id",
+        "analyte_code",
+        "version",
+        name="uq_prep_batch_spikes_spike",
     ),
 )
 
@@ -127,6 +143,28 @@ prep_batch_qc = Table(
     Column("lot", String(50)),
     Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
     UniqueConstraint("batch_id", "role", "analysis_id", "analyte_code", name="uq_prep_batch_qc_expected"),
+)
+
+prep_batch_dilutions = Table(
+    "prep_batch_dilutions",
+    metadata,
+    Column("id", Integer, primary_key=True),
+    Column("batch_id", ForeignKey("prep_batches.id"), nullable=False),
+    *_sample(),
+    Column("role", Integer, nullable=False),  # ReadingRole.CUP or SPIKE (D-95)
+    Column("replicate", Integer, nullable=False),
+    Column("dilution", ExactDecimal(), nullable=False),
+    *_correctable(),
+    Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
+    UniqueConstraint(
+        "batch_id",
+        "tr_number",
+        "position",
+        "role",
+        "replicate",
+        "version",
+        name="uq_prep_batch_dilutions_cup",
+    ),
 )
 
 runs = Table(
@@ -187,6 +225,7 @@ readings = Table(
     Column("dilution", ExactDecimal(), nullable=False),
     Column("rsd", ExactDecimal()),  # replicate RSD, %, when the file has it (D-88)
     Column("istd_recovery", ExactDecimal()),  # internal standard recovery, %, when the file has it
+    Column("sequence", Integer),  # its line in the run's file: the run order (D-97)
     Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
     CheckConstraint(
         "(role IN (3, 4, 5) AND tr_number IS NULL AND position IS NULL)"

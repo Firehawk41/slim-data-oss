@@ -48,6 +48,21 @@ class QcExpectation(Frozen):
         return self
 
 
+class CupDilution(Frozen):
+    """A cup's dilution as the prep book recorded it (D-95): it beats the instrument file's."""
+
+    sample: SampleRef
+    role: ReadingRole  # CUP or SPIKE
+    replicate: int = Field(ge=1)
+    dilution: Dec = Field(gt=0)  # below 1 when the prep concentrates (D-93)
+
+    @model_validator(mode="after")
+    def _a_sample_cup(self) -> Self:
+        if self.role not in (ReadingRole.CUP, ReadingRole.SPIKE):
+            raise ValueError("prep records the dilution of a CUP or SPIKE")
+        return self
+
+
 class PrepBatch(Frozen):
     """Samples of one matrix prepped together: the unit of evaluation (D-07, D-24).
 
@@ -62,6 +77,7 @@ class PrepBatch(Frozen):
     samples: tuple[SampleRef, ...] = Field(min_length=1)
     spikes: tuple[SpikeAddition, ...] = ()
     qc: tuple[QcExpectation, ...] = ()
+    dilutions: tuple[CupDilution, ...] = ()  # from slim-prep (D-95); none for a batch a file registered
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
@@ -85,7 +101,21 @@ class PrepBatch(Frozen):
             if (entry.role, entry.analyte) in qc_keys:
                 raise ValueError(f"two expected values for {entry.role.name} {entry.analyte}")
             qc_keys.add((entry.role, entry.analyte))
+        cups = set()
+        for entry in self.dilutions:
+            if entry.sample not in members:
+                raise ValueError(f"dilution for {entry.sample}, which is not in the batch")
+            key = (entry.sample, entry.role, entry.replicate)
+            if key in cups:
+                raise ValueError(f"two dilutions for {entry.sample} {entry.role.name} {entry.replicate}")
+            cups.add(key)
         return self
+
+    def prep_dilution(self, sample: SampleRef, role: ReadingRole, replicate: int) -> Decimal | None:
+        for entry in self.dilutions:
+            if (entry.sample, entry.role, entry.replicate) == (sample, role, replicate):
+                return entry.dilution
+        return None
 
     def qc_expected(self, role: ReadingRole, analyte: AnalyteRef) -> QcExpectation | None:
         for entry in self.qc:
@@ -165,6 +195,9 @@ class Reading(Frozen):
     # Instrument evidence, when the file has it (D-88); None = no evidence, never a fault.
     rsd: Dec | None = None  # the replicate RSD, in %
     istd_recovery: Dec | None = None  # the internal standard's recovery, in %
+    # Where it was run (D-97): its line in the run's file, so check standards can bracket it. None for
+    # readings imported before 0009: they are judged batch-wide, as before.
+    sequence: int | None = Field(default=None, ge=1)
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
@@ -175,8 +208,8 @@ class Reading(Frozen):
                 raise ValueError("MDL must be in the same unit as the value")
             if self.mdl.value <= 0:
                 raise ValueError("MDL must be positive")
-        if self.dilution < 1:
-            raise ValueError("dilution factor must be at least 1")
+        if self.dilution <= 0:  # below 1 when the prep concentrates the sample, e.g. evaporation (D-93)
+            raise ValueError("dilution factor must be positive")
         if self.rsd is not None and self.rsd < 0:
             raise ValueError("RSD can't be negative")
         if self.istd_recovery is not None and self.istd_recovery <= 0:

@@ -75,6 +75,11 @@ def every_table(session, stored):
     ).inserted_primary_key[0]
     session.execute(insert(report_issue_lines).values(issue_id=issue_id, result_id=1, version=1))
     publish_policy(session, DEMO_POLICY, ANA)
+    session.execute(
+        insert(readings.metadata.tables["prep_batch_dilutions"]).values(
+            batch_id=batch.id, tr_number="TR00042", position=1, role=1, replicate=1, dilution=Decimal("0.06")
+        )
+    )
 
 
 @pytest.mark.parametrize("table_name", APPEND_ONLY)

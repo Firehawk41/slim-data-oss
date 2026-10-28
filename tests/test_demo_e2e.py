@@ -43,7 +43,7 @@ def test_clean_pass_is_released_and_reported(session, demo):
     assert line(view, 1, "Cu").mdl == Decimal("0.050") and line(view, 1, "Cu").ql == Decimal("0.167")
     assert len(issues_for_tr(session, "TR00101")) == 1
     cu = trace(session, SampleRef(tr_number="TR00101", position=1), AnalyteRef(analysis_id=2, code="Cu"))
-    qc = next(t for t in cu["steps"] if t["step"] == "qc_check@1")  # D-87
+    qc = next(t for t in cu["steps"] if t["step"] == "qc_check@2")  # D-87
     assert qc["check"][0]["recovery"] == "1.02" and qc["crm"][0]["lot"] == "C-24"
 
 

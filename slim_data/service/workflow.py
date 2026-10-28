@@ -105,6 +105,8 @@ def evaluate_batch(
         batch=stored.batch,
         readings=stored.readings,
         excluded_reading_ids=stored.excluded_reading_ids,
+        run_codes=stored.run_codes,
+        calibrations=stored.calibrations,  # D-98: dropped here before, so calibration@1 never judged
         limits=tuple(
             SampleLimits(sample=s, analyte=a, limits=lim) for s, a, lim in limits if lim is not None
         ),
@@ -114,7 +116,9 @@ def evaluate_batch(
     new_versions, affected, unchanged = [], [], 0
     for cell in evaluation.cells:
         result = load_result(session, cell.sample, cell.analyte)
-        candidate = _version(cell, published, people[(cell.sample, cell.analyte)], actor)
+        candidate = _version(
+            cell, published, people[(cell.sample, cell.analyte)], actor, bool(stored.calibrations)
+        )
         if result is not None and result.status == ResultStatus.REJECTED:
             unchanged += 1
             continue
@@ -146,7 +150,16 @@ def evaluate_batch(
     )
 
 
-def _version(cell: CellOutcome, published: PublishedRuleset, analysts: frozenset[str], actor: Actor):
+def _version(
+    cell: CellOutcome,
+    published: PublishedRuleset,
+    analysts: frozenset[str],
+    actor: Actor,
+    calibrations: bool = False,
+):
+    """`calibrations`: the run calibrations were part of the input; the trace says so, so `verify`
+    replays it the same way (D-98: before, they were left out)."""
+    marker = {"calibrations": True} if calibrations else {}
     return ResultVersion(
         version=1,
         ruleset_id=published.id,
@@ -160,6 +173,7 @@ def _version(cell: CellOutcome, published: PublishedRuleset, analysts: frozenset
             "ruleset_hash": published.validated.content_hash,
             "selection": cell.selection.name,
             "chosen_replicate": cell.chosen_replicate,
+            **marker,
             "steps": list(cell.trace),
         },
         limits=cell.limits.model_dump(mode="json") if cell.limits else {},

@@ -6,17 +6,19 @@ from pathlib import Path
 
 import pytest
 
-from slim_data.domain.enums import EventKind, Qualifier, ResultStatus, Role, Verdict
+from slim_data.domain.enums import EventKind, Qualifier, ReadingRole, ResultStatus, Role, Verdict
+from slim_data.domain.observations import CupDilution, SpikeAddition
 from slim_data.domain.policy import DEMO_POLICY
 from slim_data.domain.results import ReportLine
-from slim_data.domain.values import Limits
+from slim_data.domain.values import Limits, Quantity
 from slim_data.domain.workflow import InvalidTransition
-from slim_data.persistence._rows import NotFound
-from slim_data.persistence.observations import register_batch
+from slim_data.persistence._rows import NotFound, database_time
+from slim_data.persistence.observations import correct_prep, evaluation_input, get_batch, register_batch
 from slim_data.persistence.results import exceptions, issues_for_tr, load_result
 from slim_data.persistence.rulesets import publish_policy, publish_ruleset
 from slim_data.service import workflow as wf
 from slim_data.service.imports import import_run
+from slim_data.service.verify import verify
 from slim_data.service.views import batch_view, report_view
 from tests.engine.helpers import DEMO
 from tests.factories import ANA, ROB, SUE, actor, analyte, sample
@@ -244,3 +246,75 @@ def test_the_batch_view_shows_every_cup_and_what_was_chosen(session, lab):
     assert rows[1].mdl == Decimal("0.050") and rows[1].blank == "0.010"
     assert rows[1].recovery_basis == "batch_median"
     assert rows[2].cups == ("5.100", "5.300")  # dilution-corrected (× 10)
+
+
+# --- prep corrections after handoff (D-96) -------------------------------------------------------------
+
+
+def _prepped():
+    """Sample 1 as slim-prep registered it: each cup's dilution and the spike amount (D-95)."""
+    cups = [(ReadingRole.CUP, 1), (ReadingRole.CUP, 2), (ReadingRole.SPIKE, 1)]
+    dilutions = tuple(CupDilution(sample=S1, role=r, replicate=n, dilution=Decimal(1)) for r, n in cups)
+    return make_batch().model_copy(update={"dilutions": dilutions, "qc": ()})
+
+
+def _no_prep_method(rows):
+    return [edit(r, prep_method="") for r in rows]
+
+
+def test_a_corrected_dilution_reaches_the_readings_and_replays_as_it_was(session, lab):
+    register_batch(session, _prepped(), SUE)
+    lab(_no_prep_method(ROWS))
+    before = database_time(session)
+    fixed = CupDilution(sample=S1, role=ReadingRole.CUP, replicate=2, dilution=Decimal("1.1"))
+    batch, changed = correct_prep(session, "PB-0001", SUE, "cup 2 final weight misread", dilutions=[fixed])
+    assert changed == 1 and batch.prep_dilution(S1, ReadingRole.CUP, 2) == Decimal("1.1")
+    assert get_batch(session, "PB-0001", as_of=before).prep_dilution(S1, ReadingRole.CUP, 2) == 1
+    now = {(r.sample, r.role, r.replicate): r.dilution for r in evaluation_input(session, "PB-0001").readings}
+    assert now[(S1, ReadingRole.CUP, 2)] == Decimal("1.1")
+    then = evaluation_input(session, "PB-0001", as_of=before).readings
+    assert {r.dilution for r in then if r.sample == S1} == {Decimal(1)}
+    receipt = wf.evaluate_batch(session, "PB-0001", ANA, lab.lookup, reason="prep corrected")
+    assert ("TR00042-01", 2) in [
+        (str(v.sample), v.version) for v in receipt.new_versions
+    ]  # (and S2: pooling)
+    assert current(session).current.reported.value == Decimal("10.610")  # (10.00 + 10.20 × 1.1) ÷ 2
+    report = verify(session)  # every version replays as of its making, before and after the correction
+    assert report.ok, report
+
+
+def test_a_re_export_still_matches_after_a_prep_correction(session, lab):
+    register_batch(session, _prepped(), SUE)
+    lab(_no_prep_method(ROWS[:3]))
+    fixed = CupDilution(sample=S1, role=ReadingRole.CUP, replicate=1, dilution=Decimal("0.9"))
+    correct_prep(session, "PB-0001", SUE, "tare typo", dilutions=[fixed])
+    receipt = import_run(
+        session, csv(*_no_prep_method(ROWS)), "run42-later.csv", ROB, lab.lookup, FakeStaff()
+    )
+    assert (receipt.readings, receipt.skipped) == (3, 3)
+
+
+def test_a_corrected_spike_amount_on_a_released_result_is_reported_to_the_host(session, lab):
+    register_batch(session, _prepped(), SUE)
+    lab(_no_prep_method(ROWS))
+    wf.review_batch(session, "PB-0001", REV)
+    wf.release(session, S1, 1, REV)
+    spike = SpikeAddition(sample=S1, analyte=CU, added=Quantity(value=Decimal("40"), unit="ppb"))
+    _, changed = correct_prep(session, "PB-0001", SUE, "spike volume was 20 µL", spikes=[spike])
+    assert changed == 1
+    receipt = wf.evaluate_batch(session, "PB-0001", ANA, lab.lookup)
+    assert receipt.released_affected == (wf.ResultKey(sample=S1, analyte=CU),)
+
+
+def test_a_prep_correction_needs_a_reason_and_an_existing_entry(session):
+    register_batch(session, _prepped(), SUE)
+    same = CupDilution(sample=S1, role=ReadingRole.CUP, replicate=1, dilution=Decimal(1))
+    assert correct_prep(session, "PB-0001", SUE, "no change", dilutions=[same])[1] == 0
+    with pytest.raises(ValueError, match="needs a reason"):
+        correct_prep(session, "PB-0001", SUE, " ", dilutions=[same])
+    other = CupDilution(sample=S2, role=ReadingRole.CUP, replicate=1, dilution=Decimal(2))
+    with pytest.raises(ValueError, match="no prep dilution for TR00042-02 CUP 1"):
+        correct_prep(session, "PB-0001", SUE, "x", dilutions=[other])
+    zinc = SpikeAddition(sample=S1, analyte=analyte("Zn"), added=Quantity(value=Decimal(1), unit="ppb"))
+    with pytest.raises(ValueError, match="no spike amount for TR00042-01 Zn"):
+        correct_prep(session, "PB-0001", SUE, "x", spikes=[zinc])

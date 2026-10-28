@@ -6,7 +6,15 @@ import pytest
 from pydantic import ValidationError
 
 from slim_data.domain.enums import ReadingRole
-from slim_data.domain.observations import PrepBatch, Reading, ReadingExclusion, Run, SourceFile, SpikeAddition
+from slim_data.domain.observations import (
+    CupDilution,
+    PrepBatch,
+    Reading,
+    ReadingExclusion,
+    Run,
+    SourceFile,
+    SpikeAddition,
+)
 from tests.factories import ANA, NOW, ROB, analyte, qty, sample
 
 
@@ -41,6 +49,35 @@ def test_batch_rejects_inconsistent_shapes(overrides, message):
         batch(**overrides)
 
 
+def dilution(position=1, role=ReadingRole.CUP, replicate=1, value="0.06"):
+    return CupDilution(sample=sample(position), role=role, replicate=replicate, dilution=Decimal(value))
+
+
+def test_batch_finds_its_prep_dilutions():  # D-95
+    b = batch(dilutions=(dilution(), dilution(role=ReadingRole.SPIKE, value="0.05")))
+    assert b.prep_dilution(sample(1), ReadingRole.CUP, 1) == Decimal("0.06")
+    assert b.prep_dilution(sample(1), ReadingRole.SPIKE, 1) == Decimal("0.05")
+    assert b.prep_dilution(sample(1), ReadingRole.CUP, 2) is None
+
+
+@pytest.mark.parametrize(
+    "overrides, message",
+    [
+        (dict(dilutions=(dilution(3),)), "not in the batch"),
+        (dict(dilutions=(dilution(), dilution(value="0.07"))), "two dilutions"),
+    ],
+)
+def test_batch_rejects_inconsistent_dilutions(overrides, message):
+    with pytest.raises(ValidationError, match=message):
+        batch(**overrides)
+
+
+@pytest.mark.parametrize("role, value", [(ReadingRole.BLANK, "1"), (ReadingRole.CUP, "0")])
+def test_a_prep_dilution_is_a_positive_cup_or_spike(role, value):
+    with pytest.raises(ValidationError):
+        dilution(role=role, value=value)
+
+
 def test_spike_amount_must_be_positive():
     with pytest.raises(ValidationError, match="positive"):
         spike(added="0")
@@ -62,12 +99,17 @@ def test_effective_mdl_is_mdl_times_dilution():
     assert reading().dilution == 1
 
 
+def test_a_concentrating_prep_has_a_dilution_below_1():  # evaporation (D-93)
+    assert reading(mdl=qty("0.05"), dilution=Decimal("0.1")).effective_mdl == qty("0.005")
+
+
 @pytest.mark.parametrize(
     "overrides, message",
     [
         (dict(mdl=qty("0.05", "ppm")), "same unit"),
         (dict(mdl=qty("0")), "positive"),
-        (dict(dilution=Decimal("0.5")), "at least 1"),
+        (dict(dilution=Decimal("0")), "dilution factor must be positive"),
+        (dict(dilution=Decimal("-2")), "dilution factor must be positive"),
         (dict(replicate=0), "greater than or equal to 1"),
         (dict(dilution=1.5), "float"),
         (dict(role=ReadingRole.BLANK), "BLANK, CHECK or CRM reading has no sample"),

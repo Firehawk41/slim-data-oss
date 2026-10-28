@@ -87,6 +87,9 @@ def _replay(
         batch=then.batch,
         readings=then.readings,
         excluded_reading_ids=then.excluded_reading_ids,
+        run_codes=then.run_codes,
+        # Replayed as it was made (D-98): versions from before the fix were made without them.
+        calibrations=then.calibrations if stored.trace.get("calibrations") else (),
         limits=() if limits is None else (SampleLimits(sample=sample, analyte=analyte, limits=limits),),
     )
     try:
@@ -96,6 +99,6 @@ def _replay(
     cell = next((c for c in cells if (c.sample, c.analyte) == (sample, analyte)), None)
     if cell is None:
         return "a replay doesn't produce this result"
-    fresh = _version(cell, published, stored.analyst_ids, stored.created_by)
+    fresh = _version(cell, published, stored.analyst_ids, stored.created_by, bool(data.calibrations))
     differ = [name for name in _COMPARED if getattr(fresh, name) != getattr(stored, name)]
     return f"differs from a replay in {', '.join(differ)}" if differ else None

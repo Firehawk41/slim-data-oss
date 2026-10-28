@@ -22,6 +22,15 @@ class RoleRule(Frozen):
     action: Action
     verdict: Verdict | None = None  # None = any verdict; a verdict-specific rule wins
     min_role: Role
+    # A flag-specific rule wins over both (D-97): it applies when the flags behind the verdict (the
+    # worst ones) are all this code, e.g. an analyst may overrule a failed check standard with a reason.
+    flag: str | None = Field(default=None, min_length=1, max_length=50)
+
+    @model_validator(mode="after")
+    def _flag_needs_a_verdict(self) -> Self:
+        if self.flag is not None and self.verdict is None:
+            raise ValueError("a flag-specific role rule names the verdict it applies to")
+        return self
 
 
 class IdentityRule(Frozen):
@@ -58,7 +67,7 @@ class Policy(Frozen):
 
     @model_validator(mode="after")
     def _no_duplicates(self) -> Self:
-        role_keys = [(r.action, r.verdict) for r in self.role_rules]
+        role_keys = [(r.action, r.verdict, r.flag) for r in self.role_rules]
         if len(set(role_keys)) != len(role_keys):
             raise ValueError("two role rules for the same action and verdict")
         identity_keys = [r.action for r in self.identity_rules]
@@ -72,10 +81,21 @@ class Policy(Frozen):
         """The reason categories `action` may give, in the policy's order."""
         return tuple(c.text for c in self.reason_categories if c.action == action)
 
-    def min_role(self, action: Action, verdict: Verdict) -> Role | None:
-        """The minimum role for `action` on a result with `verdict`; None means nobody may."""
+    def min_role(
+        self, action: Action, verdict: Verdict, deciding: frozenset[str] = frozenset()
+    ) -> Role | None:
+        """The minimum role for `action` on a result with `verdict`; None means nobody may. `deciding`:
+        the codes of the flags behind the verdict; when a flag-specific rule covers every one of them,
+        the strictest of those rules decides (D-97)."""
+        specific = {
+            r.flag: r.min_role
+            for r in self.role_rules
+            if r.flag and r.action == action and r.verdict == verdict
+        }
+        if deciding and all(code in specific for code in deciding):
+            return max(specific[code] for code in deciding)
         general = None
-        for rule in self.role_rules:
+        for rule in (r for r in self.role_rules if r.flag is None):
             if rule.action == action and rule.verdict == verdict:
                 return rule.min_role
             if rule.action == action and rule.verdict is None:
@@ -100,6 +120,17 @@ _TIERED_ROLES = (
     RoleRule(action=Action.REQUEST_RERUN, min_role=Role.REVIEWER),
     RoleRule(action=Action.REQUEST_RERUN, verdict=Verdict.NEEDS_SUPERVISOR, min_role=Role.SUPERVISOR),
     RoleRule(action=Action.RECORD_EXCEPTION, verdict=Verdict.RERUN, min_role=Role.SUPERVISOR),
+    # D-97: a failed or missing check-standard bracket may be overruled by an analyst, with a reason
+    # (four-eyes still keeps the analyst who ran it off their own results).
+    RoleRule(
+        action=Action.RECORD_EXCEPTION, verdict=Verdict.RERUN, flag="CHECK_FAILED", min_role=Role.ANALYST
+    ),
+    RoleRule(
+        action=Action.ACCEPT,
+        verdict=Verdict.NEEDS_SUPERVISOR,
+        flag="CHECK_NOT_BRACKETED",
+        min_role=Role.ANALYST,
+    ),
     RoleRule(action=Action.RELEASE, min_role=Role.REVIEWER),
     RoleRule(action=Action.REJECT, min_role=Role.REVIEWER),
     RoleRule(action=Action.CORRECT, min_role=Role.ANALYST),
@@ -112,6 +143,7 @@ _DEMO_CATEGORIES = tuple(
         "MDL taken from the method validation",
         "Blank contribution assessed as negligible",
         "Recovery from a single spike accepted",
+        "Sample bracketed by the check standards of the previous run",
     )
 ) + tuple(
     ReasonCategory(action=Action.RECORD_EXCEPTION, text=text)
@@ -119,6 +151,7 @@ _DEMO_CATEGORIES = tuple(
         "Released without rerun",
         "Insufficient sample for a rerun",
         "Matrix interference confirmed",
+        "Check standard failure assessed: element not affected",
     )
 )
 

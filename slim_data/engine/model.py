@@ -35,6 +35,8 @@ class EvaluationInput(Frozen):
     excluded_reading_ids: frozenset[int] = frozenset()
     limits: tuple[SampleLimits, ...] = ()
     calibrations: tuple[Calibration, ...] = ()  # of the runs the readings came from (D-90)
+    # run ID -> run code (D-97): a run re-exported while it grows comes in as several imports, one code
+    run_codes: tuple[tuple[int, str], ...] = ()
 
     @model_validator(mode="after")
     def _belongs_to_batch(self) -> Self:
@@ -93,7 +95,7 @@ class Cell:
     superseded: list[int] = field(default_factory=list)  # ids of older or excluded attempts set aside
     usable: bool = True  # False once a shape problem means later steps should leave it alone
     unit: str | None = None
-    mdl: Decimal | None = None  # effective MDL of the cups (the larger, if they differ)
+    mdl: Decimal | None = None  # effective MDL of the cups (the larger; the kept cups' from reported_value@2)
     agree: bool | None = None
     selection: Selection = Selection.UNDECIDED
     chosen_replicate: int | None = None
@@ -129,6 +131,7 @@ class BatchState:
     qc: tuple[Reading, ...] = ()  # check standards and CRMs (D-87)
     limits: dict[tuple[SampleRef, AnalyteRef], Limits] = field(default_factory=dict)
     calibrations: dict[tuple[int, AnalyteRef], Calibration] = field(default_factory=dict)  # (run, analyte)
+    run_codes: dict[int, str] = field(default_factory=dict)  # run ID -> run code (D-97)
     shared: dict[str, Any] = field(default_factory=dict)  # facts one step leaves for a later one
 
 

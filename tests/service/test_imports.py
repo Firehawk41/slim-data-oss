@@ -7,6 +7,7 @@ import pytest
 from sqlalchemy import func, select
 
 from slim_data.domain.enums import IdentitySource, ReadingRole, SourceKind
+from slim_data.domain.observations import CupDilution
 from slim_data.domain.policy import DEMO_POLICY
 from slim_data.engine.runner import evaluate
 from slim_data.persistence.observations import (
@@ -76,6 +77,13 @@ def test_import_registers_the_batch_and_stores_every_reading(session):
     assert data.readings[-1].role == ReadingRole.BLANK and data.readings[-1].sample is None
 
 
+def test_each_reading_keeps_its_line_as_the_run_order(session):  # D-97
+    receipt = imported(session)
+    data = evaluation_input(session, "PB-0001")
+    assert [r.sequence for r in data.readings] == [2, 3, 4, 5, 6, 7]
+    assert data.run_codes == ((receipt.run_id, "RUN-0042"),)
+
+
 def test_the_same_file_twice_is_refused_with_a_pointer(session):
     receipt = imported(session)
     with pytest.raises(ImportRefused, match=f"already imported as run {receipt.run_id}"):
@@ -97,7 +105,7 @@ def test_any_error_means_nothing_is_written(session):
         (edit(ROWS[0], analyte="Xx"), "analyte", "Xx is not an analyte of metals_icpms"),
         (edit(ROWS[0], analyte="Cl-", analysis_code="anions_ic"), "analysis_code", "mixes analyses"),
         (edit(ROWS[0], mdl="0"), "", "MDL must be positive"),
-        (edit(ROWS[0], dilution_factor="0.5"), "", "at least 1"),
+        (edit(ROWS[0], dilution_factor="0"), "", "must be positive"),
         (edit(ROWS[0], prep_method="hot block", replicate="3"), "prep_method", "more than one prep_method"),
         (
             edit(ROWS[2], spike_added="25", replicate="2"),
@@ -132,6 +140,39 @@ def test_a_file_can_add_readings_to_a_registered_batch(session):
     receipt = imported(session, csv(*(edit(r, prep_method="") for r in ROWS)))
     assert receipt.batches_registered == () and receipt.readings == 6
     assert get_batch(session, "PB-0001").samples == (sample(1), sample(2))
+
+
+def _prepped():
+    """make_batch with the dilutions slim-prep recorded for sample 1's cups and its spike (D-95)."""
+    cups = [(ReadingRole.CUP, 1, "0.06"), (ReadingRole.CUP, 2, "0.065"), (ReadingRole.SPIKE, 1, "0.05")]
+    return make_batch().model_copy(
+        update={
+            "dilutions": tuple(
+                CupDilution(sample=sample(1), role=r, replicate=n, dilution=Decimal(d)) for r, n, d in cups
+            )
+        }
+    )
+
+
+def test_the_prep_books_dilution_replaces_a_file_factor_of_1(session):  # D-95
+    register_batch(session, _prepped(), ANA)
+    assert get_batch(session, "PB-0001").dilutions == _prepped().dilutions
+    imported(session, csv(*(edit(r, prep_method="") for r in ROWS)))
+    by_cup = {
+        (str(r.sample), r.role, r.replicate): r.dilution
+        for r in evaluation_input(session, "PB-0001").readings
+    }
+    assert by_cup[("TR00042-01", ReadingRole.CUP, 1)] == Decimal("0.06")
+    assert by_cup[("TR00042-01", ReadingRole.SPIKE, 1)] == Decimal("0.05")
+    assert by_cup[("TR00042-02", ReadingRole.CUP, 1)] == Decimal("10")  # not prepped in slim-prep: the file's
+
+
+def test_a_file_factor_that_disagrees_with_the_prep_book_is_refused(session):
+    register_batch(session, _prepped(), ANA)
+    plan = preview(session, csv(edit(ROWS[0], dilution_factor="0.06"), edit(ROWS[1], dilution_factor="10")))
+    assert [(e.column, e.message) for e in plan.errors] == [
+        ("dilution", "the prep book recorded 0.065 for this cup, not 10")
+    ]
 
 
 @pytest.mark.parametrize(
@@ -257,7 +298,7 @@ def test_qc_rows_register_their_expected_values_with_the_batch_and_are_judged(se
     crm = batch.qc_expected(ReadingRole.CRM, analyte("Cu"))
     assert (crm.expected, crm.material, crm.lot) == (qty("2.00"), "CRM-7", "C-24")
     (cell,) = evaluate(evaluation_input(session, "PB-0050"), demo()).cells
-    trace = next(t for t in cell.trace if t["step"] == "qc_check@1")
+    trace = next(t for t in cell.trace if t["step"] == "qc_check@2")
     assert trace["check"][0]["recovery"] == "0.98" and [r["within"] for r in trace["crm"]] == [True, True]
 
 
@@ -419,3 +460,41 @@ def test_a_failed_calibration_in_the_export_reaches_the_results_from_that_run(se
     import_run(session, content, "labbook.xml", ROB, FakeLookup(), FakeStaff(), qtegra())
     results = evaluate(evaluation_input(session, "PB-0009"), demo()).cells
     assert results and all("CAL_FAILED" in [f.code for f in cell.flags] for cell in results)
+
+
+def test_evaluating_a_batch_judges_its_runs_calibration_and_verify_replays_old_and_new(session):
+    """D-98: evaluate_batch used to leave the run calibrations out, so calibration@1 never judged."""
+    from slim_data.demo.qtegra_export import RUN, export, measurement
+    from slim_data.engine.model import EvaluationInput
+    from slim_data.persistence.results import add_version, load_result
+    from slim_data.persistence.rulesets import publish_ruleset
+    from slim_data.service import workflow as wf
+    from slim_data.service.verify import verify
+    from tests.engine.helpers import DEMO
+    from tests.factories import SUE
+
+    poor = {e: ("0.9990", "0.9900", "0.020", "0.004") for e in ("7Li", "63Cu", "66Zn")}  # R² 0.990
+    standards = tuple(
+        measurement("STD", m["label"], standard=m["standard"], values=m["values"], calibration=poor)
+        for m in RUN[1:4]
+    )
+    import_run(
+        session,
+        export((RUN[0], *standards, *RUN[4:])),
+        "labbook.xml",
+        ROB,
+        FakeLookup(),
+        FakeStaff(),
+        qtegra(),
+    )
+    published = publish_ruleset(session, DEMO, SUE)
+    # As a version made before the fix was: without the calibrations, and no marker in its trace.
+    stored = evaluation_input(session, "PB-0009")
+    before = evaluate(EvaluationInput(**{**dict(stored), "calibrations": ()}), published.validated).cells[0]
+    old = wf._version(before, published, frozenset({"rob"}), SUE)
+    add_version(session, before.sample, before.analyte, old, get_batch(session, "PB-0009").id)
+    assert "CAL_FAILED" not in [f.code for f in old.flags] and "calibrations" not in old.trace
+    wf.evaluate_batch(session, "PB-0009", SUE, FakeLookup())
+    now = load_result(session, before.sample, before.analyte).current
+    assert now.version == 2 and "CAL_FAILED" in [f.code for f in now.flags] and now.trace["calibrations"]
+    assert verify(session).ok

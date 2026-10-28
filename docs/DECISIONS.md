@@ -998,3 +998,81 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   4. Its figures are the rung's own params (demo: D-90's numbers), not read from `precision@1`:
      released steps don't change, and a lab may suggest on one threshold and decide on another.
   5. `cup_choice@1` stays for replay; the demo metals ruleset moves to @2.
+
+- **D-93 A dilution factor below 1** (Jamie, 2026-10-27, for slim-prep). An evaporation concentrates the
+  sample (e.g. 10 g made up to 1 g: factor 0.1), so a reading's dilution factor only has to be positive.
+  Value and MDL scale by it as before (D-54). `qtegra/1` and `generic_csv/1` take it; 0 or less is refused.
+  - Rejected: a separate concentration factor (two names for one number).
+
+- **D-94 The MDL of the cups the result kept** (Jamie, 2026-10-27). The lab's MDL is IDL × the average
+  dilution of the sample's cups; Jamie: average only when both cups are kept. New step
+  `reported_value@2`: when the cups agree, the effective MDL is the mean of both cups' (MDL × average
+  dilution when the MDLs match); when one cup was chosen, that cup's own. The trace says which
+  (`mdl_from`). Later steps (method blank, spec limits) see the kept MDL.
+  1. Agreement and cup choice still use the larger effective MDL (`cup_shape@1`): nothing is kept yet,
+     and the larger is the cautious one. Changing them would need new versions of three steps.
+  2. `reported_value@1` stays for replay; the three demo rulesets move to @2. With equal dilutions
+     (every demo result so far) nothing changes.
+  - Rejected: the larger MDL as today (overstates the limit when one cup was diluted more and kept the
+    other); averaging always (a cup set aside shouldn't lower the limit).
+
+- **D-95 slim-prep hands its batches over; the prep book's dilution wins** (Jamie, 2026-10-27, as
+  proposed; slim-prep P-11, P-12).
+  1. "Send to results" in slim-prep registers the batch here before the run: samples, prep method,
+     spike amounts (in the analysis's unit) and each cup's dilution. The instrument file then brings
+     only readings, as for a batch registered by an earlier file (D-66).
+  2. Cup dilutions are batch data, as spike amounts are: a new append-only table
+     `prep_batch_dilutions` (sample, CUP or SPIKE, replicate, dilution). On import a prepped cup takes
+     the prep book's dilution. The file's factor may be left at 1 (not given); any other value must
+     agree, or the row is refused (a sequence mix-up), and with it the import (all-or-nothing, D-24).
+  3. A batch no file came from slim-prep for works as before: the file's factor.
+  4. Later slice: a prep correction after handoff (new dilution or spike amount) → slim-data
+     re-evaluates; released results go through the correction flow (amended report, D-69).
+  - Rejected: a warning only on disagreement (a mix-up would reach a report); slim-data asking
+    slim-prep through a port at import (two modules in one import; the batch row already has a home).
+
+- **D-96 A prep correction after handoff** (Jamie, 2026-10-27, as proposed: D-95 point 4).
+  1. Cup dilutions and spike amounts are versioned (migration 0008 for spikes; 0007 for dilutions, amended
+     the same day before release): `correct_prep` appends the next version of each changed entry with a
+     reason and who. `get_batch` reads the newest version as of any moment.
+  2. The prep dilution is applied when the batch is read for evaluation, not written into the readings:
+     `evaluation_input` gives each prepped cup's reading the prep book's dilution as it stood. Readings
+     stay as imported (D-04), and `verify` replays every version as of its making.
+  3. The host then re-evaluates: drafts get a new version; released results it changes are reported as
+     `released_affected` and go through the correction flow (D-69, amended report).
+  4. Re-exports compare the stored readings as the prep book now says, so a correction doesn't make a
+     re-export look different.
+  - Rejected: re-importing the run (duplicate readings, and the file isn't what changed); editing the
+    stored readings (append-only).
+
+- **D-97 Check standards bracket the run; the rule is the lab's; an analyst may overrule** (Jamie,
+  2026-10-27; D-87 point 4).
+  1. Each reading keeps its line in the run's file as its run order (`readings.sequence`, migration
+     0009); a run re-exported while it grows is one run (by run code). Readings imported before keep
+     none and are judged batch-wide, as by `qc_check@1`.
+  2. `qc_check@2`, per role: the window, `judge` = `each_element` (default: each element on its own,
+     the sounder science, as Jamie holds) or `average` (one check passes or fails on the mean recovery
+     of its elements, and the verdict applies to all; some labs' rule), and `bracket`.
+  3. Bracketing (CHECK only): a sample's reading counts only if the check standards just before and
+     just after it in its run both passed. A failed check flags the samples on either side of it
+     (CHECK_FAILED, naming the check's line and run); a reading with no check before or after it is
+     CHECK_NOT_BRACKETED (demo NEEDS_SUPERVISOR). A CRM is prepped like a sample: batch-wide.
+  4. Overruling, auditable: a policy role rule may name a flag (`RoleRule.flag`): it applies when the
+     flags behind the verdict are all that code. Demo: an analyst may record an exception on a failed
+     check standard and accept a result that isn't bracketed, with a reason category and a note;
+     four-eyes still keeps the analyst who ran it off their own results. The policy is versioned,
+     published data: the quality section's to set.
+  5. `qc_check@1` stays for replay; the demo metals and anions rulesets move to @2 (bracketing on).
+     The demo scenarios put each check standard before and after their samples, as a real run does.
+  - Rejected: bracketing from slim-prep's planned run list (the file is what was run; P-21); judging
+    the average by default (one bad element can hide behind good ones).
+
+- **D-98 The run calibrations reach the evaluation** (Jamie, 2026-10-27; a bug found building D-97).
+  `evaluate_batch` rebuilt the engine's input without the run calibrations, so `calibration@1` (D-90)
+  never judged in the app (the engine tests passed them directly, so they didn't catch it). Fixed:
+  they go in. A version made with them says so in its trace (`"calibrations": true`); `verify` replays
+  each version as it was made, with them only when its trace says so, so versions from before the fix
+  still replay exactly. The next evaluation gives a draft from a run with a calibration a new version;
+  a released one it changes is reported (`released_affected`) for the correction flow.
+  - Rejected: replaying old versions with the calibrations (they would all "differ": the record must
+    say what was decided then, D-21).

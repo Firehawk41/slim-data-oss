@@ -82,6 +82,7 @@ def _build_state(data: EvaluationInput) -> BatchState:
         qc=tuple(qc),
         limits=limits,
         calibrations=calibrations,
+        run_codes=dict(data.run_codes),
     )
 
 

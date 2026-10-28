@@ -70,3 +70,21 @@ def test_source_kinds_default_to_all_and_a_lab_may_narrow_them():
     assert strict.source_kinds == {SourceKind.INSTRUMENT}
     with pytest.raises(ValidationError, match="at least 1"):
         Policy(name="none", role_rules=(), identity_rules=(), source_kinds=frozenset())
+
+
+def test_a_flag_specific_rule_needs_a_verdict_and_the_strictest_covering_rule_decides():
+    from slim_data.domain.policy import RoleRule
+
+    with pytest.raises(ValidationError, match="names the verdict"):
+        RoleRule(action=Action.ACCEPT, flag="X", min_role=Role.ANALYST)
+    rules = (
+        RoleRule(action=Action.ACCEPT, verdict=Verdict.NEEDS_SUPERVISOR, min_role=Role.SUPERVISOR),
+        RoleRule(action=Action.ACCEPT, verdict=Verdict.NEEDS_SUPERVISOR, flag="A", min_role=Role.ANALYST),
+        RoleRule(action=Action.ACCEPT, verdict=Verdict.NEEDS_SUPERVISOR, flag="B", min_role=Role.REVIEWER),
+    )
+    policy = DEMO_POLICY.model_copy(update={"role_rules": rules})
+    need = Verdict.NEEDS_SUPERVISOR
+    assert policy.min_role(Action.ACCEPT, need, frozenset({"A"})) == Role.ANALYST
+    assert policy.min_role(Action.ACCEPT, need, frozenset({"A", "B"})) == Role.REVIEWER
+    assert policy.min_role(Action.ACCEPT, need, frozenset({"A", "C"})) == Role.SUPERVISOR
+    assert policy.min_role(Action.ACCEPT, need) == Role.SUPERVISOR
