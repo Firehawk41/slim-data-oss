@@ -1154,3 +1154,11 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   3. The newest version equals the current tables (tested), as slim-data's and slim-prep's records do.
   - Rejected: change events replayed into a state (Claude had first proposed this; versions kept whole read
     back with no replay code, as the modules' records do); keeping it in the Postgres audit log only.
+
+- **D-105 A batch the prep book registered takes no new samples or spikes from a file** (Claude, agreed by
+  Jamie, 2026-10-28; review B5). A file may still add samples and spike amounts to a batch a file
+  registered (a run exported while still going, D-66). A batch slim-prep registered (it has prep
+  dilutions, D-95) is the prep book's: a row for a sample not in it, or a spike amount it doesn't record,
+  is refused at preview. QC expectations still come from the file (the prep book doesn't record them).
+  The prep book's own checks on the slim-prep side: P-23…P-27 (slim-prep-oss `docs/DECISIONS.md`).
+  - Rejected: letting the file add and flagging it (the prep book is the record of what was prepped).

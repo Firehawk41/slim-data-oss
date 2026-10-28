@@ -175,6 +175,21 @@ def test_a_file_factor_that_disagrees_with_the_prep_book_is_refused(session):
     ]
 
 
+def test_a_prepped_batch_takes_no_new_samples_or_spikes_from_a_file(session):  # D-105, review B5
+    register_batch(session, _prepped(), ANA)
+    plan = preview(
+        session,
+        csv(
+            edit(ROWS[0], lab_sample_id="TR00042-03", dilution_factor="1"),
+            edit(ROWS[3], role="SPIKE", replicate="1", spike_added="20", dilution_factor="1"),
+        ),
+    )
+    assert [(e.column, e.message) for e in plan.errors] == [
+        ("lab_sample_id", "batch PB-0001 came from the prep book: not one of its samples"),
+        ("spike_added", "batch PB-0001 came from the prep book: it records no such spike"),
+    ]
+
+
 @pytest.mark.parametrize(
     "row, column, message",
     [
