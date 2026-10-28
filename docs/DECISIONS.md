@@ -1076,3 +1076,69 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   a released one it changes is reported (`released_affected`) for the correction flow.
   - Rejected: replaying old versions with the calibrations (they would all "differ": the record must
     say what was decided then, D-21).
+
+- **D-99 A TR's status follows the facts** (Jamie, 2026-10-28; architecture review A2). Hand-set statuses
+  were a carry-over from before the modules were wired.
+  1. *Partial / complete report* come only from issuing a report, *invoiced* only from sending the
+     invoice (`fact=True` from those actions). A person can't set them by hand (409, saying how they
+     come); the request page no longer offers them. The LIMS token (spec §12) issues reports itself, so
+     it may still set the report statuses.
+  2. Cancelling asks the modules first: refused once a report was issued or a result released. Otherwise
+     it goes through, and the modules take no new work for the TR: no readings (`TrSampleTables`), no
+     decisions or releases on its results, no prep batch sent.
+  3. *In progress* stays a hand move as well as automatic (first readings, D-71): analyses without a
+     module still need it. Re-check which statuses are still hand-set each time a module is wired
+     (Jamie's rule).
+  - Rejected: cancelling everything downstream (released results and issued reports are facts; a
+    cancel can't unsay them).
+
+- **D-100 Managing users is a capability** (Claude, Jamie amended, 2026-10-28; review A1). Any staff member
+  could create users and deactivate anyone. Now:
+  1. *Manage users* is a capability (`slim_lims/capabilities.py`). By default a lab role brings it
+     (supervisor); the lab may grant it to a person too (an analyst who is the LIMS specialist), in
+     `user_capabilities`.
+  2. Only someone who holds it by their lab role grants or removes it. Nobody acts on someone with a
+     higher lab role, or gives a lab role above their own.
+  3. Demo personas never manage users (they are chosen, not logged in, D-74).
+  - Rejected: supervisors only, fixed (Jamie: the lab decides); a full role/permission editor (more
+    than the demo needs; capabilities are data and can grow).
+
+- **D-101 Small hardening from the review** (Claude, agreed by Jamie, 2026-10-28; review A4, A7, A8, A10).
+  1. *Login attempts* (host): 5 failures per account or 20 per address in 15 minutes lock that login
+     until the oldest ages out (429, the password isn't checked); a success clears the account's count.
+     In memory, per process: enough for the demo's one process.
+  2. *The lab's clock* (host, `labtime.LabClock`): the prep screens' "today" and the prep time are the
+     lab's (`LAB_TIMEZONE`), and a batch sent by API is put in the lab's zone, because slim-prep dates the
+     prep by it (a standard's expiry); an evening's batch is no longer dated tomorrow by UTC. Instants are
+     stored as they are. The demo seed uses the same clock.
+  3. *A DOCTYPE in a Qtegra file* was already refused by a byte check; the check moved into expat
+     itself, so a UTF-16 file can't slip one past it.
+  4. *Reports*: a test that both renderers escape typed text; the CSP stays the backstop.
+  - Rejected: a shared limiter store (Redis) for login attempts (one process; more moving parts than
+    the demo needs).
+
+- **D-102 A lab per visitor** (Jamie's requirement, Claude's mechanism, 2026-10-28; review A3). The public
+  demo was one shared database anyone could fill with junk; Jamie: every visitor starts fresh, and no
+  visitor sees another's.
+  1. A visitor's first persona gives them a lab of their own: a Postgres schema `lab_<16 hex>` seeded
+     with the whole demo, reached through `search_path`, so every module runs unchanged. Switching
+     persona keeps the lab; "Start again with a fresh lab" drops it; an hour idle drops it too.
+  2. Seeding takes ~3 s of CPU (measured; Render's free plan has a tenth of a CPU, so ~30 s), so two
+     spare labs are kept seeded in the background and a visitor takes one at once. The registry
+     (`public.demo_labs`) outlives restarts; at most 25 labs (the least recently used goes first).
+  3. In labs mode public keeps no app tables (a lab would see them through its search path): the shared
+     lab, for password logins and the CLI, is `DATABASE_SCHEMA` (e.g. `lab_shared`). The app refuses to
+     start otherwise; `cli empty-public --yes` clears it once.
+  4. Each lab has its own audit chain. slim-domain lists only public's tables to audit, so the host
+     hands it the lab's (parked for slim-domain: list `current_schema()`'s).
+  - Rejected: a reset on a timer (two visitors at once still share); a database per visitor (needs
+    CREATEDB, not given on the free plan); cloning a template schema in SQL (sequences, triggers and the
+    audit chain make it fragile; seeding is what the demo already trusts).
+
+- **D-103 Customer scoping fails closed** (Claude, agreed by Jamie, 2026-10-28; review A6). Listing TRs
+  took `customer_id=None` to mean "every customer"; a customer was kept to their own only because the
+  database requires their ID. Now every listing takes a `Scope` (no default), made by
+  `Scope.for_user`: a customer always gets their own customer, whatever they asked for; "every
+  customer" is staff's (and the slim-lims token's); a customer user without a customer raises (403),
+  never sees all. A test spies on each listing route a customer reaches.
+  - Rejected: keeping the check in each route (the next route forgets it).

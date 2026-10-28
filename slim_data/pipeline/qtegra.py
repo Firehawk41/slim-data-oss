@@ -24,6 +24,7 @@ from dataclasses import dataclass
 from datetime import datetime, tzinfo
 from decimal import Decimal, InvalidOperation, localcontext
 from typing import ClassVar
+from xml.parsers import expat
 
 from slim_data.domain.enums import ReadingRole, SourceKind
 from slim_data.domain.values import SampleRef
@@ -84,10 +85,10 @@ class Qtegra:
     run_code: str | None = None  # default: instrument and first start time
 
     def parse(self, content: bytes) -> ParsedFile:
-        if b"<!DOCTYPE" in content or b"<!ENTITY" in content:
-            return _file_error("a DOCTYPE in the file: not a Qtegra export")
         try:
-            root = ET.fromstring(content)
+            root = _xml(content)
+        except _Doctype:
+            return _file_error("a DOCTYPE in the file: not a Qtegra export")
         except ET.ParseError as error:
             return _file_error(f"not XML: {error}")
         table = root.find("ss:Worksheet/ss:Table", _NS)
@@ -209,6 +210,26 @@ class Qtegra:
                 )
             )
         return rows
+
+
+class _Doctype(Exception):
+    pass
+
+
+def _xml(content: bytes) -> ET.Element:
+    """Refuses a DOCTYPE with expat itself before parsing, so no encoding (UTF-16, say) slips one
+    past a byte check: no DTD, no entities. Malformed XML is left for ElementTree to report."""
+
+    def refuse(*_):
+        raise _Doctype
+
+    check = expat.ParserCreate()
+    check.StartDoctypeDeclHandler = refuse
+    try:
+        check.Parse(content, True)
+    except expat.ExpatError:
+        pass
+    return ET.fromstring(content)
 
 
 def _file_error(message: str) -> ParsedFile:

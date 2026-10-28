@@ -186,6 +186,7 @@ def test_rows_the_reader_does_not_take_are_ignored_not_errors(row, column, messa
     "content, message",
     [
         (b"<!DOCTYPE x [<!ENTITY a 'b'>]><x/>", "DOCTYPE"),
+        ("<!DOCTYPE x [<!ENTITY a 'b'>]><x>&a;</x>".encode("utf-16"), "DOCTYPE"),  # no byte check passes it
         (b"lab_sample_id,value\n", "not XML"),
         (b'<ss:Workbook xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet"/>', "no worksheet"),
     ],

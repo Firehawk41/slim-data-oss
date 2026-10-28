@@ -3,7 +3,7 @@
 > **Read first.** Design signed off 2026-10-19; now building (Phase B). Jamie is the **designer**; Claude
 > writes the code, then explains it until Jamie can defend every decision in an interview. Raise any
 > design change as a new decision (with a recommendation) before building it; push back when you
-> disagree. **Short replies; Jamie is token-constrained.**
+> disagree. **Short replies; Jamie is token-constrained.** Log who decided what in slim-lims-oss `docs/DEV_DIARY.md`.
 
 ## What this is
 
@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-98, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-103, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
