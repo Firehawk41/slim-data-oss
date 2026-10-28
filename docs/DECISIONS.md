@@ -1116,3 +1116,21 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   4. *Reports*: a test that both renderers escape typed text; the CSP stays the backstop.
   - Rejected: a shared limiter store (Redis) for login attempts (one process; more moving parts than
     the demo needs).
+
+- **D-102 A lab per visitor** (Jamie's requirement, Claude's mechanism, 2026-10-28; review A3). The public
+  demo was one shared database anyone could fill with junk; Jamie: every visitor starts fresh, and no
+  visitor sees another's.
+  1. A visitor's first persona gives them a lab of their own: a Postgres schema `lab_<16 hex>` seeded
+     with the whole demo, reached through `search_path`, so every module runs unchanged. Switching
+     persona keeps the lab; "Start again with a fresh lab" drops it; an hour idle drops it too.
+  2. Seeding takes ~3 s of CPU (measured; Render's free plan has a tenth of a CPU, so ~30 s), so two
+     spare labs are kept seeded in the background and a visitor takes one at once. The registry
+     (`public.demo_labs`) outlives restarts; at most 25 labs (the least recently used goes first).
+  3. In labs mode public keeps no app tables (a lab would see them through its search path): the shared
+     lab, for password logins and the CLI, is `DATABASE_SCHEMA` (e.g. `lab_shared`). The app refuses to
+     start otherwise; `cli empty-public --yes` clears it once.
+  4. Each lab has its own audit chain. slim-domain lists only public's tables to audit, so the host
+     hands it the lab's (parked for slim-domain: list `current_schema()`'s).
+  - Rejected: a reset on a timer (two visitors at once still share); a database per visitor (needs
+    CREATEDB, not given on the free plan); cloning a template schema in SQL (sequences, triggers and the
+    audit chain make it fragile; seeding is what the demo already trusts).
