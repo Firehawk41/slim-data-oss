@@ -1142,3 +1142,15 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   customer" is staff's (and the slim-lims token's); a customer user without a customer raises (403),
   never sees all. A test spies on each listing route a customer reaches.
   - Rejected: keeping the check in each route (the next route forgets it).
+
+- **D-104 A TR's history is kept whole** (Claude, agreed by Jamie, 2026-10-28; review A5). The host's TRs
+  were updated in place: on SQLite nothing recorded what a TR said before, and on Postgres only the audit
+  log did.
+  1. Every change (submitted, a chemical matched, checked in, each status) appends the whole TR as it now
+     stands to `tr_versions` (append-only triggers, migration 0010), with when, what and who. The other TR
+     tables stay as the current state, for reading fast.
+  2. `as_of(tr, time)` reads the TR as it stood; the request page lists its versions and opens any of
+     them read-only. TRs from before the history get their state as version 1 (`cli migrate`, the seed).
+  3. The newest version equals the current tables (tested), as slim-data's and slim-prep's records do.
+  - Rejected: change events replayed into a state (Claude had first proposed this; versions kept whole read
+    back with no replay code, as the modules' records do); keeping it in the Postgres audit log only.
