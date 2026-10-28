@@ -1102,3 +1102,17 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   3. Demo personas never manage users (they are chosen, not logged in, D-74).
   - Rejected: supervisors only, fixed (Jamie: the lab decides); a full role/permission editor (more
     than the demo needs; capabilities are data and can grow).
+
+- **D-101 Small hardening from the review** (Claude, agreed by Jamie, 2026-10-28; review A4, A7, A8, A10).
+  1. *Login attempts* (host): 5 failures per account or 20 per address in 15 minutes lock that login
+     until the oldest ages out (429, the password isn't checked); a success clears the account's count.
+     In memory, per process: enough for the demo's one process.
+  2. *The lab's clock* (host, `labtime.LabClock`): the prep screens' "today" and the prep time are the
+     lab's (`LAB_TIMEZONE`), and a batch sent by API is put in the lab's zone, because slim-prep dates the
+     prep by it (a standard's expiry); an evening's batch is no longer dated tomorrow by UTC. Instants are
+     stored as they are. The demo seed uses the same clock.
+  3. *A DOCTYPE in a Qtegra file* was already refused by a byte check; the check moved into expat
+     itself, so a UTF-16 file can't slip one past it.
+  4. *Reports*: a test that both renderers escape typed text; the CSP stays the backstop.
+  - Rejected: a shared limiter store (Redis) for login attempts (one process; more moving parts than
+    the demo needs).

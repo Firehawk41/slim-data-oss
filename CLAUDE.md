@@ -19,7 +19,7 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-100, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-101, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
