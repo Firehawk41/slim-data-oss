@@ -65,17 +65,13 @@ class QcHistory(Frozen):
 
 def qc_history(session: Session, since: datetime | None = None, as_of: datetime | None = None) -> QcHistory:
     rows, excluded, cals = observations.qc_history(session, since, as_of)
-    batches = {}
     found = []
     for row in rows:
-        if row.batch_code not in batches:
-            batches[row.batch_code] = observations.get_batch(session, row.batch_code, as_of)
         role = ReadingRole(row.role)
         analyte = AnalyteRef(analysis_id=row.analysis_id, code=row.analyte_code)
         with engine_arithmetic():
             measured = row.value * row.dilution
-            entry = batches[row.batch_code].qc_expected(role, analyte) if role.is_qc else None
-            recovery = None if entry is None else measured / entry.expected.value
+            recovery = None if row.expected is None else measured / row.expected
         found.append(
             QcReading(
                 reading_id=row.id,
@@ -91,10 +87,10 @@ def qc_history(session: Session, since: datetime | None = None, as_of: datetime 
                 role=role,
                 measured=Decimal(measured),
                 unit=row.unit,
-                expected=None if entry is None else entry.expected.value,
+                expected=row.expected,
                 recovery=recovery,
-                material=None if entry is None else entry.material,
-                lot=None if entry is None else entry.lot,
+                material=row.material,
+                lot=row.lot,
                 rsd=row.rsd,
                 istd_recovery=row.istd_recovery,
                 excluded=row.id in excluded,

@@ -592,8 +592,9 @@ def stored_with_runs(session: Session, batch_id: int) -> list[tuple[Reading, str
 def qc_history(
     session: Session, since: datetime | None = None, as_of: datetime | None = None
 ) -> tuple[list, frozenset[int], list]:
-    """Every BLANK, CHECK and CRM reading with its run and batch, the excluded ones' ids, and every
-    run's calibration with its run, oldest run first: what the quality charts read (D-107)."""
+    """Every BLANK, CHECK and CRM reading with its run, batch and expected value (one query), the
+    excluded ones' ids, and every run's calibration with its run, oldest run first: what the quality
+    charts read (D-107)."""
     batch_roles = [int(r) for r in ReadingRole if r.of_batch]
     when = [as_of_filter(readings.c.created_at, as_of)]
     if since is not None:
@@ -606,9 +607,20 @@ def qc_history(
             runs.c.analyzed_at,
             runs.c.analyst_id,
             prep_batches.c.code.label("batch_code"),
+            prep_batch_qc.c.expected,
+            prep_batch_qc.c.material,
+            prep_batch_qc.c.lot,
         )
         .join(runs, runs.c.id == readings.c.run_id)
         .join(prep_batches, prep_batches.c.id == readings.c.batch_id)
+        .outerjoin(
+            prep_batch_qc,
+            (prep_batch_qc.c.batch_id == readings.c.batch_id)
+            & (prep_batch_qc.c.role == readings.c.role)
+            & (prep_batch_qc.c.analysis_id == readings.c.analysis_id)
+            & (prep_batch_qc.c.analyte_code == readings.c.analyte_code)
+            & as_of_filter(prep_batch_qc.c.created_at, as_of),
+        )
         .where(readings.c.role.in_(batch_roles), *when)
         .order_by(runs.c.analyzed_at, readings.c.run_id, readings.c.sequence, readings.c.id)
     ).all()
