@@ -66,3 +66,16 @@ def test_excluded_readings_are_marked_and_since_and_as_of_filter(session):
         session, since=check.analyzed_at.replace(year=2100)
     )
     assert qc_history(session, as_of=before).readings == ()
+
+
+def test_a_qc_only_run_registers_a_qc_only_batch_with_nothing_to_review(session):  # D-108
+    from slim_data.demo.qtegra_export import RUN
+    from slim_data.service.views import batches
+
+    qc_rows = tuple(m for m in RUN if m["kind"] != "UNKNOWN" or m["comment"] == "BLANK")
+    content = export(run=qc_rows)
+    receipt = import_run(session, content, "qc.xml", ROB, FakeLookup(), FakeStaff(), reader())
+    assert receipt.batches_registered == ("PB-0009",)
+    (summary,) = batches(session)
+    assert summary.qc_only
+    assert {r.role for r in qc_history(session).readings} == {ReadingRole.BLANK, ReadingRole.CHECK}

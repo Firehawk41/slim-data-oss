@@ -8,7 +8,7 @@ takes.
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -296,13 +296,16 @@ def correct_prep(
 
 
 def list_batches(session: Session, as_of: datetime | None = None) -> list:
-    """Every prep batch's code, analysis, prep method and registration time, newest first."""
+    """Every prep batch's code, analysis, prep method, registration time and whether it has samples,
+    newest first."""
+    has_samples = exists().where(prep_batch_samples.c.batch_id == prep_batches.c.id).label("has_samples")
     return session.execute(
         select(
             prep_batches.c.code,
             prep_batches.c.analysis_id,
             prep_batches.c.prep_method,
             prep_batches.c.created_at,
+            has_samples,
         )
         .where(as_of_filter(prep_batches.c.created_at, as_of))
         .order_by(prep_batches.c.created_at.desc(), prep_batches.c.id.desc())
