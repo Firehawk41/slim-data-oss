@@ -33,7 +33,7 @@ M0–M7 are done and merged (skeleton, domain, engine, persistence, data in, wor
   beats the file's; dilution may be below 1 (D-93); a file adds no samples or spikes to such a batch (D-105).
 - **Host:** slim-lims-oss (D-82); host-side decisions (D-99…D-104) are logged here too.
 
-Next: phase 1 of slim-lims-oss `docs/ROADMAP.md` (instrument readers).
+Next for slim-data: nothing scheduled; the ecosystem's next phase is in slim-lims-oss `docs/ROADMAP.md`.
 Working defaults (batches, quiet runs, reviews with the checklist): slim-lims-oss CLAUDE.md.
 Read slim-lims-oss's CLAUDE.md first (OSS guard, CSRF, CSP rules).
 
