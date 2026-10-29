@@ -1,4 +1,4 @@
-"""qtegra/1 (D-89): Thermo Qtegra's SpreadsheetML export of one LabBook = one run.
+"""qtegra/1 (D-89) and qtegra/2 (D-106): Thermo Qtegra's SpreadsheetML export of one LabBook = one run.
 
 One sheet: four header rows (block, sweep, isotope with mode, unit), then one row per measurement in
 run order. Blocks are found by their header names, never by column number, and every block the
@@ -14,6 +14,10 @@ reader doesn't use is ignored, so a fuller export reads the same.
   before dilution (D-59), so the value is divided by it and the factor stored.
 * What Qtegra doesn't know (the prep batch, the analysis, who imports) comes in as reader options,
   chosen on the import screen; Qtegra's start times have no zone, so the lab's comes in too.
+
+qtegra/2 is qtegra/1 plus the conditions: the mode in each isotope heading (`65Cu (KED)` → `KED`) is
+kept on the element's readings and calibration, so the quality charts keep each mode a series of its
+own. A run may mix modes across elements; one element in two modes is still a file error.
 
 Pure: no database, no lookups. The file is XML from outside: a DOCTYPE (entities) is refused.
 """
@@ -67,6 +71,7 @@ class _Columns:
     istd: tuple  # columns of the internal standards' recoveries
     qc_reference: dict  # element -> column
     calibration: dict  # (element, attribute) -> column
+    modes: dict  # element -> the mode in its isotope heading
 
 
 @dataclass(frozen=True)
@@ -83,6 +88,7 @@ class Qtegra:
     timezone: tzinfo  # the lab's: Qtegra's start times have none
     prep_method: str | None = None
     run_code: str | None = None  # default: instrument and first start time
+    keeps_conditions: ClassVar[bool] = False
 
     def parse(self, content: bytes) -> ParsedFile:
         try:
@@ -103,7 +109,7 @@ class Qtegra:
         body = sorted((i, cells) for i, cells in grid.items() if i > 4)
         errors: list[RowError] = []
         ignored: list[RowError] = []
-        calibration = _calibration(body, columns)
+        calibration = self._calibration(body, columns)
         lods = {element: c.lod for element, c in calibration.items()}
         rows: list[ParsedRow] = []
         counts = {ReadingRole.BLANK: 0, ReadingRole.CHECK: 0}
@@ -207,9 +213,27 @@ class Qtegra:
                     qc_material=material,
                     rsd=rsds.get(element),
                     istd_recovery=istd,
+                    conditions=self._conditions(columns, element),
                 )
             )
         return rows
+
+    def _conditions(self, columns: _Columns, element: str) -> str | None:
+        return columns.modes.get(element) if self.keeps_conditions else None
+
+    def _calibration(self, body, columns: _Columns) -> dict[str, ParsedCalibration]:
+        found = _calibration(body, columns)
+        return {
+            e: c.model_copy(update={"conditions": self._conditions(columns, e)}) for e, c in found.items()
+        }
+
+
+@dataclass(frozen=True)
+class Qtegra2(Qtegra):
+    """qtegra/2 (D-106): qtegra/1, keeping each element's mode as its conditions."""
+
+    version: ClassVar[int] = 2
+    keeps_conditions: ClassVar[bool] = True
 
 
 class _Doctype(Exception):
@@ -254,7 +278,7 @@ def _grid(table) -> dict[int, dict[int, str | None]]:
 def _columns(header: list[dict]) -> _Columns:
     block, sub, name, unit = header
     instrument = comment = start = None
-    fields, average, rsd, istd, qc, calibration = {}, {}, {}, [], {}, {}
+    fields, average, rsd, istd, qc, calibration, modes = {}, {}, {}, [], {}, {}, {}
     for column, title in block.items():
         detail = sub.get(column)
         if title == "StartTime":
@@ -272,6 +296,7 @@ def _columns(header: list[dict]) -> _Columns:
                 if element in average:
                     raise _Bad("", f"two isotopes of {element}: export one")
                 average[element] = (column, measured_in)
+                modes[element] = _mode(name.get(column))
             elif title == RSD:
                 rsd[element] = column
             elif title == QC_REFERENCE:
@@ -290,7 +315,7 @@ def _columns(header: list[dict]) -> _Columns:
     ]
     if missing:
         raise _Bad("", "not in the export: " + ", ".join(missing) + " (D-89's scheme)")
-    return _Columns(instrument, comment, start, fields, average, rsd, tuple(istd), qc, calibration)
+    return _Columns(instrument, comment, start, fields, average, rsd, tuple(istd), qc, calibration, modes)
 
 
 def _calibration(body, columns: _Columns) -> dict[str, ParsedCalibration]:
@@ -336,6 +361,10 @@ def _element(name: str | None) -> str:
     if not match:
         raise _Bad("", f"not an isotope heading: {name!r}")
     return match.group(2)
+
+
+def _mode(name: str | None) -> str:
+    return _ISOTOPE.match(name or "").group(3).strip()[:50]
 
 
 def _unit(text: str | None) -> str:

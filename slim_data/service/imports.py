@@ -221,6 +221,7 @@ def _resolve(
                 rsd=row.rsd,
                 istd_recovery=row.istd_recovery,
                 sequence=row.line,  # the file's order is the run's order (D-97)
+                conditions=row.conditions,
             )
         except ValidationError as error:
             errors.append(_error(row, "", error.errors()[0]["msg"]))
@@ -473,7 +474,14 @@ def _content(reading: Reading) -> tuple:
     """What a re-export must repeat exactly, digits included."""
     mdl = None if reading.mdl is None else str(reading.mdl.value)
     evidence = tuple(None if v is None else str(v) for v in (reading.rsd, reading.istd_recovery))
-    return (str(reading.value.value), reading.value.unit, mdl, str(reading.dilution), *evidence)
+    return (
+        str(reading.value.value),
+        reading.value.unit,
+        mdl,
+        str(reading.dilution),
+        *evidence,
+        reading.conditions,
+    )
 
 
 def _error(row: ParsedRow, column: str, message: str) -> RowError:

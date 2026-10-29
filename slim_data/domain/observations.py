@@ -171,6 +171,7 @@ class Calibration(Frozen):
     determination: Dec | None = None  # R²
     lod: Dec | None = None
     bec: Dec | None = None
+    conditions: str | None = Field(default=None, min_length=1, max_length=50)  # e.g. plasma mode (D-106)
 
 
 class Reading(Frozen):
@@ -198,6 +199,8 @@ class Reading(Frozen):
     # Where it was run (D-97): its line in the run's file, so check standards can bracket it. None for
     # readings imported before 0009: they are judged batch-wide, as before.
     sequence: int | None = Field(default=None, ge=1)
+    # The instrument conditions it was measured under, e.g. the plasma mode (D-106); None = not said.
+    conditions: str | None = Field(default=None, min_length=1, max_length=50)
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:
