@@ -1231,3 +1231,33 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   queue by slack, a forecast from stage durations) is worth having: the live view on the host's board,
   the after-the-fact statistics in slim-quality. Parked; questions for later: the stages, whether a hold
   pauses the clock, a holiday calendar, rush clocks from the time of receipt.
+
+- **D-112 What an auditor reads from slim-data** (Claude, agreed by Jamie, 2026-10-30). Read-only
+  `service.audit`: `report_audit(issue)` gives each line's result version with everything behind it:
+  the readings the engine saw when it made the version (`as_of`, so later imports don't leak in), their
+  runs (file, hash, reader, analyst, importer, whether the file is kept), the run's calibration, the
+  batch's blanks and QC for that analyte with recoveries, the ruleset (name, id, content hash), the events
+  on that version, and a fresh replay (`verify.replay_version`). `issues_between(start, end)` lists reports
+  to pick from. `released_in_window(instrument, analyte, start, end)`: every released version made from a
+  batch with sample readings measured on that instrument in the window, with the reports that printed it
+  (what a nonconformity may have touched).
+  - Rejected: the host reading slim-data's tables (modules meet through read APIs, D-85, D-107).
+
+- **D-113 The vertical audit** (Jamie, 2026-10-30, as recommended). ISO 17025 §7.5, §8.4. The quality team
+  audits a released report end to end on one page: chosen at random from a period, or by number. The host
+  composes it from each module's read API: the TR as it stood when the report was issued (D-104), the
+  report file against its hash, per line slim-data's trail (D-112), the prep book's batch (slim-prep), the
+  QC charts as they stood at the run (slim-quality, `as_of`), and the audit-log chain on Postgres. The audit
+  is recorded in slim-quality (append-only: who, which report, conforming or findings, the findings);
+  findings raise a nonconformity in one click. The seed of internal audits (§8.8).
+
+- **D-114 Nonconformities with an impact assessment** (Jamie, 2026-10-30, as recommended). ISO 17025 §7.10,
+  §8.7. In slim-quality: a nonconformity is raised by hand or in one click from a flag, an event or an
+  audit, naming an instrument (and an analyte, or all) and a window; an ACTION flag never raises one by
+  itself (noise). Its record is a list of entries, append-only, and its state follows them: open →
+  assessed (a manager records a decision per released result the window touched: no action, notify the
+  customer, or amend; D-112 lists them; slim-quality never changes a result, an amendment is slim-data's
+  own correction) → action taken (root cause, action, owner, due) → effective (or not: a new action) →
+  closed (a manager, only once effective). The effectiveness check shows the flags on that instrument
+  since the action.
+  - Rejected: states set by hand (they'd drift from the facts, D-99); assessments that change results.

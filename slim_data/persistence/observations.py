@@ -635,3 +635,36 @@ def qc_history(
         .order_by(runs.c.analyzed_at, run_calibrations.c.run_id, run_calibrations.c.id)
     ).all()
     return found, excluded, cals
+
+
+def sample_readings_on(
+    session: Session, instrument: str, analyte_code: str | None, start: datetime, end: datetime
+) -> list:
+    """Samples' readings measured on `instrument` from `start` to `end` (one analyte, or all): the
+    results a nonconformity on that instrument may have touched (D-112). One row per sample, analyte,
+    batch and run."""
+    batch_roles = [int(r) for r in ReadingRole if r.of_batch]
+    where = [
+        runs.c.instrument == instrument,
+        runs.c.analyzed_at >= start,
+        runs.c.analyzed_at <= end,
+        readings.c.role.not_in(batch_roles),
+    ]
+    if analyte_code is not None:
+        where.append(readings.c.analyte_code == analyte_code)
+    return session.execute(
+        select(
+            readings.c.tr_number,
+            readings.c.position,
+            readings.c.analysis_id,
+            readings.c.analyte_code,
+            prep_batches.c.code.label("batch_code"),
+            runs.c.run_code,
+            runs.c.analyzed_at,
+        )
+        .join(runs, runs.c.id == readings.c.run_id)
+        .join(prep_batches, prep_batches.c.id == readings.c.batch_id)
+        .where(*where)
+        .distinct()
+        .order_by(runs.c.analyzed_at, readings.c.tr_number, readings.c.position, readings.c.analyte_code)
+    ).all()
