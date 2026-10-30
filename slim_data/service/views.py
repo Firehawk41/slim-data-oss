@@ -228,12 +228,17 @@ class BatchSummary(Frozen):
     analysis_id: int
     prep_method: str
     registered_at: datetime
+    qc_only: bool = False  # no samples: an instrument's QC run (D-108), for the quality charts, not review
 
 
 def batches(session: Session, as_of: datetime | None = None) -> tuple[BatchSummary, ...]:
     return tuple(
         BatchSummary(
-            code=r.code, analysis_id=r.analysis_id, prep_method=r.prep_method, registered_at=r.created_at
+            code=r.code,
+            analysis_id=r.analysis_id,
+            prep_method=r.prep_method,
+            registered_at=r.created_at,
+            qc_only=not r.has_samples,
         )
         for r in list_batches(session, as_of)
     )

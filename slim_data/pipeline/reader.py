@@ -54,6 +54,7 @@ class ParsedRow(Frozen):
     note: str | None = None  # why, recorded as the exclusion's reason
     rsd: Decimal | None = None  # replicate RSD, % (D-88)
     istd_recovery: Decimal | None = None  # internal standard recovery, % (D-88)
+    conditions: str | None = None  # the instrument conditions, e.g. the plasma mode (D-106)
 
 
 class ParsedCalibration(Frozen):
@@ -65,6 +66,7 @@ class ParsedCalibration(Frozen):
     determination: Decimal | None = None  # R²
     lod: Decimal | None = None
     bec: Decimal | None = None
+    conditions: str | None = None  # e.g. the plasma mode (D-106)
 
 
 class ParsedFile(Frozen):

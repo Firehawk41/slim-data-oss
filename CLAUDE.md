@@ -19,19 +19,22 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-105, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-111, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
 M0–M7 are done and merged (skeleton, domain, engine, persistence, data in, workflow, host wiring,
-`verify`); since then D-78…D-105 (latest decisions at the end of `docs/DECISIONS.md`). What exists now:
+`verify`); since then D-78…D-111 (latest decisions at the end of `docs/DECISIONS.md`). What exists now:
 - **Engine steps:** `cup_shape`, `linear_range`, `agreement`, `recovery`, `recovery_pooling`, `uncertainty`,
   `method_blank`, `precision`, `calibration`, `mdl_source`, `spec_limits` (@1); `cup_choice`,
   `reported_value`, `qc_check` (@1 and @2). Verdict = worst flag.
-- **Readers:** `generic_csv/1`, `paste/1`, `qtegra/1` (D-89; DOCTYPE refused by expat, D-101).
+- **Readers:** `generic_csv/1`, `paste/1`, `qtegra/1` (D-89; DOCTYPE refused by expat, D-101), `qtegra/2`
+  (keeps each element's mode as the reading's `conditions`, D-106; what the host uses).
 - **Prep handoff:** slim-prep registers batches and sends corrections (D-95, D-96); the prep book's dilution
   beats the file's; dilution may be below 1 (D-93); a file adds no samples or spikes to such a batch (D-105).
-- **Host:** slim-lims-oss (D-82); host-side decisions (D-99…D-104) are logged here too.
+- **Quality:** slim-quality-oss reads `service.quality.qc_history` through the host (D-107); a batch may be
+  QC-only (no samples, D-108). slim-quality's own decisions are D-109, D-110.
+- **Host:** slim-lims-oss (D-82); host-side decisions (D-99…D-104, D-111) are logged here too.
 
 Next for slim-data: nothing scheduled; the ecosystem's next phase is in slim-lims-oss `docs/ROADMAP.md`.
 Working defaults (batches, quiet runs, reviews with the checklist): slim-lims-oss CLAUDE.md.
@@ -47,11 +50,12 @@ slim_data/
 │   └── steps/       # cup_shape, linear_range, agreement, cup_choice, recovery, recovery_pooling,
 │                    #   reported_value, uncertainty, method_blank, qc_check, precision, calibration, mdl_source, spec_limits (@1); cup_choice@2, reported_value@2, qc_check@2
 ├── rulesets/        # ruleset files (JSON): demo_metals, demo_anions, demo_assay (D-78)
-├── pipeline/        # reader contract (reader.py) + generic_csv/1 + paste/1 + qtegra/1 (D-89); pure
+├── pipeline/        # reader contract (reader.py) + generic_csv/1 + paste/1 + qtegra/1, /2 (D-89, D-106); pure
 ├── persistence/     # oss_guard, db (make_engine = the only create_engine), migrate, migrations/,
 │                    #   types, tables, append_only, audit; repositories: rulesets, observations, results
 ├── service/         # imports (preview / all-or-nothing import), workflow (evaluate, review, release,
-│                    #   issues), views (report_view, batch_view, trace), verify (replay + host's chain check)
+│                    #   issues), views (report_view, batch_view, trace), verify (replay + host's chain check),
+│                    #   quality (qc_history: what slim-quality reads, D-107)
 ├── demo/            # scenarios.py: the named demo scenarios (DemoHost, run_scenarios), seeded through the service
 └── adapters/        # slim.py: ReferenceLookup over slim-domain + the host's TR samples
 tests/               # factories.py; conftest (session); domain/; engine/; persistence/; pipeline/ (fixtures); service/

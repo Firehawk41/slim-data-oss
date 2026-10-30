@@ -1162,3 +1162,72 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   is refused at preview. QC expectations still come from the file (the prep book doesn't record them).
   The prep book's own checks on the slim-prep side: P-23…P-27 (slim-prep-oss `docs/DECISIONS.md`).
   - Rejected: letting the file add and flagging it (the prep book is the record of what was prepped).
+
+- **D-106 Instrument conditions are kept** (Jamie, 2026-10-29; Claude found the gap). `qtegra/1` dropped
+  the mode from `65Cu (CP-Off-None)`, so cool and hot plasma (completely different conditions) were one
+  series. Readings and calibrations get an optional `conditions` label (migration 0010); `qtegra/2`
+  keeps each element's mode, `qtegra/1` is unchanged. A run may mix modes across elements; the quality
+  charts keep every mode a series of its own. One element in two modes in one run stays a file error.
+  The host imports Qtegra exports with `qtegra/2`.
+  - Rejected: modes as part of the analyte (results would split by mode; nobody asked for that); a
+    channel model with isotopes, wavelengths and a reported-channel step (too deep for now, Jamie).
+
+- **D-107 slim-quality reads slim-data's QC history through the host** (Claude, agreed by Jamie,
+  2026-10-29). `service.quality.qc_history(since, as_of)`: every blank, check standard and CRM reading
+  with its run (instrument, time, run order, conditions), recovery (measured × dilution ÷ expected, as
+  `qc_check` works it out) and exclusion, plus every run's calibration; one query, read-only. The host
+  adapts it to slim-quality's `QcSource` port; modules never import each other (D-85).
+  - Rejected: slim-quality reading slim-data's tables (couples two modules' schemas).
+
+- **D-108 QC-only batches** (Jamie, 2026-10-29, as recommended). The demo needs months of QC stored for
+  real, and an instrument's own QC run (calibration, check standards, blanks) has no customer samples. A
+  prep batch may now have no samples: it evaluates to no results, `batches()` marks it `qc_only`, and the
+  host keeps it off the results list and the board; its readings feed the quality charts.
+  - Rejected: an internal "QC history" TR riding along in every batch (a hundred demo batches in the
+    results list, a filter to keep it off the board); history generated on the fly (charts showing data
+    in no record).
+
+- **D-109 slim-quality, a new module** (Jamie, 2026-10-29). Roadmap phase 3, repo `slim-quality-oss`.
+  1. **Split:** part 1 (now): QC charts, a toolbox of trend and forecast tools, change control, events,
+     notes, signed QC reviews. Part 2 (phase 5): the audit tools (NC/CAPA, PT, a one-click vertical audit,
+     uncertainty from QC, management review pack, readiness by clause, the §7.11 pack). Part 3 (parked):
+     the tools' warnings on the review screen before release.
+  2. **Not read-only after all:** it writes its own append-only tables (change requests and decisions,
+     profile versions, limit sets, events, notes, reviews); it never changes a slim-data result.
+  3. **Roles:** two capabilities, *quality* (sees everything, records events and notes, proposes) and
+     *quality manager* (also decides changes and signs QC reviews), granted per person by whoever manages
+     users (D-100); a quality persona of each (QM, QU; lab role analyst). A manager may approve their own
+     proposal (a lab may have one): allowed, and shown as self-approved.
+  4. **Library rules as slim-data's:** `domain/` and `monitors/` pure; tools `name@version`, never edited;
+     own Alembic version table; SQLite + Postgres; 95 % branch coverage on domain + monitors.
+  - Rejected: one tool (Westgard only; Jamie: "going in with one tool seems like the wrong idea");
+    industry presets and industry-only tools (Jamie: keep it generic).
+
+- **D-110 The toolbox, the profile and the limits** (Claude proposed, shaped by Jamie, 2026-10-29).
+  1. **Series** keyed generically: instrument × analyte × conditions × measure × QC material × level.
+     Measures: check and CRM recovery, method blank, internal standard recovery, check RSD, calibration
+     LOD / BEC / r.
+  2. **Tools:** Westgard (each rule toggleable: 1_2s, 1_3s, 2_2s, R_4s, 4_1s, nx), EWMA, CUSUM, a
+     one-sided limit with an exceedance rate (blanks are skewed by contamination), a time-to-limit
+     forecast (a line through the newest points: when it leaves the acceptance window), and a shared
+     shift across instruments (a reagent or standard, not one instrument).
+  3. **The profile** (policy data, versioned) switches tools on per measure, sets their settings and each
+     flag's severity, and per measure the provisional-limit method and the acceptance window (starter:
+     recovery 75–125 %, D-87). **Backtest** shows what a candidate would have flagged before it's proposed.
+  4. **Limits** are set once and approved, never recomputed as data arrives (rolling limits absorb a
+     drift): from a baseline (mean ± SD, or median ± 1.4826 × MAD so contamination spikes don't widen
+     them) or entered (a certificate). Until approved, provisional limits from the first 40 points,
+     drawn dotted. A new limit set starts a new track: no rule's run spans two baselines.
+  5. **Charts** are SVG drawn on the server: no script (the CSP), and they print.
+  6. **Demo history:** 90 days of invented QC on two ICP-MS instruments (Fe and Zn in KED, Na in cool
+     plasma), imported through slim-data as `qtegra/2` files into QC-only batches; planted: cone wear on
+     ICP-MS 1 (internal standard sags, checks creep up inside ±25 %, Na's BEC rises), a Zn acid lot on
+     both, Na contamination spikes, a maintenance event, and one open change for a visitor to decide.
+  - Rejected: percentile upper limits (too noisy from a 20–40 point baseline; centre + 3 SD on robust
+    limits instead); limits recomputed as data arrives.
+
+- **D-111 Where a sample should be: parked** (Jamie, 2026-10-29). A view of each sample against its
+  turnaround (a stage plan per processing time: where it should be now, on track / at risk / late, a
+  queue by slack, a forecast from stage durations) is worth having: the live view on the host's board,
+  the after-the-fact statistics in slim-quality. Parked; questions for later: the stages, whether a hold
+  pauses the clock, a holiday calendar, rush clocks from the time of receipt.

@@ -8,7 +8,7 @@ takes.
 from collections.abc import Sequence
 from datetime import datetime
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -296,13 +296,16 @@ def correct_prep(
 
 
 def list_batches(session: Session, as_of: datetime | None = None) -> list:
-    """Every prep batch's code, analysis, prep method and registration time, newest first."""
+    """Every prep batch's code, analysis, prep method, registration time and whether it has samples,
+    newest first."""
+    has_samples = exists().where(prep_batch_samples.c.batch_id == prep_batches.c.id).label("has_samples")
     return session.execute(
         select(
             prep_batches.c.code,
             prep_batches.c.analysis_id,
             prep_batches.c.prep_method,
             prep_batches.c.created_at,
+            has_samples,
         )
         .where(as_of_filter(prep_batches.c.created_at, as_of))
         .order_by(prep_batches.c.created_at.desc(), prep_batches.c.id.desc())
@@ -372,6 +375,7 @@ def record_run(
                 determination=c.determination,
                 lod=c.lod,
                 bec=c.bec,
+                conditions=c.conditions,
             )
         )
     rows = [
@@ -392,6 +396,7 @@ def record_run(
             "istd_recovery": r.istd_recovery,
             "attempt": r.attempt,
             "sequence": r.sequence,
+            "conditions": r.conditions,
         }
         for code, r in batch_readings
     ]
@@ -435,6 +440,7 @@ def _calibrations(session: Session, which) -> tuple[Calibration, ...]:
             determination=row.determination,
             lod=row.lod,
             bec=row.bec,
+            conditions=row.conditions,
         )
         for row in rows
     )
@@ -541,6 +547,7 @@ def _reading(row) -> Reading:
         rsd=row.rsd,
         istd_recovery=row.istd_recovery,
         sequence=row.sequence,
+        conditions=row.conditions,
     )
 
 
@@ -580,3 +587,51 @@ def stored_with_runs(session: Session, batch_id: int) -> list[tuple[Reading, str
     ).all()
     excluded = _excluded(session, readings.c.batch_id == batch_id, None)
     return [(_reading(row), row.run_code, row.id in excluded) for row in rows]
+
+
+def qc_history(
+    session: Session, since: datetime | None = None, as_of: datetime | None = None
+) -> tuple[list, frozenset[int], list]:
+    """Every BLANK, CHECK and CRM reading with its run, batch and expected value (one query), the
+    excluded ones' ids, and every run's calibration with its run, oldest run first: what the quality
+    charts read (D-107)."""
+    batch_roles = [int(r) for r in ReadingRole if r.of_batch]
+    when = [as_of_filter(readings.c.created_at, as_of)]
+    if since is not None:
+        when.append(runs.c.analyzed_at >= since)
+    found = session.execute(
+        select(
+            readings,
+            runs.c.run_code,
+            runs.c.instrument,
+            runs.c.analyzed_at,
+            runs.c.analyst_id,
+            prep_batches.c.code.label("batch_code"),
+            prep_batch_qc.c.expected,
+            prep_batch_qc.c.material,
+            prep_batch_qc.c.lot,
+        )
+        .join(runs, runs.c.id == readings.c.run_id)
+        .join(prep_batches, prep_batches.c.id == readings.c.batch_id)
+        .outerjoin(
+            prep_batch_qc,
+            (prep_batch_qc.c.batch_id == readings.c.batch_id)
+            & (prep_batch_qc.c.role == readings.c.role)
+            & (prep_batch_qc.c.analysis_id == readings.c.analysis_id)
+            & (prep_batch_qc.c.analyte_code == readings.c.analyte_code)
+            & as_of_filter(prep_batch_qc.c.created_at, as_of),
+        )
+        .where(readings.c.role.in_(batch_roles), *when)
+        .order_by(runs.c.analyzed_at, readings.c.run_id, readings.c.sequence, readings.c.id)
+    ).all()
+    excluded = _excluded(session, readings.c.role.in_(batch_roles), as_of)
+    cal_when = [as_of_filter(run_calibrations.c.created_at, as_of)]
+    if since is not None:
+        cal_when.append(runs.c.analyzed_at >= since)
+    cals = session.execute(
+        select(run_calibrations, runs.c.run_code, runs.c.instrument, runs.c.analyzed_at)
+        .join(runs, runs.c.id == run_calibrations.c.run_id)
+        .where(*cal_when)
+        .order_by(runs.c.analyzed_at, run_calibrations.c.run_id, run_calibrations.c.id)
+    ).all()
+    return found, excluded, cals

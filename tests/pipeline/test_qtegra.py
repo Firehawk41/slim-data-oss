@@ -220,3 +220,25 @@ def test_a_reading_row_without_a_start_time():
 def test_cells_without_an_index_follow_the_one_before():
     content = export().replace(b' ss:Index="2"', b"", 1)  # SpreadsheetML may leave it out
     assert parse(content).errors == ()
+
+
+# --- qtegra/2: the conditions (D-106) ---------------------------------------------------------------
+
+
+def test_qtegra_1_keeps_no_conditions():
+    parsed = parse()
+    assert {r.conditions for r in parsed.rows} == {None}
+    assert {c.conditions for c in parsed.calibrations} == {None}
+
+
+def test_qtegra_2_keeps_each_elements_mode_on_its_readings_and_calibration():
+    from slim_data.pipeline.qtegra import Qtegra2
+
+    reader = Qtegra2(prep_batch="PB-0001", analysis_code="metals_icpms", analyst_id="ana", timezone=CHICAGO)
+    assert reader_key(reader) == "qtegra/2"
+    parsed = reader.parse(export(modes={"66Zn": "CP-Off-None"}))
+    assert parsed.errors == ()
+    assert {r.conditions for r in rows_for(parsed, "Cu")} == {"KED"}
+    assert {r.conditions for r in rows_for(parsed, "Zn")} == {"CP-Off-None"}  # modes mix across elements
+    by_element = {c.analyte_code: c.conditions for c in parsed.calibrations}
+    assert by_element == {"Li": "KED", "Cu": "KED", "Zn": "CP-Off-None"}

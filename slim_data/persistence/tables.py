@@ -196,6 +196,7 @@ run_calibrations = Table(
     Column("determination", ExactDecimal()),  # R²
     Column("lod", ExactDecimal()),
     Column("bec", ExactDecimal()),
+    Column("conditions", String(50)),  # e.g. the plasma mode, when the file says (D-106)
     Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
     UniqueConstraint("run_id", "analysis_id", "analyte_code", name="uq_run_calibrations_analyte"),
 )
@@ -226,6 +227,7 @@ readings = Table(
     Column("rsd", ExactDecimal()),  # replicate RSD, %, when the file has it (D-88)
     Column("istd_recovery", ExactDecimal()),  # internal standard recovery, %, when the file has it
     Column("sequence", Integer),  # its line in the run's file: the run order (D-97)
+    Column("conditions", String(50)),  # the instrument conditions, e.g. the plasma mode (D-106)
     Column("created_at", UtcDateTime(), nullable=False, server_default=db_now()),
     CheckConstraint(
         "(role IN (3, 4, 5) AND tr_number IS NULL AND position IS NULL)"

@@ -74,7 +74,8 @@ class PrepBatch(Frozen):
     code: str = Field(min_length=1, max_length=50)
     analysis_id: int = Field(ge=1)
     prep_method: str = Field(min_length=1, max_length=100)
-    samples: tuple[SampleRef, ...] = Field(min_length=1)
+    # None for a QC-only batch (D-108): an instrument's own check run, blanks and check standards only.
+    samples: tuple[SampleRef, ...] = ()
     spikes: tuple[SpikeAddition, ...] = ()
     qc: tuple[QcExpectation, ...] = ()
     dilutions: tuple[CupDilution, ...] = ()  # from slim-prep (D-95); none for a batch a file registered
@@ -110,6 +111,10 @@ class PrepBatch(Frozen):
                 raise ValueError(f"two dilutions for {entry.sample} {entry.role.name} {entry.replicate}")
             cups.add(key)
         return self
+
+    @property
+    def qc_only(self) -> bool:
+        return not self.samples
 
     def prep_dilution(self, sample: SampleRef, role: ReadingRole, replicate: int) -> Decimal | None:
         for entry in self.dilutions:
@@ -171,6 +176,7 @@ class Calibration(Frozen):
     determination: Dec | None = None  # R²
     lod: Dec | None = None
     bec: Dec | None = None
+    conditions: str | None = Field(default=None, min_length=1, max_length=50)  # e.g. plasma mode (D-106)
 
 
 class Reading(Frozen):
@@ -198,6 +204,8 @@ class Reading(Frozen):
     # Where it was run (D-97): its line in the run's file, so check standards can bracket it. None for
     # readings imported before 0009: they are judged batch-wide, as before.
     sequence: int | None = Field(default=None, ge=1)
+    # The instrument conditions it was measured under, e.g. the plasma mode (D-106); None = not said.
+    conditions: str | None = Field(default=None, min_length=1, max_length=50)
 
     @model_validator(mode="after")
     def _consistent(self) -> Self:

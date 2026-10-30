@@ -95,20 +95,26 @@ RUN = (
 )
 
 
-def export(run=RUN, elements=ELEMENTS, unit="ppb", leave_out=()) -> bytes:
-    """`leave_out` drops whole blocks or fields, as a scheme that doesn't tick them would."""
+def export(run=RUN, elements=ELEMENTS, unit="ppb", leave_out=(), modes=None) -> bytes:
+    """`leave_out` drops whole blocks or fields, as a scheme that doesn't tick them would; `modes` gives
+    an element a mode other than KED (D-106)."""
+    modes = modes or {}
+
+    def heading(e):
+        return f"{e} ({modes.get(e, 'KED')})"
+
     columns = [("SampleList", "SampleId", "", ""), ("SampleList", "SampleLine", "", "")]
     columns += [("Info", "UserName", "", ""), ("StartTime", "", "", "")]
     columns += [(INSTRUMENT, "Label", "", ""), (INSTRUMENT, "Comment", "", "")]
     columns += [(INSTRUMENT, "ExtCal", f, "") for f in FIELDS]
-    columns += [("Raw.Average", "0", f"{e} (KED)", "Y (cps)") for e in elements]  # unused: ignored
+    columns += [("Raw.Average", "0", heading(e), "Y (cps)") for e in elements]  # unused: ignored
     for block in ("ExtCal.Average", "ExtCal.RSD"):
         for e in (*elements, ISTD):
             columns.append(
-                (block, "0", f"{e} (KED)", "Y (%)" if e == ISTD or block == "ExtCal.RSD" else f"Y ({unit})")
+                (block, "0", heading(e), "Y (%)" if e == ISTD or block == "ExtCal.RSD" else f"Y ({unit})")
             )
     columns += [
-        ("ExtCal.QC.ReferenceAmount", "Calibration Test", f"{e} (KED)", f"Y ({unit})") for e in elements
+        ("ExtCal.QC.ReferenceAmount", "Calibration Test", heading(e), f"Y ({unit})") for e in elements
     ]
     for block in (
         "ExtCal.CorrelationCoefficient",
@@ -117,7 +123,7 @@ def export(run=RUN, elements=ELEMENTS, unit="ppb", leave_out=()) -> bytes:
         "ExtCal.BEC",
     ):
         columns += [
-            (block, "0", f"{e} (KED)", f"Y ({unit})" if "LOD" in block or "BEC" in block else "Y")
+            (block, "0", heading(e), f"Y ({unit})" if "LOD" in block or "BEC" in block else "Y")
             for e in (*elements, ISTD)
         ]
     columns = [c for c in columns if not set(c[:3]) & set(leave_out)]

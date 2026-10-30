@@ -37,7 +37,6 @@ def test_batch_finds_its_spike_amounts():
 @pytest.mark.parametrize(
     "overrides, message",
     [
-        (dict(samples=()), "at least 1"),
         (dict(samples=(sample(1), sample(1))), "appears twice"),
         (dict(spikes=(spike(3),)), "not in the batch"),
         (dict(spikes=(spike(1, analysis_id=2),)), "not this batch's analysis"),
@@ -47,6 +46,10 @@ def test_batch_finds_its_spike_amounts():
 def test_batch_rejects_inconsistent_shapes(overrides, message):
     with pytest.raises(ValidationError, match=message):
         batch(**overrides)
+
+
+def test_a_batch_with_no_samples_is_qc_only():  # D-108
+    assert batch(samples=()).qc_only and not batch().qc_only
 
 
 def dilution(position=1, role=ReadingRole.CUP, replicate=1, value="0.06"):
