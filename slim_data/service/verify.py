@@ -63,6 +63,19 @@ def verify(
     )
 
 
+def replay_version(
+    session: Session,
+    sample: SampleRef,
+    analyte: AnalyteRef,
+    batch_code: str,
+    stored: ResultVersion,
+    registry: StepRegistry | None = None,
+) -> str | None:
+    """One stored version against a fresh replay (the vertical audit's check, D-112): what differs,
+    or None when it matches."""
+    return _replay(session, sample, analyte, batch_code, stored, {}, registry)
+
+
 def _replay(
     session,
     sample: SampleRef,

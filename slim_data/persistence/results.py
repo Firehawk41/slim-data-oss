@@ -190,10 +190,57 @@ def issues_for_tr(
     condition = (
         report_issues.c.id == only if only is not None else as_of_filter(report_issues.c.created_at, as_of)
     )
+    return _issues(session, report_issues.c.tr_number == tr_number, condition)
+
+
+def issues_between(
+    session: Session, start: datetime | None = None, end: datetime | None = None
+) -> list[ReportIssue]:
+    """Every report issued from `start` to `end`, any TR, oldest first: what a vertical audit picks
+    from (D-112)."""
+    where = []
+    if start is not None:
+        where.append(report_issues.c.created_at >= start)
+    if end is not None:
+        where.append(report_issues.c.created_at <= end)
+    return _issues(session, *where)
+
+
+def get_issue(session: Session, issue_id: int) -> ReportIssue:
+    found = _issues(session, report_issues.c.id == issue_id)
+    if not found:
+        raise NotFound(f"no report issue {issue_id}")
+    return found[0]
+
+
+def version_batches(session: Session, sample: SampleRef, analyte: AnalyteRef) -> dict[int, str]:
+    """Each version of a result -> the code of the prep batch it was made from."""
+    result_id = _result_id(session, sample, analyte)
+    rows = session.execute(
+        select(result_versions.c.version, prep_batches.c.code)
+        .join(prep_batches, prep_batches.c.id == result_versions.c.batch_id)
+        .where(result_versions.c.result_id == result_id)
+    ).all()
+    return {row.version: row.code for row in rows}
+
+
+def issues_showing(session: Session, sample: SampleRef, analyte: AnalyteRef) -> dict[int, list[int]]:
+    """Each version of a result -> the report issues that printed it."""
+    result_id = _result_id(session, sample, analyte)
+    rows = session.execute(
+        select(report_issue_lines.c.version, report_issue_lines.c.issue_id)
+        .where(report_issue_lines.c.result_id == result_id)
+        .order_by(report_issue_lines.c.issue_id)
+    ).all()
+    found: dict[int, list[int]] = {}
+    for row in rows:
+        found.setdefault(row.version, []).append(row.issue_id)
+    return found
+
+
+def _issues(session: Session, *where) -> list[ReportIssue]:
     issues = session.execute(
-        select(report_issues)
-        .where(report_issues.c.tr_number == tr_number, condition)
-        .order_by(report_issues.c.created_at, report_issues.c.id)
+        select(report_issues).where(*where).order_by(report_issues.c.created_at, report_issues.c.id)
     ).all()
     found = []
     for issue in issues:
