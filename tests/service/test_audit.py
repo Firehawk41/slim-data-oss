@@ -73,3 +73,13 @@ def test_a_qc_reading_carries_its_recovery(session, lab):  # noqa: F811
     found = audit.result_audit(session, S2, CU, 1)
     (qc,) = [r for r in found.readings if r.role == ReadingRole.CHECK]
     assert (qc.expected, qc.recovery, qc.sample) == (10, Decimal("0.98"), None)
+
+
+def test_o1_every_batchs_samples_in_one_read(session, lab):  # noqa: F811  (app review 2026-10-30b)
+    from slim_data.persistence.observations import get_batch
+    from slim_data.service.views import samples_by_batch
+
+    lab()
+    found = samples_by_batch(session)
+    assert found == {"PB-0001": get_batch(session, "PB-0001").samples}
+    assert samples_by_batch(session, as_of=DAY_START) == {}
