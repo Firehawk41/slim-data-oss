@@ -1261,3 +1261,12 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   closed (a manager, only once effective). The effectiveness check shows the flags on that instrument
   since the action.
   - Rejected: states set by hand (they'd drift from the facts, D-99); assessments that change results.
+
+- **D-115 Demo labs follow the code they run on** (Claude, app review 2026-10-30b L1; a fix under the review
+  defaults). Spare and claimed labs outlived a deploy (the registry is in Postgres) with the schema they were
+  seeded with: after a deploy that added migrations (slim-quality 0002, slim-data 0010) a visitor could
+  claim a spare without the new tables and hit 500s. At start, the app now drops every spare (refilled from
+  the current seed) and brings each claimed lab up to date with every module's migrations and the audit
+  log (`demo_seed.upgrade_lab`); a lab that won't upgrade is dropped (its visitor starts afresh).
+  - Rejected: a seed-version column in the registry (the registry isn't under migrations; upgrading is
+    idempotent anyway); dropping claimed labs too (a visitor mid-tour would lose their work on every deploy).

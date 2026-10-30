@@ -8,7 +8,8 @@ Every read takes `as_of` (D-21), so a report can be rebuilt exactly as it stood 
   are listed as waiting.
 * `batch_view(batch)`: every result of a prep batch as it stands, for review, with what the engine
   saw and chose for it (its cups, D-81).
-* `batches()`: the prep batches, newest first, for the host's list of batches.
+* `batches()`: the prep batches, newest first, for the host's list of batches; `samples_by_batch()`
+  every batch's samples in one read (the board's index).
 """
 
 from datetime import datetime
@@ -22,6 +23,7 @@ from slim_data.domain.results import Result, ResultVersion
 from slim_data.domain.values import AnalyteRef, Quantity, SampleRef
 from slim_data.persistence._rows import NotFound
 from slim_data.persistence.observations import get_batch, list_batches
+from slim_data.persistence.observations import samples_by_batch as _samples_by_batch
 from slim_data.persistence.results import load_result, results_for_batch, results_for_tr
 
 
@@ -256,3 +258,8 @@ def trace(
     if result is None or (version is not None and not 1 <= version <= len(result.versions)):
         raise NotFound(f"no such version of {sample} {analyte.code}")
     return result.versions[(version or len(result.versions)) - 1].trace
+
+
+def samples_by_batch(session: Session, as_of: datetime | None = None) -> dict[str, tuple[SampleRef, ...]]:
+    """Batch code -> its samples, every batch at once; a QC-only batch has none and isn't listed."""
+    return _samples_by_batch(session, as_of)

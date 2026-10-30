@@ -668,3 +668,21 @@ def sample_readings_on(
         .distinct()
         .order_by(runs.c.analyzed_at, readings.c.tr_number, readings.c.position, readings.c.analyte_code)
     ).all()
+
+
+def samples_by_batch(session: Session, as_of: datetime | None = None) -> dict[str, tuple[SampleRef, ...]]:
+    """Every batch's samples in one query (app review 2026-10-30b O1): the board's index, without
+    reading each batch whole."""
+    rows = session.execute(
+        select(prep_batches.c.code, prep_batch_samples.c.tr_number, prep_batch_samples.c.position)
+        .join(prep_batch_samples, prep_batch_samples.c.batch_id == prep_batches.c.id)
+        .where(
+            as_of_filter(prep_batches.c.created_at, as_of),
+            as_of_filter(prep_batch_samples.c.created_at, as_of),
+        )
+        .order_by(prep_batches.c.id, prep_batch_samples.c.id)
+    ).all()
+    found: dict[str, list[SampleRef]] = {}
+    for row in rows:
+        found.setdefault(row.code, []).append(SampleRef(tr_number=row.tr_number, position=row.position))
+    return {code: tuple(samples) for code, samples in found.items()}
