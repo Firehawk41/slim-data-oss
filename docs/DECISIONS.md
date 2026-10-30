@@ -1270,3 +1270,31 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   log (`demo_seed.upgrade_lab`); a lab that won't upgrade is dropped (its visitor starts afresh).
   - Rejected: a seed-version column in the registry (the registry isn't under migrations; upgrading is
     idempotent anyway); dropping claimed labs too (a visitor mid-tour would lose their work on every deploy).
+
+- **D-116 slim-prep calls slim-data's handoff API, not its persistence** (Jamie, 2026-10-30, as recommended;
+  app review R2). slim-prep imported slim-data's persistence (`register_batch`, `correct_prep`, `get_batch`):
+  module rule 2 broken by design (D-95), and slim-prep bound to slim-data's internals. Now
+  `slim_data.service.handoff` is the whole surface: `prepped_batch`, `register_prepped_batch` (raises
+  `CodeTaken`), `correct_prepped_batch`, with slim-data's domain types as the vocabulary. D-95 and D-96 are
+  unchanged. slim-prep's code imports only these (its tests may set up slim-data's tables directly).
+  - Rejected: the host composing the handoff as it does for slim-quality (the handoff is one transaction of
+    two modules' writes; moving it into the host spreads D-95's rules over three repos).
+
+- **D-117 Every module pinned to a commit** (Jamie, 2026-10-30, as recommended; app review R1). The host,
+  Render's build and slim-prep installed every module from `@main`: a merge anywhere changed what the next
+  deploy ran, untested against the host, and no deploy could be reproduced. Now the host (the only app)
+  pins each module to a commit in `pyproject.toml`, and CI and the Render build use those pins; a module
+  change reaches the app only through a host PR that bumps its pin (CI tests that exact set). Libraries
+  name their library dependencies without a version (slim-prep: `slim-data`); their own CI installs it
+  from git.
+  - Rejected: release tags (a tag per merge in five repos, for one consumer); pinning in each library too
+    (two pins of one module disagree, and pip refuses).
+
+- **D-118 The accounting CSV is safe at its source** (Jamie, 2026-10-30, as recommended; app review R3).
+  Invoicing V5's `write_csv` writes any text cell a spreadsheet would run as a formula as text, as
+  slim-prep's run list does (P-26); numbers stay numbers. The host's guard (review I1) stays as its test.
+
+- **D-119 Payments are recorded, never written over** (Jamie, 2026-10-30, as recommended; app review R4).
+  Recording a payment updated the invoice row (`paid_on`): its history lived only in Postgres's audit log, as
+  TRs' did before D-104. Now a payment is a row of its own (`tr_invoice_payments`, append-only like
+  `tr_versions`), and an invoice is paid when it has one; invoice rows are append-only too.
