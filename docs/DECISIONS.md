@@ -1298,3 +1298,26 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   Recording a payment updated the invoice row (`paid_on`): its history lived only in Postgres's audit log, as
   TRs' did before D-104. Now a payment is a row of its own (`tr_invoice_payments`, append-only like
   `tr_versions`), and an invoice is paid when it has one; invoice rows are append-only too.
+
+- **D-120 A sample module, `slim-samples`** (Jamie, 2026-10-31, roadmap phase 4; the module's own decisions are
+  S-01…S-11 in slim-samples-oss `docs/DECISIONS.md`). The bottles a sample arrives in, their condition on
+  receipt, storage, retention and disposal (ISO 17025 §7.4) are a library of their own, like slim-prep: its
+  own tables and Alembic version table, append-only, no foreign keys into other modules, never importing
+  another module (roadmap rules 1–2). The unit is the container (kind, count, location, condition, the
+  analyses it serves); the lab owns the lists and each condition's effect (recorded / warn / block, default
+  warn); retention is a date with a hold, never a timer.
+  - Rejected: host tables (rule 3: the host does no department's work); inside slim-prep (receiving a sample
+    is not prepping it); a condition per sample (a leaking HDPE bottle must not mark the analysis run from the
+    intact PFA one).
+
+- **D-121 Check-in logs the bottles; the host composes the rest** (Jamie, 2026-10-31, as recommended; host).
+  The host's check-in (receipt, chemical matching, the status) and the bottles of every sample are one
+  transaction (`samples.check_in_with_bottles`); the check-in screen requires them. The machine contract
+  (spec §12) is unchanged: its check-in accepts `containers` but works without, and `/samples/log/{tr}` logs
+  them afterwards. The host also carries a bottle's condition to the report's notes (for the analyses that
+  bottle served, S-04) and refuses a prep batch for a sample whose blocking bottle is still in the lab
+  (`prep.refuse_blocked`), because slim-prep is not told about bottles. A condition raises no nonconformity by
+  itself (D-113).
+  - Rejected: moving the TR transition into slim-samples (the TR and reference data are the host's, rules 2–3,
+    and slim-samples can hold no foreign key into them); making the API require bottles (it would break the
+    private slim-lims's contract).
