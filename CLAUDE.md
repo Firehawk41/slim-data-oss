@@ -19,12 +19,13 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 | File | What |
 |---|---|
 | `docs/DESIGN.md` | **Signed off.** What gets built; §7.2 is the engine's step table. |
-| `docs/DECISIONS.md` | **Authoritative.** D-01…D-119, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
+| `docs/DECISIONS.md` | **Authoritative.** D-01…D-130, each with the options weighed. Append new ones; never edit history except to mark a same-day revision. |
 
 ## Status
 
 M0–M7 are done and merged (skeleton, domain, engine, persistence, data in, workflow, host wiring,
-`verify`); since then D-78…D-119 (latest decisions at the end of `docs/DECISIONS.md`). What exists now:
+`verify`); since then D-78…D-130 (latest decisions at the end of `docs/DECISIONS.md`; D-125…D-130 are
+slim-quality's batch 5a: equipment, reference lots, PT, complaints). What exists now:
 - **Engine steps:** `cup_shape`, `linear_range`, `agreement`, `recovery`, `recovery_pooling`, `uncertainty`,
   `method_blank`, `precision`, `calibration`, `mdl_source`, `spec_limits` (@1); `cup_choice`,
   `reported_value`, `qc_check` (@1 and @2). Verdict = worst flag.

@@ -1352,3 +1352,52 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   re-send is another row; a superseded issue is refused.
   - Rejected: real sending on the demo (a spam relay); a "waiting to send" queue (nothing would send it).
   - Parked: an SMTP transport behind the same port, recording what the server answered.
+
+- **D-125 The equipment register is slim-quality's** (Jamie, 2026-11-02, as recommended; roadmap phase 5a,
+  ISO 17025 §6.4). An item is the name slim-data (a run's instrument) and slim-prep (its balance and pipette
+  lists) already record, a kind (instrument, balance, pipette, other) and an append-only list of entries:
+  calibration (by whom, certificate, pass or fail, next due), intermediate check, out of service, returned,
+  note. The state follows the entries and the day asked about: out of service (taken out, or a calibration
+  or check failed, until returned after a pass), overdue (past due, or never calibrated), due (within the
+  profile's days), in service. An instrument's maintenance events are shown on its page, not copied.
+  - Rejected: equipment kept in slim-prep's lists (the calibration history isn't prep's); an item per
+    serial number with a rename history (the name is what every module records).
+- **D-126 What overdue or failed equipment does** (Jamie, 2026-11-02, as recommended). The effect per kind
+  (recorded / warn / block, as slim-samples' conditions) and for a name not in the register is profile
+  data, under change control; defaults: instrument warn, balance and pipette block, unregistered warn. Out
+  of service always blocks. The host checks a prep batch's balance and pipettes, and a standard's pipettes,
+  on the prep day (as `refuse_blocked`, D-121), and an import's instrument on the run's day (preview shows
+  it; a block refuses the import, a warning is shown). slim-data is not told. A failed calibration or check
+  offers an NC in one click (`NcSource.EQUIPMENT`, the item where an NC names its instrument), its window
+  from the last passing calibration; its impact is, for an instrument, what was measured on it
+  (`released_in_window`), and for a balance or pipette, what the prep batches that used it in the window
+  made (the host composes slim-prep and slim-data).
+  - Rejected: a flag in slim-data's engine (equipment data in a pure step); always blocking (a lapsed
+    instrument service doesn't void a run that passed its own calibration and QC).
+- **D-127 Reference lots are registered in slim-quality; slim-prep reads them** (Jamie, 2026-11-02; slim-prep
+  P-28). A lot: name, lot, supplier, certificate, traceability, certified value ± U, elements, expiry, shelf
+  life once opened; entries: opened, withdrawn, note. Effective expiry: the earlier of the expiry and opened
+  + shelf life. slim-prep's `StockLookup` (the host's `RegisterStocks`) replaces the stock book as the source;
+  the prep page offers only usable lots. Claude first proposed the host cross-checking typed lots, and
+  changed it on reading slim-prep's design (P-07, P-14 already put the registers in slim-quality). Because a
+  standard now needs a registered lot, `upgrade_lab` (D-115) seeds the demo register in a lab that has none.
+  - Parked: one click from a CRM's certificate to its QC series' certificate limits.
+- **D-128 Proficiency testing** (Jamie, 2026-11-02, as recommended; §7.7.2, ISO 13528). A PT sample is an
+  ordinary TR (the demo's provider is customer Z), checked in, prepped, imported, reviewed and released like
+  any. A round names the TR and sample as text, its analytes and the due date; submitting snapshots the
+  released results (value, unit, result and version), refused until each is released, and once only; the
+  provider's report gives X, σ_pt and optionally its z. z = (x − X)/σ_pt, classed unrounded on the profile's
+  cut-offs (≤ 2 satisfactory, < 3 questionable, ≥ 3 unsatisfactory), shown to 0.1; a provider's z that
+  differs is shown. An unsatisfactory score offers an NC, never raises one by itself.
+- **D-129 z trends use the QC tools** (Jamie, 2026-11-02, as recommended). z per scheme × analyte is a series
+  (`Measure.PT_Z`, the scheme where a QC series has its instrument, each point at the provider's report
+  date) judged on fixed limits, mean 0 and SD 1: a measure policy may now fix its limits (method
+  certificate with a centre and SD), which the profile form keeps. Westgard 1-3s is a z beyond 3, 2-2s two
+  questionable rounds in a row. No new tool.
+- **D-130 Complaints** (Jamie, 2026-11-02, as recommended; §7.9). Raised by a customer from their request
+  (`/requests/{tr}/complaints`), or logged there by staff; append-only entries: acknowledged, progress,
+  investigated (valid or not, §7.9.3), outcome, closed, note. The customer sees the entries meant for them
+  (§7.9.5, no email). The outcome is approved by a quality manager with no hand in the request's lab work:
+  the host composes who entered, reviewed, accepted or released its results, prepped its samples or signed
+  its reports (`involved_in`), and slim-quality refuses them (409). A complaint offers an NC in one click.
+  - Parked: complaint letters through the outbox (D-124).
