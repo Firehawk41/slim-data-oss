@@ -1321,3 +1321,34 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   - Rejected: moving the TR transition into slim-samples (the TR and reference data are the host's, rules 2–3,
     and slim-samples can hold no foreign key into them); making the API require bottles (it would break the
     private slim-lims's contract).
+
+- **D-122 Signing is issuing; the signatory may be the releaser** (Jamie, 2026-11-02; host and report
+  engine; roadmap phase 4). A report is signed by whoever issues it (ISO 17025 §7.8.2.1: who authorised it):
+  "Sign and issue" needs the `signatory` capability (D-100; supervisors by default, grantable per person) and
+  a name. The template's signature block (slim-report-engine `render_signature`: name, title, day of issue,
+  "End of report") goes last in the stored file, so the issue's hash covers it. The same report signed again
+  (another day or person) is no new issue: the unsigned bodies are compared. In the demo Sue (supervisor) and
+  Rob (reviewer, who the scenarios issue as) sign.
+  - Why no "signatory ≠ releaser" rule: four-eyes already stands at release (D-18, D-62: nobody reviews or
+    releases results on readings they entered). Release is per result; signing covers the whole report,
+    often results released by several people, and is usually the senior reviewer's. Claude first proposed
+    the rule as a lab setting and withdrew it when Jamie asked what it added.
+  - Rejected: a separate "awaiting signature" queue (a status for little gain); the block appended by the host
+    (the report's layout would live in two repos; Jamie gave the go-ahead to change the template).
+
+- **D-123 The report PDF is made once, at issue** (Jamie, 2026-11-02, as recommended; host). WeasyPrint renders
+  the stored HTML (A4; each page names the report and says "Page n of m") and the PDF is kept beside it with
+  its own sha256 (`report_pdfs`, append-only); the download re-checks the hash. Customers download their own;
+  the issued HTML stays the record. WeasyPrint needs Pango: Render's build fails (the running deploy stays up)
+  if the machine lacks it, and the Dockerfile installs it.
+  - Rejected: a PDF made on each download (what was sent could differ from what is served); a headless
+    browser (heavy for a free instance).
+
+- **D-124 Sending a report is a delivery kept in the outbox** (Jamie, 2026-11-02, as recommended; host).
+  "Send to customer" records a row (`report_deliveries`, append-only): the latest issue only, to the request's
+  `results_to` / `results_cc`, subject and body, the PDF by hash, who and when, and the transport. The demo's
+  only transport is the outbox (`/outbox`, "not transmitted"): the public demo must not mail addresses
+  visitors type, and its addresses are fictional. Sending changes no status (D-99: issuing already did); a
+  re-send is another row; a superseded issue is refused.
+  - Rejected: real sending on the demo (a spam relay); a "waiting to send" queue (nothing would send it).
+  - Parked: an SMTP transport behind the same port, recording what the server answered.
