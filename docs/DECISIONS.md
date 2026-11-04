@@ -1401,3 +1401,36 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   the host composes who entered, reviewed, accepted or released its results, prepped its samples or signed
   its reports (`involved_in`), and slim-quality refuses them (409). A complaint offers an NC in one click.
   - Parked: complaint letters through the outbox (D-124).
+
+- **D-131 Uncertainty from pooled QC** (Jamie, 2026-11-04, as recommended; §7.6, Nordtest TR 537).
+  slim-quality works out a relative estimate per instrument × analyte × mode: u_Rw is the SD of a check
+  standard's recoveries over a window; bias is the RMS of each CRM recovery's (r − 1) and each scored PT
+  result's (x − X) / X for the analyte (a PT scheme names no instrument), with u(Cref) entered and its basis
+  stated; U = k·√(u_Rw² + u_bias²), k = 2. Minimum points and k are profile data (change-controlled). A
+  quality manager signs an estimate; it is worked out again from the records at signing, never taken from
+  the form; each new one supersedes the last for its key, all kept (append-only).
+  - **Not on the report.** The report's ± stays the cups' half-difference (D-55). Showing U there needs a
+    new `uncertainty@2` step and ruleset data: a decision of its own, parked.
+  - Rejected: a full GUM budget per method (no data for it in SLIM); U from the cups' ½Δ (one run's
+    repeatability, not the lab's reproducibility).
+- **D-132 Competence: an authorisation register, checked after the fact** (Jamie, 2026-11-04, as
+  recommended; §6.2.5, §6.2.6). A quality manager authorises a person (the host's id) for an act (prep,
+  entering readings, review (accept and exception count), release, signing a report) on a method (an
+  analysis code, or every method), from a day, optionally until one, with the evidence; nobody authorises
+  themselves; withdrawn by an entry. The host gathers every act its modules recorded (slim-data's
+  versions and events, slim-prep's batches, issued reports) and slim-quality lists those no authorisation
+  covered on their day, plus those covered only by an authorisation recorded later (backdated). A
+  signature has no method: only "every method" covers it. A finding offers an NC in one click.
+  - **Found, not blocked.** Blocking an act at the moment (as the equipment gates, D-126) is parked with
+    part 3. The app's capabilities (signatory, D-122) still decide who may act; the register is the
+    competence record. The demo shows the difference: Rob may sign in the app, but no authorisation to sign
+    was recorded, so his reports are findings.
+- **D-133 Turnaround and customer trends** (Jamie, 2026-11-04, as recommended; §8.9 inputs). The host
+  hands slim-quality each received, uncancelled TR's dates through a `TurnaroundSource` port: received,
+  due (the app's service date: working days Mon–Fri from receipt, the slowest sample, an override wins),
+  first and complete report (the days its status first reached them, set by issuing, D-99). On time = the
+  complete report on or before the due day; late by working days; open, and open and late. Tallies by
+  month of receipt, customer and analysis; per customer, requests and samples per month, on-time %,
+  complaints (open). A crude clock, labelled so: no holiday calendar, a hold doesn't stop it, a rush counts
+  from receipt. Reads only: no table.
+  - Still parked: where a sample should be now (D-111, the live view).
