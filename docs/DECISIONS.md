@@ -1434,3 +1434,41 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   complaints (open). A crude clock, labelled so: no holiday calendar, a hold doesn't stop it, a rush counts
   from receipt. Reads only: no table.
   - Still parked: where a sample should be now (D-111, the live view).
+
+- **D-134 Risks and opportunities, scored** (Jamie, 2026-11-05, after seeing an example register; §8.5). A
+  register in slim-quality: what could happen (or go better), its source (process, equipment, impartiality,
+  customer, IT, other), an owner, a review date; a risk is scored likelihood × severity (1–5 each), banded
+  low / medium / high by the profile (defaults: medium from 5, high from 10; change-controlled). An
+  opportunity is not scored. Append-only entries: assessed (re-scored), action planned (what, who, due),
+  action done (which one), reviewed (the next date), closed (a quality manager, no action open), note.
+  Flagged: a high risk with no action planned since it was last scored, anything past its review date. One
+  click raises an NC when a risk happened (`NcSource.RISK`).
+  - Rejected: an FMEA RPN with detection (too heavy for a demo lab); a hand-picked high / medium / low.
+- **D-135 Internal audits** (Jamie, 2026-11-05, as recommended; §8.8). A programme per year: one planned
+  audit per clause (ISO 17025's, a constant) or area, a day, an auditor; rescheduled, cancelled (a quality
+  manager) or conducted, as a checklist: per line the sub-clause, what was checked, conforming /
+  observation / finding with its evidence. A finding raises an NC in one click, once (`NcSource.AUDIT`). The
+  auditor had no hand in the clause in the year before the day, checked when planned and when recorded:
+  the host says who acted in it (prep, readings, review, release, signing mapped to 7.2, 7.4, 7.5, 7.7,
+  7.8), slim-quality who kept its records in it (an NC's keeper doesn't audit 7.10 or 8.7). A vertical audit
+  (D-113) counts as an audit of 7.1, 7.4, 7.5, 7.7 and 7.8.
+  - Rejected: free-text audit reports (they can't be tallied per clause).
+- **D-136 Readiness per clause, and the management review pack** (Jamie, 2026-11-05, as recommended; §8.9).
+  Readiness is read-only: a row per clause, the evidence the modules hold (last audit, findings with no NC,
+  competence findings, equipment, lots, uncertainty, PT, on-time %, complaints, NCs and overdue actions,
+  risks, the audit programme, the last review, the §7.11 signature), red / amber / green from profile rules
+  (audit each clause within 365 days, NCs 60, complaints 30, uncertainty and PT 365, a review 365, 90 %
+  on time); a clause is the worst of its lines. The pack is the readiness view plus the §8.9.2 inputs the
+  records hold (d, e, f, h, j, m, n, o) for a period; the manager writes the others (a, b, c, g, i, k, l),
+  the attendees and at least one output (§8.9.3: kind, text, owner, due). Signing (a quality manager)
+  works the pack out again from the records and stores it whole, as JSON: what was shown stays shown. The
+  next pack's (d) lists the last review's outputs.
+  - Rejected: building a signed pack again from live records (it would drift).
+- **D-137 The software validation pack** (Jamie, 2026-11-05, as recommended; §7.11.2). The host builds it
+  from what is installed: each module's commit (pip's record of a pinned install, D-117), the database's
+  migration heads, slim-data's steps, slim-quality's tools, every module's `verify` run when shown
+  (read-only: no run is recorded anywhere, so "the last run" in the proposal became "run now"), and a link
+  to each commit's CI checks (not re-run). A page and a JSON download. A quality manager signs it in
+  slim-quality: the signature stores the versions and the pack, and covers exactly those versions (a
+  fingerprint); a pin bump makes it stale (amber on readiness's 7.11).
+  - Rejected: running the test suite from the app (slow, and a side-effecting web request).
