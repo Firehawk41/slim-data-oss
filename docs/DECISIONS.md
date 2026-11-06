@@ -1492,3 +1492,22 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   risk", forecasts, a holiday calendar.
   - Rejected: a card per sample × analysis (too many for a screen); sections by instrument (too fine,
     changes with maintenance); a staff login left open on the screen; anonymous-only screens; websockets.
+- **D-139 Quote screens** (Jamie, 2026-11-06, as recommended; roadmap phase 6). Quotes stay invoicing V5's:
+  per customer (or the default price list), lines of analyses priced per processing time with an optional
+  bulk price, valid from one day to another, never edited; pricing takes a customer's own valid quotes
+  first and the default list for the rest, so an expired quote just stops pricing. The host adds the
+  screens: `/quotes` lists them by state (in force, expiring within `QUOTE_EXPIRY_WARNING_DAYS`, default
+  30; not yet; expired, kept as a record), a form makes one (the new *pricing* capability: supervisors by
+  default, grantable), and "Replace" makes a new one prefilled from the old. A quote's page is the document
+  the customer gets; its PDF is made once (WeasyPrint, as D-123) and sending it records a message in the
+  outbox (D-124), never the default list. Customers see their own quotes and the default list, ask for a
+  quote (analyses, processing times, rough numbers, a note), and see the answer: a quote, or a reason it
+  was declined. A request form may name one of the customer's own quotes in force (`tr_quotes`, beside
+  the TR, so the TR record and its machine contract are unchanged), for reference: pricing still takes
+  the cheapest valid line. No draft / accepted / declined states: a saved quote prices from its start
+  date; a customer's "Accept" is parked. Requests, their answers, PDFs, sendings and a TR's quote are all
+  append-only.
+  - **Not built: withdrawing a quote early** (agreed: a withdrawal row in V5 that pricing honours). V5's
+    pricing loads quotes itself, so only a V5 change can do it, and the invoicing repo couldn't be attached
+    to the build session. Until then a replaced quote stays in force to its expiry, and the page says so.
+  - Rejected: quotes as a new module (V5 already prices from them); editing a quote's expiry in place.
