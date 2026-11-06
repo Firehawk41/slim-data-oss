@@ -1472,3 +1472,23 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   slim-quality: the signature stores the versions and the pack, and covers exactly those versions (a
   fingerprint); a pin bump makes it stale (amber on readiness's 7.11).
   - Rejected: running the test suite from the app (slow, and a side-effecting web request).
+- **D-138 The day's board: what is due today, per section, on the lab's screens** (Jamie, 2026-11-06; the
+  live view D-111 parked, host-side). A page apart from the lab board: `/today`, the whole lab or one
+  section, today or the next working day. The unit is a sample × analysis, due on the request's service
+  date override if set, else receipt (before it, the expected arrival) + that sample's processing time in
+  working days. Shown: everything due on the day, plus anything due earlier not yet released (late, at the
+  top). Columns follow the facts, never dragged: not arrived, received, in prep (a slim-prep batch not yet
+  sent), on instrument (on a results batch, no results), in review (the board's chip says what), released
+  (done for the bench; reporting stays on the board). A card is one request's work in the section, in the
+  column of its least advanced piece; the header says how much is left, late and RUSH.
+  Sections are the lab's own (`lab_sections`): each owns catalog analyses, an analysis one section at most
+  (none: whole lab only); set up by the *lab displays* capability (supervisors by default, grantable).
+  A screen gets a **display link**: a secret, revocable URL (only its sha256 kept, shown once), read-only,
+  no login, reloading every minute (`meta refresh`, no script). **Two modes, a lab-wide switch any staff
+  member flips** (Jamie's amendment: anonymous only would be trivia, not useful): no visitors, the screens
+  show customer names; visitors in the lab, TR numbers only (§4.2). Never set: hidden (fails closed). The
+  switch is append-only rows, who and when. Staff on `/today` always see names. A bottle condition that
+  blocks prep shows as *Blocked*; a retention hold does not stop the clock. Still parked from D-111: "at
+  risk", forecasts, a holiday calendar.
+  - Rejected: a card per sample × analysis (too many for a screen); sections by instrument (too fine,
+    changes with maintenance); a staff login left open on the screen; anonymous-only screens; websockets.

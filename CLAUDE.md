@@ -24,10 +24,11 @@ past state), upgradable (versioned rulesets and steps, migrations). A **library*
 ## Status
 
 M0–M7 are done and merged (skeleton, domain, engine, persistence, data in, workflow, host wiring,
-`verify`); since then D-78…D-137 (latest decisions at the end of `docs/DECISIONS.md`; D-125…D-130 are
+`verify`); since then D-78…D-138 (latest decisions at the end of `docs/DECISIONS.md`; D-125…D-130 are
 slim-quality's batch 5a: equipment, reference lots, PT, complaints; D-131…D-133 its batch 5b: uncertainty
 from QC, competence, turnaround and customer trends; D-134…D-137 its batch 5c: risks, internal audits,
-readiness and the management review, the §7.11 pack). What exists now:
+readiness and the management review, the §7.11 pack; D-138 the host's day's board, per section, on the
+lab's screens). What exists now:
 - **Engine steps:** `cup_shape`, `linear_range`, `agreement`, `recovery`, `recovery_pooling`, `uncertainty`,
   `method_blank`, `precision`, `calibration`, `mdl_source`, `spec_limits` (@1); `cup_choice`,
   `reported_value`, `qc_check` (@1 and @2). Verdict = worst flag.
