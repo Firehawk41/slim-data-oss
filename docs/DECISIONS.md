@@ -1518,3 +1518,20 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   or a second time. The host: a Withdraw form on a quote's page (*pricing*; a reason required), the state
   *Withdrawn*, and Replace withdraws the old quote from the day the new one takes effect (or the old one's
   start, if later). A withdrawn quote can't be named on a new request. The host pins the V5 commit.
+- **D-141 Reference data upkeep** (Jamie, 2026-11-09, as recommended; roadmap phase 6). The lab keeps its
+  reference data in the app, on `/reference` (the new *reference data* capability: supervisors by
+  default, grantable). The app now **writes SLIM's tables, but only through slim-domain's own services**
+  (`CustomerService.create_customer` / `update_customer`, `ChemicalService.create_chemical`), with their
+  checks (unique names, complete addresses, prep methods from their lists) and, on Postgres, the audit log;
+  never by its own SQL. In this batch: customers added and edited, chemicals added (prep fields, KED
+  elements, metals instrument), and the app's own analysis catalog edited (group, request types, offered on
+  the form). Every change needs a reason and is kept in `reference_changes` (append-only: before, after,
+  who). Nothing is deleted (requests and results point at these rows; a request keeps its own snapshot of
+  the customer, so a rename leaves old requests as they were). A save reloads the cached copy at once.
+  A catalog sync from the CSV keeps what was edited in the app. Each visitor's demo lab has its own
+  reference cache, since its SLIM tables are its own (D-102).
+  - **Parked: spec limits.** slim-domain has no write for them, and a changed limit changes how results
+    are judged: it needs slim-domain write functions (Jamie's go-ahead) and change control (proposed,
+    approved by a quality manager). A batch of its own.
+  - Rejected: the app writing SLIM's tables with its own SQL; pending changes applied later by a sync (the
+    services' checks and the audit log already cover a direct write).
