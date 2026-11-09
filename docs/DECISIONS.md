@@ -1555,3 +1555,22 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     in `account_events` (append-only).
   - Rejected: WebAuthn this batch (more than it's worth here); SMS codes; a new crypto dependency for one
     small secret.
+- **D-143 Spec limit changes: proposed, approved, borne on the results** (Jamie, 2026-11-09, as recommended
+  but for who proposes and who approves). slim-domain gains `SpecificationService.set_limits`: one **limit
+  set** (customer or customer group × chemical × site × kind: spec limits or warning limits) replaced in one
+  transaction, its values checked (positive, finite), the cache refreshed. Jamie's go-ahead for changing
+  slim-domain: 2026-11-09.
+  - **Change control:** **quality staff or a quality manager** proposes (the *quality* or *quality manager*
+    capability; Jamie's amendment), with the set as it stood, as proposed, and why; one waiting proposal
+    per set. **A quality manager or a lab supervisor who didn't propose it** approves or rejects (Jamie's
+    amendment); a rejection needs a reason. Only approval writes, through slim-domain, and only if the set
+    on file is still what the proposal saw. Proposals and decisions are append-only.
+  - **On the results:** approving spec limits re-evaluates every results batch with samples of that
+    customer (or a site of that group) × chemical × site: unreleased results get a version judged by the
+    new limits ("spec limits changed (proposal N)"); released ones keep the limits they were judged by
+    (D-04) and those whose reported value passes one limit and not the other are listed, with one click to
+    raise an NC. Warning limits don't enter evaluation: nothing is re-evaluated.
+  - The host reads spec limits from the visitor's own lab on the demo (as reference data, D-141).
+  - Parked: report settings (assay spec text, report note, display label).
+  - Note: slim-domain-oss is synced from a private repo; the change must reach it there too, or a later
+    sync would drop it.
