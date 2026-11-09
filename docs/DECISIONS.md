@@ -1511,3 +1511,10 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     pricing loads quotes itself, so only a V5 change can do it, and the invoicing repo couldn't be attached
     to the build session. Until then a replaced quote stays in force to its expiry, and the page says so.
   - Rejected: quotes as a new module (V5 already prices from them); editing a quote's expiry in place.
+- **D-140 Withdrawing a quote early, built** (Jamie, 2026-11-09; finishes D-139 #3). In invoicing V5: a
+  withdrawal is a row added (`inv_quote_withdrawals`, one per quote: from which day, by whom, why), never an
+  edit of the quote; `Quote.withdrawn_from` comes back with every quote and `valid_on` is false from that
+  day, so pricing honours it unchanged. Refused for a day before the quote takes effect or after it expires,
+  or a second time. The host: a Withdraw form on a quote's page (*pricing*; a reason required), the state
+  *Withdrawn*, and Replace withdraws the old quote from the day the new one takes effect (or the old one's
+  start, if later). A withdrawn quote can't be named on a new request. The host pins the V5 commit.
