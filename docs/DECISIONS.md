@@ -1535,3 +1535,23 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
     approved by a quality manager). A batch of its own.
   - Rejected: the app writing SLIM's tables with its own SQL; pending changes applied later by a sync (the
     services' checks and the audit log already cover a direct write).
+- **D-142 Accounts: password reset and MFA** (Jamie, 2026-11-09, as recommended; roadmap phase 6).
+  - **Reset:** whoever manages users makes a one-time link for a user they may manage (never a persona):
+    shown once on screen and kept as a message in the outbox (not transmitted, D-124); 24 hours, one use,
+    only its token's sha256 kept. Setting the new password bumps the user's `auth_version`, which signs
+    every older session out (sessions are signed cookies, so each carries the number it began with). No
+    public "forgot password" form: without a mail transport it could only reveal who has an account.
+  - **Change:** a user changes their own password on `/account` (the current one first; 12+ characters);
+    other sessions end, this one stays.
+  - **MFA:** an authenticator app (TOTP, RFC 6238, written on the standard library and checked against the
+    RFC's test values) with ten single-use recovery codes (bcrypt hashes). Setup shows a QR code as inline
+    SVG (`segno`, pure Python; no script). Optional for everyone; **required for supervisors and quality
+    managers** (`REQUIRE_MFA`, on by default): they go nowhere but the setup until it's done. Personas and
+    the API token skip it. Login is two steps; a wrong code counts toward the same lockout as a wrong
+    password (D-101), and a code never counts twice. A lost phone: a recovery code, or whoever manages
+    users resets the MFA, with a reason (signs the user out).
+  - **At rest:** the TOTP secret is sealed (encrypt-then-MAC, HMAC-SHA256 keystream and tag) with keys
+    derived from `SECRET_KEY`; rotating `SECRET_KEY` means setting MFA up again. Every account event is kept
+    in `account_events` (append-only).
+  - Rejected: WebAuthn this batch (more than it's worth here); SMS codes; a new crypto dependency for one
+    small secret.
