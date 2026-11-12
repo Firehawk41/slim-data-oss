@@ -1574,3 +1574,18 @@ LIMS with its own UX, demonstrable end to end: submission → check-in → resul
   - Parked: report settings (assay spec text, report note, display label).
   - Note: slim-domain-oss is synced from a private repo; the change must reach it there too, or a later
     sync would drop it.
+- **D-144 QC trend warnings at review and release** (Jamie, 2026-11-12, as recommended; slim-quality part 3).
+  The host shows slim-quality's flags where results are decided; slim-data is unchanged.
+  - **Where:** a QC trends panel on the results batch page, one entry per chart (an internal standard's
+    flags bear on every analyte), worst first, with a link to the chart; a marker on each affected row.
+    Released batches show it too.
+  - **Which flags:** on each run's instrument × analyte and its internal standard, from 7 days before the run
+    through the run (`context_at`), as known at review time; `LIMIT_AHEAD` forecasts included.
+  - **Warn, never block:** slim-data's rules decide validity (as the competence check, D-132). Releasing a
+    sample + analysis with an ACTION-severity flag needs a reason (web form and API, inside the release's
+    transaction; 409 without it); INFO and WARN are shown only.
+  - **The record:** the reason, who and when, with a frozen copy of the ACTION flags as shown, in the host's
+    `qc_acknowledgements` (append-only); the vertical audit (D-113) shows it under the result.
+  - **Who:** every reviewer and releaser; no quality capability needed. Charts are drawn once per page.
+  - Rejected: blocking release on an ACTION flag (a trend is advice, not a result's validity); storing the
+    acknowledgement in slim-data (a host concern; no module change for advice).
